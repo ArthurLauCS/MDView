@@ -101,6 +101,7 @@ export interface ActionContext {
   save?: () => void | Promise<void>
   undo?: () => void
   redo?: () => void
+  pickCodeLanguage?: () => void
   /** Push a transient message. */
   toast: (message: string, tone?: 'info' | 'success' | 'error') => void
 }

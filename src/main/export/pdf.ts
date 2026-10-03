@@ -7,17 +7,9 @@
  */
 import { BrowserWindow } from 'electron'
 import { promises as fs } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { buildHtml } from './html'
-
-/**
- * `printToPDF` needs a document URL. A data URL keeps the whole pipeline
- * single-file — no temp file to leak if the process dies mid-export — and
- * can exceed Chromium's URL length limit on an image-heavy document, so
- * base64 of the UTF-8 bytes is used rather than an escaped string.
- */
-function toDataUrl(html: string): string {
-  return `data:text/html;charset=utf-8;base64,${Buffer.from(html, 'utf8').toString('base64')}`
-}
 
 export async function renderPdf(
   docPath: string,
@@ -41,10 +33,15 @@ export async function renderPdf(
     }
   })
 
+  let temp: string | undefined
   try {
-    // Nothing to wait for after load: images are data URIs, the stylesheet
-    // uses system fonts only, and scripts are off in this window.
-    await win.loadURL(toDataUrl(build.html))
+    // Embedded fonts and images exceed Chromium's navigation URL size limit.
+    temp = await fs.mkdtemp(join(tmpdir(), 'mdview-pdf-'))
+    const page = join(temp, 'document.html')
+    // A file URL must not let document HTML fetch other files from this machine.
+    const policy = "default-src 'none'; img-src data: https: http:; style-src 'unsafe-inline'; font-src data:"
+    await fs.writeFile(page, build.html.replace('<head>', `<head><meta http-equiv="Content-Security-Policy" content="${policy}">`))
+    await win.loadFile(page)
 
     const pdf = await win.webContents.printToPDF({
       pageSize: 'A4',
@@ -58,6 +55,7 @@ export async function renderPdf(
     // Dispose even when printing threw — an offscreen window that outlives
     // its export keeps a renderer process alive for the rest of the session.
     win.destroy()
+    if (temp) await fs.rm(temp, { recursive: true, force: true })
   }
 }
 

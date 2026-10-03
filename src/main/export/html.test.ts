@@ -92,6 +92,11 @@ describe('standalone html', () => {
     expect(r.html).not.toContain('<script')
     expect(r.html).not.toContain('<link')
     expect(r.html).not.toMatch(/https?:\/\/[^"' ]*\.(css|js)/)
+    expect(r.html).toContain('data:font/otf;base64,')
+    expect(r.html).toContain('data:font/ttf;base64,')
+    expect(r.html).not.toContain("url('./fonts/")
+    expect(r.html).not.toContain('*:hover >')
+    expect(r.html).not.toMatch(/body,\s*\{/)
   })
 
   it('keeps the app code-block markup so the two renderings agree', async () => {

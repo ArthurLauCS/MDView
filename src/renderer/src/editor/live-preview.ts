@@ -2,12 +2,67 @@ import { StateField, type EditorState, type Range } from '@codemirror/state'
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
+import hljs from 'highlight.js/lib/common'
+import { detectLanguage } from '@shared/markdown/detect'
 import { frontmatterEnd } from '@shared/markdown/frontmatter'
 import { renderMarkdown } from '../markdown/render'
 import { resolveDocumentAssets } from '../markdown/resolve-assets'
 import { cellRange, escapePipes, findTableAt, parseTable, serializeTable, type TableContext } from '../table/model'
 
 const highlightDelimiter = { resolve: 'Highlight', mark: 'HighlightMark' }
+
+export function startCodeBlock(view: EditorView): boolean {
+  const { state } = view
+  const cursor = state.selection.main
+  if (state.readOnly || !cursor.empty) return false
+  const row = state.doc.lineAt(cursor.head)
+  const fence = /^( {0,3})(`{3,}|~{3,})[\w+-]*\s*$/.exec(row.text)
+  const node = syntaxTree(state).resolveInner(row.from + row.text.length, -1)
+  let block = node
+  while (block.parent && block.name !== 'FencedCode') block = block.parent
+  if (!fence || cursor.head !== row.to || block.name !== 'FencedCode' || block.from !== row.from + fence[1].length) return false
+  if (block.getChildren('CodeMark').length > 1) return false
+  view.dispatch({ changes: { from: row.to, insert: `\n${fence[1]}\n${fence[1]}${fence[2]}` }, selection: { anchor: row.to + 1 + fence[1].length }, userEvent: 'input.type' })
+  return true
+}
+
+export function leaveCodeBlock(view: EditorView, end: number): void {
+  if (view.state.readOnly) return
+  const doc = view.state.doc
+  const next = end < doc.length ? doc.lineAt(end + 1) : null
+  const at = next?.from ?? end
+  const insert = next ? (next.length ? '\n' : '') : '\n\n'
+  view.dispatch({ changes: { from: at, insert }, selection: { anchor: next ? at : at + insert.length }, scrollIntoView: true, userEvent: 'input' })
+  view.focus()
+}
+
+class CodeLanguage extends WidgetType {
+  constructor(readonly from: number, readonly infoFrom: number, readonly infoTo: number, readonly to: number,
+    readonly lang: string, readonly detected: string | null, readonly readOnly: boolean) { super() }
+  eq(other: CodeLanguage): boolean {
+    return this.from === other.from && this.infoFrom === other.infoFrom && this.infoTo === other.infoTo && this.to === other.to &&
+      this.lang === other.lang && this.detected === other.detected && this.readOnly === other.readOnly
+  }
+  toDOM(view: EditorView): HTMLElement {
+    const select = document.createElement('select')
+    select.className = 'live-code-language'
+    select.setAttribute('aria-label', '代码语言')
+    select.dataset.from = String(this.from)
+    select.dataset.to = String(this.to)
+    select.disabled = this.readOnly
+    select.add(new Option(this.detected ? `自动检测 · ${this.detected}` : '自动检测', ''))
+    select.add(new Option('纯文本', 'text'))
+    const languages = hljs.listLanguages()
+    if (this.lang && this.lang !== 'text' && !languages.includes(this.lang)) languages.push(this.lang)
+    for (const lang of languages.sort()) select.add(new Option(lang, lang))
+    select.value = this.lang
+    select.onchange = () => {
+      view.dispatch({ changes: { from: this.infoFrom, to: this.infoTo, insert: select.value }, userEvent: 'input' })
+      view.focus()
+    }
+    return select
+  }
+}
 
 export function liveMarkdown() {
   return markdown({ base: markdownLanguage, addKeymap: false, extensions: [{
@@ -285,14 +340,38 @@ export function previewDecorations(state: EditorState, docDir: string | null): D
         ranges.push(Decoration.replace({ widget: new Rendered('<hr>') }).range(from, to))
         return false
       }
-      if (name === 'FencedCode' || name === 'CodeBlock') {
+      if (name === 'FencedCode') {
+        const first = state.doc.lineAt(from)
+        const marks = node.node.getChildren('CodeMark')
+        const closing = marks[1]
+        const code = node.node.getChild('CodeText')
+        const lang = node.node.getChild('CodeInfo')
+        // Keep an unfinished opening fence visible until Enter creates a body.
+        if (first.to >= to) return false
+        const focused = state.selection.main.head >= from && state.selection.main.head <= to
+        for (let pos = first.from; pos <= to;) {
+          const row = state.doc.lineAt(pos)
+          const header = pos === first.from
+          const footer = !!closing && row.from === state.doc.lineAt(closing.from).from
+          ranges.push(Decoration.line({
+            class: `live-code-line${header ? ' live-code-header' : ''}${footer ? ' live-code-end' : ''}${focused && header ? ' is-active' : ''}`,
+            attributes: { 'data-code-from': String(from), ...(footer ? { 'data-code-end': String(to) } : {}) }
+          }).range(row.from))
+          pos = row.to + 1
+        }
+        ranges.push(Decoration.replace({ widget: new CodeLanguage(from, marks[0].to, first.to, to,
+          lang ? source.slice(lang.from, lang.to) : '', code ? detectLanguage(source.slice(code.from, code.to)).lang : null, state.readOnly)
+        }).range(from, first.to))
+        if (closing) hide(closing.from, closing.to)
+        return false
+      }
+      if (name === 'CodeBlock') {
         for (let pos = from; pos <= to;) {
           const row = state.doc.lineAt(pos)
           line(pos, 'live-code-line')
           pos = row.to + 1
         }
       }
-      if (name === 'CodeInfo' || name === 'CodeMark') mark(from, to, 'live-code-info')
       if (name === 'Table') {
         const ctx = findTableAt(source, from)
         if (ctx) ranges.push(Decoration.replace({ widget: new LiveTable(ctx, docDir, state.readOnly), block: true }).range(ctx.start, ctx.end))
@@ -324,7 +403,8 @@ function codeHighlights(state: EditorState): DecorationSet {
         else {
           walk(child)
           const className = (child as HTMLElement).className
-          if (className && pos > from) ranges.push(Decoration.mark({ class: className }).range(from, Math.min(pos, code.to)))
+          const to = Math.min(pos, code.to)
+          if (className && to > from) ranges.push(Decoration.mark({ class: className }).range(from, to))
         }
       }
     }
@@ -335,7 +415,17 @@ function codeHighlights(state: EditorState): DecorationSet {
 }
 
 export function livePreview(docDir: string | null) {
-  return [StateField.define<DecorationSet>({
+  return [EditorView.domEventHandlers({
+    mouseover(event, view) {
+      const line = (event.target as HTMLElement).closest<HTMLElement>('[data-code-from]')
+      for (const header of view.dom.querySelectorAll<HTMLElement>('.live-code-header')) {
+        header.classList.toggle('is-hovered', !!line && header.dataset.codeFrom === line.dataset.codeFrom)
+      }
+    },
+    mouseleave(_event, view) {
+      for (const header of view.dom.querySelectorAll('.live-code-header.is-hovered')) header.classList.remove('is-hovered')
+    }
+  }), StateField.define<DecorationSet>({
     create: (state) => previewDecorations(state, docDir),
     update: (value, tr) => tr.docChanged || tr.selection || tr.reconfigured || syntaxTree(tr.state) !== syntaxTree(tr.startState)
       ? previewDecorations(tr.state, docDir) : value,

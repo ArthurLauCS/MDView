@@ -36,5 +36,7 @@ describe('registered shortcuts', () => {
     expect(resolveBinding({ ...event('Ctrl+Shift+Space'), key: ' ' })?.id).toBe('table.select.all')
     expect(resolveBinding({ ...event('Ctrl+,'), key: ',' })?.id).toBe('view.settings')
     expect(resolveBinding({ ...event('Ctrl+Shift+E'), key: 'Process' })?.id).toBe('document.export')
+    expect(resolveBinding({ ...event('Ctrl+Shift+Digit1'), code: '', key: '!' })?.id).toBe('heading.1')
+    expect(resolveBinding({ ...event('Ctrl+Shift+Digit8'), code: '', key: '*' })?.id).toBe(lookup('Ctrl+Shift+Digit8')?.id)
   })
 })

@@ -1,192 +1,193 @@
+<div align="center">
+  <img src="build/icon.png" width="112" height="112" alt="MDView 应用徽标" />
+
 # MDView
 
-为长文档和大量表格设计的 Markdown 阅读器与编辑器。深色优先，动效克制，一切可键盘操作。
+**打开就写，图片随文档一起走。**
 
-## 使用规范：先写，再选择保存位置
+一款为中文写作、代码笔记与表格设计的 Markdown 桌面编辑器。
 
-1. 首次启动或没有可恢复的文档时，直接进入可输入的空白页。以后启动恢复上次已保存的文档；「新建文档」或 `Ctrl+N` 随时开始空白草稿。
-2. 未命名草稿只存在内存中，不创建 Markdown 文件，不启动自动保存或历史快照。标题栏和状态栏标示是否有未保存内容。
-3. 点击「保存文档」或按 `Ctrl+S`，首次保存时选择文件名与位置。取消选择会保留草稿；写入失败会显示错误并保留内容，不能当作已保存。
-4. 首次保存成功后，按设置启用自动保存和历史快照。关闭自动保存时，后续修改需要手动保存。保存不会清空撤销记录，YAML 元信息会完整保留。
-5. 「打开文档」或 `Ctrl+O` 可单独打开 Markdown 文件，无需先打开目录。「打开目录」用于浏览一组文档，不会替换正在编辑的内容。
-6. 新建、切换文档或关闭窗口前，有未保存修改就提供「保存 / 不保存 / 取消」。取消或保存失败会留在当前文档；选择不保存会丢弃未写盘的内容。内存草稿不能在退出后恢复。
-7. 插入、粘贴或拖入本地图片前，先保存文档以确定资源位置。图片放在文档旁边并使用相对路径，分享时一起携带图片文件夹。
-8. 大纲按标题层级折叠；点击标题后将其放到编辑区域顶部，文末标题也一样。设置是主界面的独立入口，快捷键在「设置 → 快捷键」中按功能分类、筛选和搜索。
+[![Release](https://img.shields.io/github/v/release/ArthurLauCS/MDView?color=d97757&label=release)](https://github.com/ArthurLauCS/MDView/releases/latest)
+![Windows x64](https://img.shields.io/badge/Windows-x64-30302e)
+[![License: MIT](https://img.shields.io/badge/license-MIT-30302e)](LICENSE)
 
-字体分为界面、正文、装饰标题与代码四类，可在「设置 → 外观与字体」分别选择。默认中文界面和正文使用内置圆体，英文及代码使用等宽字体，装饰标题使用内置站酷小薇体。字体配置即时生效并在重启后保留。
+[下载应用](https://github.com/ArthurLauCS/MDView/releases/latest) · [安装 AI 插件](#安装-ai-插件) · [开始写作](#开始写作) · [更新记录](CHANGELOG.md)
 
-## 核心设计：文档即文件夹
+</div>
 
-这是本项目与 Typora 一类工具最重要的分歧点。
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/images/editor-light.png" />
+  <img src="docs/images/editor-dark.png" alt="MDView 实际界面：层级大纲、直接编辑、代码高亮与表格" width="100%" />
+</picture>
 
-Typora 插入图片后把文件放到它自己的目录里，换台机器或发给别人就只剩破图。MDView 反过来：**图片存在文档旁边的文件夹里，写进 markdown 的是相对路径。**
+## 为写作留出空间
 
+| 写作 | 整理 | 交付 |
+| :--- | :--- | :--- |
+| 在排版后的正文中直接编辑 | 按标题层级折叠和跳转的大纲 | Markdown、ZIP、HTML、PDF 导出 |
+| 正文宽度、边距和侧栏可拖动调整 | 图片使用相对路径，跟随文档保存 | HTML 内嵌图片与字体，便于离线阅读 |
+| 代码语言自动检测，也可手动选择 | 右侧历史面板，查看差异与恢复版本 | Codex、Cursor、Claude Code 协作规则 |
+| 深浅主题，中文圆体与等宽代码字体 | 表格编辑、排序、统计与转置 | 本地文件，可用其他编辑器继续打开 |
+
+## 下载与安装
+
+前往 **[Releases](https://github.com/ArthurLauCS/MDView/releases/latest)**，下载并运行 `MDView-0.1.2-setup.exe`。安装时可以选择目录，并创建桌面快捷方式。
+
+当前提供 **Windows x64** 安装包；macOS 和 Linux 尚未验证。安装包暂未进行代码签名。
+
+只需要 AI 协作规则，可以下载同一发行版中的 `MDView-AI-skills-0.1.2.zip`，无需安装桌面应用。`SHA256SUMS.txt` 提供下载文件的校验值。
+
+## 开始写作
+
+1. **打开就写。** 启动后直接输入，`Ctrl+N` 新建，`Ctrl+O` 打开已有文档。
+2. **第一次保存再选位置。** `Ctrl+S` 选择文件名和目录；取消保存仍保留当前内容。未命名草稿不自动保存、不生成历史快照。
+3. **图片跟着文档走。** 保存文档后，粘贴、拖入或插入图片；应用复制图片并生成相对路径。本文图片集中在左侧栏底部。
+4. **整理与分享。** 可将散装 Markdown 整理成文档文件夹，再按 `Ctrl+Shift+E` 导出。
+
+保存后的自动保存和历史记录由「设置 → 文档与保存」控制。未命名草稿不会在退出后恢复，关闭前请保存。
+
+输入三个反引号后按回车即可开始代码块，无需先填写语言。悬停或在代码块内编辑时显示语言选择器；点击代码块下方可以继续写正文。正文两侧边距可直接拖动，双击恢复默认。
+
+## 文档与图片，一起保存
+
+MDView 使用普通文件，推荐每篇文档独占一个文件夹：
+
+```text
+我的笔记/
+├── 我的笔记.md
+└── 我的笔记_img/
+    ├── 架构图.svg
+    └── 操作截图.png
 ```
-我的笔记/                    ← 把这个文件夹整个打包发人
-├── 我的笔记.md              ← 入口文件
-├── 我的笔记_img/            ← 本文档专属资源
-│   ├── 2026-10-03-1a2b-架构图.png
-│   └── 2026-10-03-9f3c-时序图.png
-└── .mdview/                 ← 编辑器私有状态（可选）
-```
 
-源码里的写法：
+图片引用始终相对于 Markdown 文件：
 
 ```markdown
-![架构图](./我的笔记_img/2026-10-03-1a2b-架构图.png)
+![架构图](./我的笔记_img/架构图.svg)
 ```
 
-对方解压后双击 `.md` 就能看到全部图片，不需要任何服务器。
+把整个文件夹拷走，图片仍然可用。整理前可预览变更，并选择是否保留原文件。
 
-这条规则由代码强制保证，不是靠自觉：所有资源路径都出自 `src/main/services/paths.ts` 里唯一的 `buildRelativePath`，它会拒绝任何绝对路径、盘符或 `file://` 开头的输入并抛错。分隔符统一为 `/`，因为 Windows 的反斜杠在别的平台上会变成转义字符。
-
-### 散装文件：整理为文档文件夹
-
-`Ctrl+O` 或在资源管理器里双击都能打开任意 `.md`。它如果不在自己的文档文件夹里，标题栏下方会标出「散装文件」。点它（或在命令面板里找「整理为文档文件夹」）会先列出要复制的图片、找不到的图片和目标位置，确认后生成：
-
-```
-周报.md + 散落各处的图片   →   周报/周报.md + 周报/周报_img/
-```
-
-原文件可以保留，也可以移入回收站；引用网址的图片可以选择下载到本地。围栏代码块和行内代码里的图片语法是示例，不会被改动。散装文件不能打包 ZIP —— 它所在的文件夹不属于它。
-
-### 让 AI 直接按这个格式写
-
-`plugin/` 是一个 Claude Code 插件，随安装包分发。在「使用说明」里复制安装命令，或在仓库里执行：
-
-```
-/plugin marketplace add ./plugin
-/plugin install mdview@mdview
-```
-
-之后 `/mdview:doc 写一份……` 或直接让它写文档，产出的就是文档文件夹。两种图片模式：说「不要图片」得到纯文字；默认尽量配图，结构和流程画成 SVG，数据图表用脚本生成，照片类需要图像生成工具。写完它会运行 `skills/doc/scripts/check.mjs` 自查：路径是否相对、文件是否存在、有没有没用上的图片。
-
-其他 AI 助手没有插件机制时，把 `plugin/mdview/skills/*/SKILL.md` 的正文粘进它的规则文件即可。
-
-### 导出为纯 MD
-
-有时候你只想发一份 `.md`。`Ctrl+Shift+E` 打开导出面板，它会在写出前把会删掉的行逐条列出来给你确认：
-
-| 模式 | 行为 |
+| 格式 | 适合什么场景 |
 | :--- | :--- |
-| 纯 Markdown | 剥离图片与本地路径，alt 文字按设置保留为占位或丢弃 |
-| 打包 ZIP | 整个文档文件夹压缩，链接原样不动 |
-| 单文件 HTML | 图片转 base64 内嵌，可直接发邮件 |
-| PDF | A4 分页排版，图片内嵌 |
+| Markdown | 继续编辑；纯文本导出，可在导出面板预览图片等内容的处理方式 |
+| ZIP | 携带完整文档文件夹及图片，交给他人继续编辑 |
+| HTML | 单文件离线阅读，内嵌图片、样式与字体 |
+| PDF | 固定版式阅读与打印 |
 
-## 会话、历史与自动保存
+## 安装 AI 插件
 
-关掉再打开会恢复上次的目录与已保存文档。未命名草稿不参与自动保存；已保存文档按设置自动保存。
+提供两项能力：**doc** 生成符合文档文件夹格式的文档，**share** 预览并移除本地图片与链接，整理可单独分享的 Markdown。三种客户端使用[同一份规则](plugin/mdview/skills)，无需分别维护提示词。
 
-编辑内容按设置的间隔记录快照，关闭自动保存后仍会记录历史。点击右侧「历史」或按
-`Ctrl+H` 展开工具栏，可查看版本时间、大小、全文及相对上一版的逐行差异，编辑时列表自动刷新。
-恢复前先备份当前内容；恢复也可以用 `Ctrl+Z` 撤销。连续保存相同内容不会产生重复记录。
+可要求「不生成图片」或「尽量生成图片」；实际图片生成能力取决于所用客户端已连接的工具。
 
-历史存在应用数据目录（`%APPDATA%/mdview/history/`），不放在文档旁边。发人一个
-文件夹时，对方不会在里面发现一个 `.history` 目录 —— 这正是这个项目存在的理由。
+### Codex 与 Cursor：通过应用安装
 
-## 本地代码语言检测
+1. 在 MDView 中打开 **使用说明 → 给 AI 的协作规则**。
+2. 找到 **Codex / Cursor**，点击 **安装到项目**。
+3. 选择准备写文档的项目文件夹。
+4. 在 Codex 或 Cursor 中打开同一文件夹，开始新会话；若未出现技能，重启客户端。
 
-代码块不写语言名也能高亮，**不联网、不调用模型**，纯规则判定。
+安装后目录如下。安装器会保留已有自定义内容，遇到不同版本时提示先备份处理。
 
-三层管线，从高置信到低置信：
-
-1. **独占指纹**（命中即锁定）—— `#!/usr/bin/env bash`、`<?php`、`<!DOCTYPE html>`、`package main` + `func main()` 等只可能属于一种语言的特征。
-2. **加权评分** —— 每条规则分强信号与弱信号，再叠加"命中行覆盖率"。**候选语言必须至少命中一条强信号**；弱信号只用来加权，不能独立成为候选。
-3. **拿不准就明说** —— 领先者与第二名差距不足阈值时返回 `null`，显示"未确定"，把选择权交回用户。
-
-第三条是刻意的：错误的高亮比没有高亮更糟。判定结果会以徽标形式显示在代码块右上角（如 `TypeScript 74%`），点击可以纠正。
-
-`src/renderer/src/markdown/detect.test.ts` 里 18 个测试覆盖两个方向：该认出来的认出来，不该猜的绝不猜。
-
-## 表格
-
-表格操作按四类分组，快捷键、右键菜单、命令面板共享同一套实现：
-
-- **行列** —— 上下插入、左右插入、删除、移动、复制剪切
-- **单元格** —— 合并拆分（写成 `colspan` / `rowspan`）、对齐、清空
-- **数据** —— 排序（自动识别数字 / 日期 / 字符串，空值恒排末尾，稳定排序）、求和均值计数、从 Excel 粘贴
-- **结构** —— 转置、转 CSV / JSON / 列表、整表美化对齐
-
-表格引擎是纯函数，不碰 DOM，`src/renderer/src/table/` 下 121 个测试覆盖转义管道符、代码块内的管道符、参差行、CRLF、CSV 引号往返等边界。
-
-## 架构
-
-```
-src/
-├── main/                 Electron 主进程
-│   ├── services/         paths · workspace · documents · assets · export · settings
-│   └── ipc/registry.ts   所有通道的唯一注册点
-├── preload/index.ts      contextBridge 暴露的 window.mdview
-├── shared/               主进程与渲染进程共用的类型与通道名
-└── renderer/src/
-    ├── actions/          动作注册表 + 快捷键解析 + 右键菜单生成
-    ├── editor/           单页实时 Markdown 编辑器
-    ├── markdown/         渲染管线与语言检测
-    ├── table/            表格引擎
-    ├── state/            极简发布订阅状态层
-    └── shell/            窗口外壳与各类面板
+```text
+你的项目/
+└── .agents/
+    └── skills/
+        ├── mdview-doc/
+        │   ├── SKILL.md
+        │   └── scripts/check.mjs
+        └── mdview-share/
+            └── SKILL.md
 ```
 
-**动作注册表是整个交互层的唯一数据源。** `src/renderer/src/actions/registry.ts` 里一个 `ActionDef` 同时决定：它的快捷键、它出现在右键菜单的哪一组、它能否在命令面板搜到、以及它是否可用。三处界面因此不可能各说各话。
+| 客户端 | 创建文档 | 整理交付 |
+| :--- | :--- | :--- |
+| Codex | `$mdview-doc 为这个项目写一份使用手册` | `$mdview-share 整理可分享的单文件 Markdown` |
+| Cursor | `/mdview-doc 为这个项目写一份使用手册` | `/mdview-share 整理可分享的单文件 Markdown` |
 
-编辑器使用 CodeMirror 6，在同一页面直接编辑排版后的标题、正文、列表和表格，无需切换源码、预览或分栏。底层保留 Markdown 原文与字符位置，快捷键、表格引擎和历史记录继续复用。本文图片位于左侧目录树下方，随当前文档及编辑内容更新。
+**不使用桌面应用：** 解压发行版中的 AI 技能包，将 `.agents` 文件夹复制到项目根目录。如果目标已有同名技能，先比较内容，保留自己的修改。希望所有项目可用，可将两个 `mdview-*` 文件夹放入用户目录 `~/.agents/skills/`。
 
-左侧可切换「文件 / 大纲」。大纲按 H1–H6 的父子关系组织，支持折叠、点击定位，并跟随当前编辑位置。拖动左右侧栏与正文之间的边界即可调整宽度，重新打开后保留；双击边界恢复默认宽度。
+这里使用客户端的本地 Agent Skills 支持；它不依赖应用商店上架。路径与加载方式见 [Codex Skills 文档](https://learn.chatgpt.com/docs/build-skills)和 [Cursor Skills 文档](https://cursor.com/docs/skills)。
 
-正文随窗口和侧栏宽度自适应，图片保持比例并限制在正文范围内。正文两侧有可拖动的细线，可分别调整左右边距，松手后自动记住；双击对应细线恢复默认，无需进入设置。边距手柄也支持方向键微调。
+### Claude Code：从 GitHub 安装
 
-## 视觉规范
-
-深色是主主题，浅色由同一色相提亮推导而来，不是简单反色。
-
-- **暖灰底** `#1F1E1D` —— 是纸张，不是玻璃。深色模式里没有纯黑。
-- **单一强调色** 陶土橙 `#D97757`，一屏之内不超过两处。
-- **排版分层** —— 六级标题各有各的字体与形态：H1 用衬线体加浅色衬底，H2 带渐隐基线，H3 回到无衬线，H5 是小标签，H6 用等宽字体。只看轮廓就能分辨层级。
-- **自适应正文** —— 最大化时扩展写作空间；左右边距直接拖动，图片随正文可用宽度缩放。
-- **动效 token 化** —— 所有时长与缓动出自 `tokens.css`，只动 `transform` 与 `opacity`，`prefers-reduced-motion` 下归零但保留状态变化。
-
-## 开发
+在终端执行：
 
 ```bash
-npm install
-npm run dev          # 开发模式
-npm run build        # 构建
+claude plugin marketplace add ArthurLauCS/MDView
+claude plugin install mdview@mdview
+```
+
+在新的 Claude Code 会话中使用：
+
+```text
+/mdview:doc 为这个项目写一份使用手册
+/mdview:share 整理可分享的单文件 Markdown
+```
+
+也可以在 MDView 的「给 AI 的协作规则」中，点击 Claude Code 的 **复制安装命令**，把命令粘贴到 Claude Code 会话中，使用随应用分发的本地插件。
+
+如果已下载源码或 AI 技能包，在解压目录运行：
+
+```bash
+claude plugin marketplace add ./plugin
+claude plugin install mdview@mdview
+```
+
+用 `claude plugin list` 检查安装结果。若之前已添加名为 `mdview` 的本地市场，可继续使用它，无需重复添加。此处指 **Claude Code** 的插件系统；安装机制见 [Claude Code 插件市场文档](https://code.claude.com/docs/en/plugin-marketplaces)。
+
+### 检查 AI 生成的文档
+
+校验脚本需要 Node.js，无需安装依赖。在安装技能的项目根目录运行：
+
+```bash
+node .agents/skills/mdview-doc/scripts/check.mjs "./我的笔记"
+```
+
+从源码或 AI 技能包运行时，也可使用 `plugin/mdview/skills/doc/scripts/check.mjs`。它会检查文件夹命名、Markdown 主文件及图片引用等约定。
+
+## 常用快捷键
+
+| 操作 | 快捷键 | 操作 | 快捷键 |
+| :--- | :--- | :--- | :--- |
+| 新建文档 | `Ctrl+N` | 打开文档 | `Ctrl+O` |
+| 保存 | `Ctrl+S` | 导出 | `Ctrl+Shift+E` |
+| 命令面板 | `Ctrl+P` | 设置 | `Ctrl+,` |
+| 历史版本 | `Ctrl+H` | 插入代码块 | `Ctrl+Shift+C` |
+| 插入图片 | `Ctrl+Shift+I` | 显示 / 隐藏侧栏 | `Ctrl+\` |
+| 撤销 | `Ctrl+Z` | 重做 | `Ctrl+Shift+Z` / `Ctrl+Y` |
+
+按 `F1` 查看按功能分类的完整列表。格式和表格操作取决于当前编辑位置；导出等应用级快捷键在设置、历史等面板获得焦点时仍可使用。
+
+## 开发与验证
+
+基于 Electron、React、TypeScript、CodeMirror 6 和 markdown-it。准备 Node.js 22 LTS、npm 与 Git；Windows 安装包在 Windows 环境构建。
+
+```bash
+npm ci
+npm run dev          # 本地开发
 npm test             # 单元测试
-npm run typecheck    # 主进程 + 渲染进程类型检查
+npm run typecheck    # 主进程与渲染进程类型检查
+npm run dist         # 构建 Windows NSIS 安装包，输出到 release/
 ```
 
-截图与视觉验证：
+交互回归使用真实 Electron 窗口和隔离的临时文档：
 
 ```bash
-npx electron-vite build
+npm run build
 npx electron scripts/shoot.cjs design-review/round-N
+npx electron scripts/code-block-menu-check.cjs design-review/code-block-menu-N
+npx electron scripts/shortcuts-layout-check.cjs design-review/shortcuts-layout-N
+node scripts/packaged-check.cjs design-review/packaged-N
+claude plugin validate .
+claude plugin validate plugin
 ```
 
-该脚本启动真实主进程、走真实 IPC、把 UI 驱动到若干状态并截图，用于设计走查与回归对比。设计质量标准见全局 skill `design-review`。
+0.1.2 已通过 357 个单元测试、类型检查、快捷键与编辑交互回归，并验证打包应用的四种导出和技能安装。剩余的 14 个无快捷键表格动作及其他限制记录在[项目状态](docs/STATUS.md)。问题反馈请使用 [Issues](https://github.com/ArthurLauCS/MDView/issues)。
 
-## 快捷键
+开发约定见 [AGENTS.md](AGENTS.md)：系统能力通过 preload 暴露；资源路径集中处理；快捷键、右键菜单与命令面板共享动作注册表。
 
-`F1` 打开可搜索的快捷键速查表。导出、设置等全局快捷键在其他面板打开时仍可用；文档编辑快捷键不会修改设置输入框背后的正文。表格操作需把光标放入单元格，代码操作需在代码块内；点击正文图片后按 `Z` 全屏，`Esc` 返回。`Ctrl+Delete` 清空整个单元格，普通 `Delete` 保留逐字删除行为。常用：
+## 许可证与字体
 
-| 键 | 动作 |
-| :--- | :--- |
-| `Ctrl+P` | 命令面板 |
-| `Ctrl+N` / `Ctrl+O` / `Ctrl+S` | 新建 / 打开 / 保存文档 |
-| `Ctrl+Shift+O` | 打开目录 |
-| `Ctrl+Z` / `Ctrl+Shift+Z` | 撤销 / 重做 |
-| `Ctrl+B` `Ctrl+I` `Ctrl+E` | 加粗 / 斜体 / 行内代码 |
-| `Ctrl+K` | 链接 |
-| `Ctrl+Shift+I` | 插入图片 |
-| `Alt+↑` `Alt+↓` | 上移 / 下移当前行 |
-| `Ctrl+\` | 显示 / 隐藏侧栏 |
-| `Ctrl+Shift+E` | 导出 |
-| `Ctrl+H` | 历史版本 |
-| `Ctrl+,` | 设置 |
-
-## 内置字体授权
-
-- 圆体：[源泉圆体 GenSen Rounded](https://github.com/ButTaiwan/gensen-font)，SIL Open Font License 1.1。
-- 装饰字体：[站酷小薇体](https://github.com/google/fonts/tree/main/ofl/zcoolxiaowei)，SIL Open Font License 1.1。
-
-原始许可位于 `src/renderer/public/OFL-*.txt`，构建时随字体一同分发。
+应用代码采用 [MIT License](LICENSE)。内置字体使用各自的开源授权，授权文本随源码与安装包分发：[源泉圆体](src/renderer/public/OFL-GenSen.txt)、[站酷小薇体](src/renderer/public/OFL-ZCOOLXiaoWei.txt)。

@@ -7,6 +7,11 @@ import { detectLanguage } from './detect'
  * A wrong highlight is worse than none, so the second half matters as much.
  */
 describe('detectLanguage', () => {
+  it('ignores blank lines added by the Markdown renderer when scoring code', () => {
+    const code = 'def greet(name):\n    return name'
+    expect(detectLanguage(code).lang).toBe('python')
+    expect(detectLanguage(`\n${code}\n\n`)).toEqual(detectLanguage(code))
+  })
   describe('identifies unambiguous code', () => {
     it('typeScript from an interface and type annotations', () => {
       const code = `interface DocumentMeta {

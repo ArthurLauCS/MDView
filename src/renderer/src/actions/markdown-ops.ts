@@ -171,6 +171,13 @@ export function autoPair(
   selection: { start: number; end: number } | null,
   ch: string
 ): EditResult | 'skip-close' | null {
+  // A fence is typed literally. Pairing its backticks leaves an extra closer
+  // inside the new block and moves the caret onto a hidden delimiter.
+  const lineStart = src.lastIndexOf('\n', cursor - 1) + 1
+  const lineEnd = src.indexOf('\n', cursor)
+  if (ch === '`' && !selection && /^ {0,3}`*$/.test(src.slice(lineStart, cursor)) &&
+    /^`*$/.test(src.slice(cursor, lineEnd < 0 ? src.length : lineEnd))) return null
+
   // Closing a pair that is already there should step over it, not double it.
   const closer = Object.values(PAIRS).includes(ch) ? ch : null
   if (closer && src[cursor] === closer && (!selection || selection.start === selection.end)) {

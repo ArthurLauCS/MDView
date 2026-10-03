@@ -32,7 +32,10 @@ export function parseBinding(binding: string): ParsedKey {
 
 /** `Digit1` and `1` are the same physical key; `ArrowUp` and `up` likewise. */
 function normaliseKey(key: string): string {
-  const aliases: Record<string, string> = { ' ': 'space', '\\': 'backslash', ',': 'comma' }
+  const aliases: Record<string, string> = {
+    ' ': 'space', '\\': 'backslash', '|': 'backslash', ',': 'comma', '<': 'comma',
+    ')': '0', '!': '1', '@': '2', '#': '3', '$': '4', '%': '5', '^': '6', '&': '7', '*': '8', '(': '9'
+  }
   if (aliases[key]) return aliases[key]
   return key
     .replace(/^Digit/, '')

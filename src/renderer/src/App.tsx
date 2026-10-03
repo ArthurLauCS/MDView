@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { TitleBar } from './shell/TitleBar'
 import { Sidebar } from './shell/Sidebar'
 import { Welcome } from './shell/Welcome'
@@ -23,6 +23,7 @@ export function App(): JSX.Element {
   const panel = usePanel()
   const boot = useSessionBoot()
   const [error, setError] = useState<string | null>(null)
+  const pressedActions = useRef(new Set<string>())
 
   /** Keep the session pointed at whatever is in front. */
   useEffect(() => {
@@ -41,9 +42,13 @@ export function App(): JSX.Element {
    */
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (e.defaultPrevented || e.isComposing || e.repeat) return
       const action = resolveBinding(e)
       if (!action) return
+      // Some Windows IMEs consume a shortcut's keydown but still deliver keyup.
+      // Keep this across renders so opening a panel cannot run the action twice.
+      if (e.type === 'keydown') pressedActions.current.add(action.id)
+      else if (pressedActions.current.delete(action.id) || !(e.ctrlKey || e.altKey || e.metaKey)) return
+      if (e.defaultPrevented || e.isComposing || e.repeat) return
       const ctx = editorContext()
       const target = e.target as HTMLElement
       const image = target instanceof HTMLImageElement && target.closest('.live-rendered') ? target : null
@@ -66,7 +71,14 @@ export function App(): JSX.Element {
     }
     // App shortcuts must win over the focused editor or settings input.
     window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
+    window.addEventListener('keyup', onKey, true)
+    const clearPressed = (): void => pressedActions.current.clear()
+    window.addEventListener('blur', clearPressed)
+    return () => {
+      window.removeEventListener('keydown', onKey, true)
+      window.removeEventListener('keyup', onKey, true)
+      window.removeEventListener('blur', clearPressed)
+    }
   }, [ctx, scopes, panel])
 
   useEffect(() => {

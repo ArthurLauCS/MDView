@@ -249,7 +249,7 @@ function isJson(code: string): boolean {
 
 export function detectLanguage(code: string): Detection {
   const sample = code.length > 8000 ? code.slice(0, 8000) : code
-  const lines = sample.split('\n')
+  const lines = sample.split('\n').filter(line => /\S/.test(line))
   const lineCount = Math.max(lines.length, 1)
 
   if (isJson(sample)) {

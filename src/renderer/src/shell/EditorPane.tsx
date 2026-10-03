@@ -54,6 +54,7 @@ export function EditorPane(): JSX.Element {
       save: async () => { await saveDocument() },
       undo: () => editorRef.current?.undo(),
       redo: () => editorRef.current?.redo(),
+      pickCodeLanguage: () => editorRef.current?.pickCodeLanguage(),
       toggleLinePrefix: () => undefined,
       toggleInline: () => undefined,
       insertBlock: (block) => {

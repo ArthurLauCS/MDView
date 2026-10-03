@@ -1,0 +1,12 @@
+{
+  "name": "mdview",
+  "description": "MDView 文档文件夹格式的 AI 协作插件。",
+  "owner": { "name": "MDView" },
+  "plugins": [
+    {
+      "name": "mdview",
+      "source": "./plugin/mdview",
+      "description": "按 MDView 文档文件夹格式写作，使用相对路径携带图片，并校验交付文件。"
+    }
+  ]
+}

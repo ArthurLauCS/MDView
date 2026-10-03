@@ -1,4 +1,4 @@
-/** Exercise advertised shortcuts through native key events, with isolated files/profile. */
+/** Exercise advertised shortcuts through Electron events, or Windows keys with --native. */
 const { app, BrowserWindow, dialog, clipboard } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs/promises')
@@ -15,6 +15,7 @@ dialog.showMessageBox = async () => ({ response: 1 })
 require(path.resolve(__dirname, '../out/main/index.js'))
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
 const used = new Set()
+let sequence = 0
 const canonical = binding => binding.replace(/Digit/g, '').replace(/ArrowUp/g, '↑').replace(/ArrowDown/g, '↓')
   .replace(/ArrowLeft/g, '←').replace(/ArrowRight/g, '→').replace(/Backspace/g, '⌫').replace(/Enter/g, '↵')
   .replace(/Space/g, '空格').replace(/Backslash/g, '\\').replace(/Escape/g, 'Esc').replace(/\s*\+\s*/g, '+')
@@ -22,6 +23,7 @@ const canonical = binding => binding.replace(/Digit/g, '').replace(/ArrowUp/g, '
 async function main() {
   for (let i = 0; i < 80 && !BrowserWindow.getAllWindows().length; i++) await wait(100)
   const win = BrowserWindow.getAllWindows()[0]
+  win.setTitle('MDView — Shortcut verification')
   win.setSize(1440, 900)
   const run = code => win.webContents.executeJavaScript(code, true)
   const ctx = 'window.__mdview.editorContext()'
@@ -30,6 +32,21 @@ async function main() {
     throw new Error(`Timed out: ${code}`)
   }
   const press = async binding => {
+    if (process.argv.includes('--native')) {
+      const request = { id: ++sequence, binding }
+      await fs.writeFile(path.join(OUT, 'key-request.json'), JSON.stringify(request))
+      let acknowledged = false
+      for (let i = 0; i < 1800; i++) {
+        const ack = await fs.readFile(path.join(OUT, 'key-ack.txt'), 'utf8').catch(() => '')
+        if (ack === String(request.id)) { acknowledged = true; break }
+        await wait(100)
+      }
+      assert.ok(acknowledged, `Windows key timed out: ${binding}`)
+      used.add(canonical(binding))
+      await wait(120)
+      await fs.appendFile(path.join(OUT, 'key-results.jsonl'), JSON.stringify({ ...request, state: await run(`({event:window.__lastKey,source:${ctx}.source,selection:${ctx}.selection})`) }) + '\n')
+      return
+    }
     const parts = binding.split('+')
     const keyCode = parts.pop().replace(/^Digit/, '').replace(/^Arrow/, '').replace('Backslash', '\\').replace('Space', ' ')
     const modifiers = parts.map(p => ({ Ctrl: 'control', Shift: 'shift', Alt: 'alt' })[p])
@@ -57,6 +74,14 @@ async function main() {
   await press('F1')
   await until(`!!document.querySelector('.shortcuts-settings')`)
   const advertised = await run(`Array.from(document.querySelectorAll('.keys__kbd'), el => el.textContent)`)
+  await press('Escape')
+
+  // A swallowed keydown must still work; a delivered one must not toggle twice.
+  await run(`window.dispatchEvent(new KeyboardEvent('keyup', {key:'E',code:'KeyE',ctrlKey:true,shiftKey:true,bubbles:true}))`)
+  await until(`document.querySelector('.panel__title')?.textContent === '导出'`)
+  await press('Escape')
+  await press('Ctrl+Shift+E')
+  await until(`document.querySelector('.panel__title')?.textContent === '导出'`)
   await press('Escape')
 
   // File operations, and export with focus in each panel/control.

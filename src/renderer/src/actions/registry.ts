@@ -568,7 +568,7 @@ export const ACTIONS: ActionDef[] = [
     keywords: ['language', 'lang', 'syntax'],
     scope: 'codeblock',
     group: 'code',
-    run: () => undefined // opens the language popover in the UI layer
+    run: (ctx) => ctx.pickCodeLanguage?.()
   },
 
   // ---- image / link -------------------------------------------------------

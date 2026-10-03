@@ -104,7 +104,7 @@
   border-radius: var(--radius-sm);
 }
 
-.editor__surface .live-code-line {
+.editor__surface .cm-line.live-code-line {
   font-family: var(--font-code);
   font-size: var(--editor-font-size);
   background: var(--bg-inset);
@@ -116,7 +116,29 @@
   font-size: var(--text-sm);
   color: var(--text-tertiary);
 }
-.live-code-info { color: var(--text-tertiary); font-size: var(--text-xs); }
+.editor__surface .cm-line.live-code-header {
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  text-align: right;
+  line-height: var(--space-8);
+}
+.live-code-language {
+  max-width: 100%;
+  font-family: var(--font-code);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.live-code-header:is(:hover, :focus-within, .is-active, .is-hovered) .live-code-language { opacity: 1; }
+.editor__surface .cm-line.live-code-end {
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  line-height: var(--space-3);
+  cursor: text;
+}
 
 .editor__surface .live-quote {
   border-left: 2px solid var(--accent-line);

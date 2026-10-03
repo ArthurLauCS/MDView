@@ -3,6 +3,7 @@ import { EditorState } from '@codemirror/state'
 import { ensureSyntaxTree } from '@codemirror/language'
 import { previewDecorations, liveMarkdown } from './live-preview'
 import { renderMarkdown } from '../markdown/render'
+import { autoPair } from '../actions/markdown-ops'
 
 function decorations(source: string) {
   const state = EditorState.create({ doc: source, extensions: [liveMarkdown()] })
@@ -53,10 +54,24 @@ describe('live Markdown editing', () => {
     const source = '正文\n\n```js\nconst value = 123\n```\n\n尾部'
     const { state, result } = decorations(source)
     expect(result.some((r) => r.spec.block)).toBe(false)
-    expect(result.filter((r) => r.spec.class === 'live-code-line')).toHaveLength(3)
+    expect(result.filter((r) => String(r.spec.class).startsWith('live-code-line'))).toHaveLength(3)
     const inside = state.update({ selection: { anchor: source.indexOf('value') } }).state
     const after: {from: number; to: number; spec: Record<string, unknown>}[] = []
     previewDecorations(inside, null).between(0, source.length, (from, to, value) => { after.push({from, to, spec: value.spec}) })
-    expect(after).toEqual(result)
+    const layout = (items: typeof result) => items.map(r => ({ ...r, spec: { ...r.spec, class: String(r.spec.class).replace(' is-active', '') } }))
+    expect(layout(after)).toEqual(layout(result))
+  })
+
+  it('keeps an opening fence visible and unpaired until Enter, then hides its markers and detects the body', () => {
+    for (const prefix of ['', '`', '``']) expect(autoPair(prefix, prefix.length, null, '`')).toBeNull()
+    expect(autoPair('text ', 5, null, '`')).not.toBeNull()
+    expect(decorations('```').result).toEqual([])
+    const source = '```\ndef greet(name):\n    return name\n```'
+    const { result, state } = decorations(source)
+    const header = result.find(r => r.spec.widget)
+    expect(header?.spec.widget).toMatchObject({ lang: '', detected: 'python' })
+    expect(renderMarkdown(source)).toContain('hljs-keyword')
+    expect(state.doc.toString()).toBe(source)
+    expect(result.some(r => r.from === source.lastIndexOf('```') && r.to === source.length)).toBe(true)
   })
 })

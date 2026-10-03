@@ -5,7 +5,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab, isolateHistory, u
 import { markdownKeymap } from '@codemirror/lang-markdown'
 import { indentUnit, syntaxTree } from '@codemirror/language'
 import { autoPair } from '../actions/markdown-ops'
-import { focusTableCell, livePreview, liveMarkdown } from './live-preview'
+import { focusTableCell, livePreview, liveMarkdown, startCodeBlock, leaveCodeBlock } from './live-preview'
 import { PageMargins } from './PageMargins'
 import './editor.css'
 
@@ -20,6 +20,7 @@ export interface EditorHandle {
   focus: () => void
   undo: () => void
   redo: () => void
+  pickCodeLanguage: () => void
   element: () => HTMLElement | null
 }
 
@@ -100,6 +101,16 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(props, ref
     focus: () => viewRef.current?.focus(),
     undo: () => { if (viewRef.current && !viewRef.current.state.readOnly) undo(viewRef.current) },
     redo: () => { if (viewRef.current && !viewRef.current.state.readOnly) redo(viewRef.current) },
+    pickCodeLanguage: () => {
+      const view = viewRef.current
+      if (!view || view.state.readOnly) return
+      const at = view.state.selection.main.head
+      const select = [...view.dom.querySelectorAll<HTMLSelectElement>('.live-code-language')].find(
+        el => at >= Number(el.dataset.from) && at <= Number(el.dataset.to)
+      )
+      select?.focus()
+      select?.showPicker()
+    },
     element: () => viewRef.current?.contentDOM ?? null
   }), [])
 
@@ -112,12 +123,28 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(props, ref
           liveMarkdown(),
           history(),
           config.current.of(configure()),
-          keymap.of([...historyKeymap, indentWithTab, ...defaultKeymap]),
+          keymap.of([{ key: 'Enter', run: startCodeBlock }, ...historyKeymap, indentWithTab, ...defaultKeymap]),
           EditorView.lineWrapping,
           scrollPastEnd(),
           documentConfig.current.of(livePreview(current.current.docPath ? current.current.docPath.replace(/[\\/][^\\/]+$/, '') : null)),
           placeholder('从这里开始写作…'),
           EditorView.domEventHandlers({
+            mousedown(event, view) {
+              if (event.button !== 0 || view.state.readOnly) return false
+              const footer = (event.target as HTMLElement).closest<HTMLElement>('.live-code-end')
+              if (footer) {
+                event.preventDefault()
+                leaveCodeBlock(view, Number(footer.dataset.codeEnd))
+                return true
+              }
+              const last = view.dom.querySelector<HTMLElement>(`.live-code-end[data-code-end="${view.state.doc.length}"]`)
+              if (last && event.clientY > last.getBoundingClientRect().bottom) {
+                event.preventDefault()
+                leaveCodeBlock(view, view.state.doc.length)
+                return true
+              }
+              return false
+            },
             contextmenu(event) {
               event.preventDefault()
               current.current.onContextMenu(event.clientX, event.clientY)

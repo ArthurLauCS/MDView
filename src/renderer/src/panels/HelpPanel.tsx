@@ -23,6 +23,8 @@ interface StockState {
 export function HelpPanel({ onClose }: Props): JSX.Element {
   const [stock, setStock] = useState<StockState>({ docPath: null, status: 'loading' })
   const [busy, setBusy] = useState(false)
+  const [installing, setInstalling] = useState(false)
+  const [installResult, setInstallResult] = useState('')
 
   useEffect(() => {
     let live = true
@@ -144,6 +146,31 @@ export function HelpPanel({ onClose }: Props): JSX.Element {
                 </button>
               </span>
             </div>
+            <div className="row">
+              <span className="row__label">
+                <span className="row__name">Codex / Cursor</span>
+                <span className="row__hint">
+                  选择项目文件夹，安装共用技能与校验脚本。Codex 使用 <code>$mdview-doc</code>，Cursor 使用 <code>/mdview-doc</code>。
+                </span>
+              </span>
+              <span className="row__control">
+                <button className="btn" disabled={installing} onClick={async () => {
+                  setInstalling(true)
+                  setInstallResult('')
+                  try {
+                    const path = await window.mdview.app.installSkills()
+                    if (path) setInstallResult(`已安装到 ${path}。在该项目中新建会话；若未出现，请重启 Codex / Cursor。`)
+                  } catch (error) {
+                    setInstallResult(`安装失败：${String(error)}`)
+                  } finally {
+                    setInstalling(false)
+                  }
+                }}>
+                  {installing ? '安装中…' : '安装到项目'}
+                </button>
+              </span>
+            </div>
+            {installResult && <p className="panel__note" role="status">{installResult}</p>}
             {BUNDLED_SKILLS.map((skill) => (
               <div className="row" key={skill.id}>
                 <span className="row__label">
@@ -161,8 +188,8 @@ export function HelpPanel({ onClose }: Props): JSX.Element {
               </div>
             ))}
             <p className="panel__note">
-              其他 AI 助手没有插件：复制上面的规则，粘进它的规则文件（Codex 是
-              <code>AGENTS.md</code>，Cursor 是 <code>.cursor/rules/</code>）即可，内容与插件里的完全相同。
+              Codex 与 Cursor 共用项目下的 <code>.agents/skills/</code>，规则与 Claude 插件来自同一份源文件。
+              安装不会修改已有的 AGENTS.md 或 Cursor 规则；也可以复制上面的内容交给其他 AI 助手。
             </p>
           </section>
 

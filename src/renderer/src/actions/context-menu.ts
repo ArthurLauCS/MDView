@@ -135,6 +135,6 @@ export function buildContextMenu(target: MenuTarget, ctx: ActionContext): MenuEn
 /** Flatten for keyboard navigation, skipping separators and disabled rows. */
 export function navigableIndexes(entries: MenuEntry[]): number[] {
   return entries
-    .map((e, i) => (e.kind === 'action' && !e.disabled ? i : -1))
+    .map((e, i) => (e.kind === 'submenu' || (e.kind === 'action' && !e.disabled) ? i : -1))
     .filter((i) => i >= 0)
 }

@@ -56,20 +56,12 @@ export function setStylesDirForTest(dir: string | null): void {
   cache.clear()
 }
 
-/** Rules that describe the application shell, not a document. */
-const SHELL_RULES: RegExp[] = [
-  /\/\* Overlay scrollbars[\s\S]*?\n\}\n?/,
-  /::-webkit-scrollbar[\s\S]*?\n\}\n?/g,
-  /@media \(prefers-reduced-motion: no-preference\)[\s\S]*?\n\}\n?\n?@keyframes enter-fade\s*\{[\s\S]*?\n\}\n?/,
-  // The app never scrolls the body; a document always does.
-  /overflow: hidden;\n/
-]
-
 function trimBase(css: string): string {
-  let out = css
-  for (const rule of SHELL_RULES) out = out.replace(rule, '')
-  // `#root` is the app's mount point and does not exist in a standalone file.
-  return out.replace(/\n#root/g, '').replace(/, *#root/g, '')
+  // Everything after this marker belongs to the shell. Removing partial
+  // selectors left `*:hover >` attached to the following document rules.
+  return css.replace(/\/\* Overlay scrollbars[\s\S]*$/, '')
+    .replace(/,\s*#root/g, '')
+    .replace(/overflow: hidden;/, '')
 }
 
 const cache = new Map<string, string>()
@@ -81,6 +73,10 @@ function sheets(): Record<string, string> {
 
   const out: Record<string, string> = {}
   for (const name of SHEET_NAMES) out[name] = readFileSync(join(dir, name), 'utf8')
+  out['fonts.css'] = out['fonts.css'].replace(/url\(['"]?\.\/fonts\/([^)'"\s]+)['"]?\)/g, (_match, name: string) => {
+    const mime = name.endsWith('.otf') ? 'font/otf' : 'font/ttf'
+    return `url('data:${mime};base64,${readFileSync(join(dir, 'fonts', name)).toString('base64')}')`
+  })
   cache.set(dir, JSON.stringify(out))
   return out
 }
@@ -147,6 +143,9 @@ body {
   .md {
     max-width: none;
     padding: 0;
+  }
+  .md h1 {
+    margin-left: 0;
   }
   /* A long line must wrap instead of being clipped at the page edge. */
   .codeblock__pre {

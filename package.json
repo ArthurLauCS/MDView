@@ -1,6 +1,6 @@
 {
   "name": "mdview",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "description": "Markdown reader + editor with folder-based documents, local code language detection and a Claude-inspired dark-first UI.",
   "main": "./out/main/index.js",
@@ -18,8 +18,12 @@
     "appId": "dev.mdview.app",
     "productName": "MDView",
     "directories": { "output": "release" },
-    "files": ["out/**/*", "package.json"],
-    "extraResources": [{ "from": "stock", "to": "stock" }, { "from": "plugin", "to": "plugin" }],
+    "files": ["out/**/*", "package.json", "LICENSE"],
+    "extraResources": [
+      { "from": "stock", "to": "stock" },
+      { "from": "plugin", "to": "plugin" },
+      { "from": "src/renderer/src/styles", "to": "styles", "filter": ["tokens.css", "fonts.css", "base.css", "markdown.css", "fonts/**/*"] }
+    ],
     "fileAssociations": [
       { "ext": ["md", "markdown"], "name": "Markdown", "description": "Markdown 文档", "role": "Editor" }
     ],

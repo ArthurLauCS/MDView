@@ -5,6 +5,7 @@ import { dirname, extname, join, relative } from 'node:path'
 import { IPC } from '@shared/ipc'
 import { previewPlainMd } from '../services/export'
 import { planOrganize, runOrganize } from '../services/organize'
+import { installSkills } from '../services/plugin'
 import { archiveNameFor, runZip } from '../export/archive'
 import { buildHtml } from '../export/html'
 import { renderPdf, writePdf } from '../export/pdf'
@@ -312,6 +313,14 @@ export function registerAllHandlers(ctx: HandlerContext): void {
       : join(__dirname, '..', '..', 'stock')
 
   ipcMain.handle(IPC.APP_PLUGIN_PATH, () => join(stockRoot(), '..', 'plugin'))
+  ipcMain.handle(IPC.APP_INSTALL_SKILLS, async () => {
+    const selected = await dialog.showOpenDialog(getWindow()!, {
+      title: '选择 Codex / Cursor 使用的项目文件夹',
+      properties: ['openDirectory', 'createDirectory']
+    })
+    if (selected.canceled) return null
+    return installSkills(join(stockRoot(), '..', 'plugin'), selected.filePaths[0])
+  })
 
   ipcMain.handle(IPC.APP_REVEAL_STOCK, (_e, name: string) => {
     const target = join(stockRoot(), name)

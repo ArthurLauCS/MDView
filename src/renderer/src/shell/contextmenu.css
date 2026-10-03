@@ -4,6 +4,7 @@
   width: 260px;
   max-height: min(70vh, 560px);
   overflow-y: auto;
+  overflow-x: hidden;
   padding: var(--space-1);
   border-radius: var(--radius-lg);
   background: var(--bg-overlay);
@@ -25,10 +26,6 @@
 }
 
 .ctxmenu--sub {
-  position: absolute;
-  left: 100%;
-  top: -5px;
-  margin-left: var(--space-1);
   animation-name: submenu-in;
 }
 
@@ -41,10 +38,6 @@
     opacity: 1;
     transform: none;
   }
-}
-
-.ctxmenu__sub-wrap {
-  position: relative;
 }
 
 .ctxmenu__row {
