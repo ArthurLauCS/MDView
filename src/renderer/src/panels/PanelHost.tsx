@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { SettingsPanel } from './SettingsPanel'
 import { ExportPanel } from './ExportPanel'
+import { OrganizePanel } from './OrganizePanel'
 import { HelpPanel } from './HelpPanel'
 import { closePanel, usePanel } from '../state/ui'
 import './panels.css'
@@ -31,6 +32,7 @@ export function PanelHost(): JSX.Element | null {
     return <SettingsPanel key={active} onClose={closePanel} initialSection={active === 'shortcuts' ? 'shortcuts' : undefined} />
   }
   if (active === 'export') return <ExportPanel onClose={closePanel} />
+  if (active === 'organize') return <OrganizePanel onClose={closePanel} />
   if (active === 'help') return <HelpPanel onClose={closePanel} />
   return null
 }

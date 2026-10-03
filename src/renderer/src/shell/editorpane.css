@@ -27,6 +27,16 @@
   min-width: 0;
   width: 100%;
 }
+.ep__loose {
+  flex: 0 0 auto;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--accent);
+  background: var(--accent-soft);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.ep__loose:hover { color: var(--accent-hover); }
 .ep__save-state { margin-left: auto; flex: 0 0 auto; font-size: var(--text-xs); color: var(--text-tertiary); }
 
 .ep__path {

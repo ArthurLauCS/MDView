@@ -25,7 +25,7 @@ export function isPortableLink(target: string): boolean {
   return true
 }
 
-const UNRESERVED = /[A-Za-z0-9\-._~!$&'()*+,;=@/]/u
+const UNRESERVED = /[A-Za-z0-9\-._~!$&'()*+,;=@/]|[^\x00-\x7F]/u
 
 /**
  * Percent-encode only the characters that would break a markdown link.

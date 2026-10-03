@@ -1,5 +1,5 @@
 import { promises as fs } from 'node:fs'
-import { basename, dirname, extname, join } from 'node:path'
+import { basename, dirname, extname, join, resolve } from 'node:path'
 import { createHash } from 'node:crypto'
 import { nativeImage } from 'electron'
 import { toLink } from './paths'
@@ -178,7 +178,7 @@ export class AssetService {
     for (const raw of targets) {
       if (/^(https?:)?\/\//.test(raw) || raw.startsWith('data:')) continue
       const decoded = decodeURIComponent(raw)
-      const absPath = join(meta.parentDir, decoded)
+      const absPath = resolve(meta.parentDir, decoded)
       const inside = !decoded.replace(/\\/g, '/').split('/').includes('..')
       let exists = false
       try {

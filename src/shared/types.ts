@@ -3,13 +3,6 @@
  * Renderer, preload and main all speak these types — keep them dependency free.
  */
 
-/** How a document's assets are laid out on disk. */
-export type DocLayout =
-  /** `Notes.md` + `Notes_img/` — flat tree, both siblings. DEFAULT. */
-  | 'flat'
-  /** `Notes/Notes.md` + `Notes/img/` — md nested inside its own folder. */
-  | 'nested'
-
 export type ExportMode =
   /** Portable plain markdown: images and local paths stripped. */
   | 'plain-md'
@@ -54,7 +47,8 @@ export interface DocumentMeta {
   stem: string
   /** Absolute path of where images for this document go. */
   assetDir: string
-  layout: DocLayout
+  /** False for a loose file: its folder is not its own, so it cannot be zipped or shared as one. */
+  inFolder: boolean
 }
 
 export interface DocumentContent {
@@ -96,6 +90,28 @@ export interface ExportPreview {
   output: string
   /** Absolute path the export would be written to. */
   targetPath: string
+}
+
+// ---- organize -------------------------------------------------------------
+
+export interface OrganizePlan {
+  /** The folder that would be created. */
+  targetDir: string
+  /** Why the folder cannot be created, e.g. the name is taken. */
+  blocked: string | null
+  /** Local images that would be copied in. */
+  images: { from: string; name: string }[]
+  /** Remote image URLs, brought in only when asked. */
+  remote: string[]
+  /** Local links that point at nothing. */
+  missing: string[]
+}
+
+export interface OrganizeOptions {
+  /** Send the original file to the recycle bin instead of keeping it. */
+  move: boolean
+  /** Download remote images into the folder. */
+  download: boolean
 }
 
 // ---- history --------------------------------------------------------------
@@ -147,7 +163,6 @@ export type ImageNaming = 'date-hash-name' | 'original' | 'hash'
 export interface AppSettings {
   theme: ThemeMode
   motion: MotionLevel
-  docLayout: DocLayout
   plainMdImagePolicy: PlainMdImagePolicy
   /** Base reading font size in px. */
   fontSize: number
@@ -191,7 +206,6 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dark',
   motion: 'full',
-  docLayout: 'flat',
   plainMdImagePolicy: 'alt-placeholder',
   fontSize: 17,
   pageMarginLeft: 5,

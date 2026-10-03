@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 export type PanelId =
   | 'settings'
   | 'export'
+  | 'organize'
   | 'shortcuts'
   | 'help'
   | 'history'

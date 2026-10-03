@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs'
 import { dirname, extname, join, relative } from 'node:path'
 import { IPC } from '@shared/ipc'
 import { previewPlainMd } from '../services/export'
+import { planOrganize, runOrganize } from '../services/organize'
 import { archiveNameFor, runZip } from '../export/archive'
 import { buildHtml } from '../export/html'
 import { renderPdf, writePdf } from '../export/pdf'
@@ -15,7 +16,7 @@ import type { DocumentService } from '../services/documents'
 import type { AssetService } from '../services/assets'
 import type { HistoryService } from '../services/history'
 import type { SessionService } from '../services/session'
-import type { AppSettings, ExportMode } from '@shared/types'
+import type { AppSettings, ExportMode, OrganizeOptions } from '@shared/types'
 
 export interface HandlerContext {
   getWindow: () => BrowserWindow | null
@@ -101,6 +102,11 @@ export function registerAllHandlers(ctx: HandlerContext): void {
     await shell.trashItem(path)
     return true
   })
+
+  ipcMain.handle(IPC.DOC_ORGANIZE_PLAN, (_e, path: string, text: string) => planOrganize(path, text))
+  ipcMain.handle(IPC.DOC_ORGANIZE, (_e, path: string, text: string, options: OrganizeOptions) =>
+    runOrganize(path, text, options, (target) => shell.trashItem(target))
+  )
 
   // ---- assets -------------------------------------------------------------
   ipcMain.handle(IPC.ASSET_FROM_CLIPBOARD, async (_e, docPath: string) => {

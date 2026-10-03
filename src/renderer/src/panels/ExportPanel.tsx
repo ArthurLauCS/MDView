@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ExportMode, ExportPreview } from '@shared/types'
 import { documentBuffer, useDocuments } from '../state/documents'
+import { openPanel } from '../state/ui'
 
 interface Props {
   onClose: () => void
@@ -46,8 +47,12 @@ export function ExportPanel({ onClose }: Props): JSX.Element {
   const docPath = active?.meta.path ?? null
   const source = documentBuffer()
 
+  // ZIP packs the document's folder. A loose file sits in a folder that is not
+  // its own — Downloads, the desktop — and packing that would sweep up everything.
+  const needsFolder = mode === 'zip' && !active?.meta.inFolder
+
   const runPreview = useCallback(async (): Promise<void> => {
-    if (!docPath) return
+    if (!docPath || needsFolder) return
     setBusy(true)
     setResult(null)
     setError(null)
@@ -58,7 +63,7 @@ export function ExportPanel({ onClose }: Props): JSX.Element {
     } finally {
       setBusy(false)
     }
-  }, [docPath, mode, source])
+  }, [docPath, mode, source, needsFolder])
 
   useEffect(() => {
     void runPreview()
@@ -131,7 +136,13 @@ export function ExportPanel({ onClose }: Props): JSX.Element {
             ))}
           </div>
 
-          {shown && !plain && <p className="panel__note">{shown.output}</p>}
+          {needsFolder && (
+            <p className="panel__note">
+              这是一份散装文件，所在文件夹里还有别的东西，不能整个打包。
+              <button className="panel__link" onClick={() => openPanel('organize')}>先整理为文档文件夹</button>
+            </p>
+          )}
+          {shown && !plain && !needsFolder && <p className="panel__note">{shown.output}</p>}
 
           {(plain || !!shown?.removals.length) && (
             <section className="section" style={{ marginTop: 'var(--space-8)' }}>
@@ -179,7 +190,7 @@ export function ExportPanel({ onClose }: Props): JSX.Element {
           </span>
           <button
             className="btn btn--primary"
-            disabled={busy}
+            disabled={busy || needsFolder}
             onClick={() => void confirm()}
           >
             导出

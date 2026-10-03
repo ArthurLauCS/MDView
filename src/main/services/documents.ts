@@ -3,33 +3,22 @@ import { basename, dirname, join, resolve } from 'node:path'
 import matter from 'gray-matter'
 import { buildRelativePath, toLink } from './paths'
 import { assetDirName, docIdFor } from './workspace'
-import type { SettingsService } from './settings'
-import type { DocLayout, DocumentContent, DocumentMeta } from '@shared/types'
+import { isDocumentFolder } from './organize'
+import type { DocumentContent, DocumentMeta } from '@shared/types'
 
 export class DocumentService {
-  constructor(private readonly settings: SettingsService) {}
-
   metaFor(absPath: string): DocumentMeta {
     const path = resolve(absPath)
     const dir = dirname(path)
     const file = basename(path)
     const stem = file.replace(/\.(md|markdown|mdx)$/i, '')
-    const layout: DocLayout = this.settings.get().docLayout
-
-    // `flat`   : Notes.md + Notes_img/      (both siblings in the parent dir)
-    // `nested` : Notes/Notes.md + Notes/img/
-    const assetDir =
-      layout === 'nested' && basename(dir) === stem
-        ? join(dir, 'img')
-        : join(dir, assetDirName(stem))
-
     return {
       id: docIdFor(path),
       path,
       parentDir: dir,
       stem,
-      assetDir,
-      layout
+      assetDir: join(dir, assetDirName(stem)),
+      inFolder: isDocumentFolder(path)
     }
   }
 

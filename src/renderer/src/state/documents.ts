@@ -85,7 +85,7 @@ export function newDocument(): Promise<void> {
   return change(async () => {
     if (!await confirmDocumentChange()) return
     activate({
-      meta: { id: crypto.randomUUID(), path: '', parentDir: '', stem: '未命名', assetDir: '', layout: settingsSnapshot().docLayout },
+      meta: { id: crypto.randomUUID(), path: '', parentDir: '', stem: '未命名', assetDir: '', inFolder: false },
       text: '', body: '', frontmatter: null, conflictWithDisk: false
     })
   })

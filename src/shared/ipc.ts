@@ -26,6 +26,8 @@ export const IPC = {
   DOC_RENAME: 'doc:rename',
   DOC_DELETE: 'doc:delete',
   DOC_MOVE: 'doc:move',
+  DOC_ORGANIZE_PLAN: 'doc:organize-plan',
+  DOC_ORGANIZE: 'doc:organize',
   DOC_CHANGED_ON_DISK: 'doc:changed-on-disk',
 
   // ---- assets -------------------------------------------------------------

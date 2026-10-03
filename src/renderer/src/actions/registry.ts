@@ -1,6 +1,6 @@
 import { patchSettings, settingsSnapshot } from '../state/settings'
 import { togglePanel } from '../state/ui'
-import { newDocument, openDocumentDialog, saveDocument } from '../state/documents'
+import { currentDocument, newDocument, openDocumentDialog, saveDocument } from '../state/documents'
 import { openWorkspaceDialog } from '../state/workspace'
 import type { ActionContext, ActionDef } from './types'
 import {
@@ -191,6 +191,13 @@ export const ACTIONS: ActionDef[] = [
   {
     id: 'document.save', title: '保存文档', key: 'Ctrl+S', scope: 'document', group: 'file',
     run: async () => { await saveDocument() }
+  },
+  {
+    id: 'document.organize', title: '整理为文档文件夹', scope: 'document', group: 'file',
+    keywords: ['organize', 'folder', '文件夹', '散装', '转换'],
+    enabled: () => !!currentDocument()?.meta.path && !currentDocument()!.meta.inFolder,
+    disabledReason: () => (currentDocument()?.meta.path ? '这份文档已经在自己的文档文件夹里' : '请先保存文档'),
+    run: () => togglePanel('organize')
   },
   {
     id: 'document.undo', title: '撤销', key: 'Ctrl+Z', scope: 'document', group: 'file',

@@ -11,6 +11,7 @@ import { installDropTarget } from '../assets/drop'
 import { codeAt } from '../actions/registry'
 import { findTableAt } from '../table/model'
 import { documentBuffer, saveDocument, updateDocumentBuffer, useDocuments } from '../state/documents'
+import { openPanel } from '../state/ui'
 import { useSettings } from '../state/settings'
 import type { ActionContext, ActionScope } from '../actions/types'
 import './editorpane.css'
@@ -204,6 +205,11 @@ export function EditorPane(): JSX.Element {
           <span className="ep__path" title={active.meta.path}>
             {docPath ? `${active.meta.parentDir.replace(/.*[\\/]/, '')} / ${active.meta.stem}` : '未命名 · 首次保存时选择位置'}
           </span>
+          {docPath && !active.meta.inFolder && (
+            <button className="ep__loose" title="图片与文档分开存放，整个发给别人时会断" onClick={() => openPanel('organize')}>
+              散装文件 · 整理为文档文件夹
+            </button>
+          )}
           <span className="ep__save-state">{!docPath ? '尚未保存' : dirty ? '有未保存修改' : '已保存'}</span>
         </div>
       </div>

@@ -8,6 +8,8 @@ import type {
   ExportMode,
   ExportPreview,
   InsertedAsset,
+  OrganizeOptions,
+  OrganizePlan,
   DiffSummary,
   Revision,
   SessionState,
@@ -40,7 +42,12 @@ const api = {
       ipcRenderer.invoke(IPC.DOC_CREATE, dir, stem, withAssetFolder),
     rename: (path: string, nextStem: string): Promise<DocumentMeta> =>
       ipcRenderer.invoke(IPC.DOC_RENAME, path, nextStem),
-    remove: (path: string): Promise<boolean> => ipcRenderer.invoke(IPC.DOC_DELETE, path)
+    remove: (path: string): Promise<boolean> => ipcRenderer.invoke(IPC.DOC_DELETE, path),
+    organizePlan: (path: string, text: string): Promise<OrganizePlan> =>
+      ipcRenderer.invoke(IPC.DOC_ORGANIZE_PLAN, path, text),
+    /** Resolves to the new document path and the remote images that could not be fetched. */
+    organize: (path: string, text: string, options: OrganizeOptions): Promise<{ docPath: string; failed: string[] }> =>
+      ipcRenderer.invoke(IPC.DOC_ORGANIZE, path, text, options)
   },
   asset: {
     fromClipboard: (docPath: string): Promise<InsertedAsset | null> =>

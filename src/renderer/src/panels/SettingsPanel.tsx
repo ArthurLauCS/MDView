@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { DEFAULT_SETTINGS, type AppSettings, type CursorStyle, type DocLayout, type ImageNaming, type MotionLevel, type PlainMdImagePolicy, type ThemeMode } from '@shared/types'
+import { DEFAULT_SETTINGS, type AppSettings, type CursorStyle, type ImageNaming, type MotionLevel, type PlainMdImagePolicy, type ThemeMode } from '@shared/types'
 import { usePatchSettings, useSettings } from '../state/settings'
 import { ShortcutsSettings } from './ShortcutsPanel'
 import './settings.css'
@@ -19,11 +19,6 @@ const MOTIONS: { value: MotionLevel; label: string; hint: string }[] = [
   { value: 'full', label: '完整', hint: '入场、视差与反馈动效全部保留' },
   { value: 'reduced', label: '精简', hint: '只保留表达状态变化的反馈动效' },
   { value: 'off', label: '关闭', hint: '不做过渡，但状态切换仍然可见' }
-]
-
-const LAYOUTS: { value: DocLayout; label: string; hint: string }[] = [
-  { value: 'flat', label: '平铺', hint: '文档与资源文件夹同级，目录树更扁' },
-  { value: 'nested', label: '嵌套', hint: '保存到与文档同名的文件夹时，图片使用其中的 img 目录' }
 ]
 
 const IMAGE_POLICIES: { value: PlainMdImagePolicy; label: string; hint: string }[] = [
@@ -219,7 +214,7 @@ export function SettingsPanel({ onClose, initialSection = 'appearance' }: Props)
               <h3 className="section__title">文档</h3>
               <button
                 className="section__reset"
-                onClick={() => reset(['docLayout', 'plainMdImagePolicy', 'autoSave', 'autoSaveDelayMs', 'historyEnabled', 'historyIntervalMs'])}
+                onClick={() => reset(['plainMdImagePolicy', 'autoSave', 'autoSaveDelayMs', 'historyEnabled', 'historyIntervalMs'])}
               >
                 恢复默认
               </button>
@@ -273,30 +268,6 @@ export function SettingsPanel({ onClose, initialSection = 'appearance' }: Props)
                 打开系统设置
               </button>
             </Row>
-            <Row
-              name="目录结构"
-              hint={LAYOUTS.find((l) => l.value === settings.docLayout)?.hint}
-            >
-              <Segmented
-                items={LAYOUTS}
-                value={settings.docLayout}
-                onChange={(docLayout) => patch({ docLayout })}
-              />
-            </Row>
-
-            <div className="layout-diagram">
-              <span
-                className={`layout-diagram__item ${settings.docLayout === 'flat' ? 'is-active' : ''}`}
-              >
-                {'我的笔记/\n├── 我的笔记.md\n└── 我的笔记_img/'}
-              </span>
-              <span
-                className={`layout-diagram__item ${settings.docLayout === 'nested' ? 'is-active' : ''}`}
-              >
-                {'我的笔记/\n└── 我的笔记/\n    ├── 我的笔记.md\n    └── img/'}
-              </span>
-            </div>
-
             <Row
               name="导出纯 MD 时的图片"
               hint={IMAGE_POLICIES.find((p) => p.value === settings.plainMdImagePolicy)?.hint}
