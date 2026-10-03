@@ -42,10 +42,9 @@ export async function renderPdf(
   })
 
   try {
+    // Nothing to wait for after load: images are data URIs, the stylesheet
+    // uses system fonts only, and scripts are off in this window.
     await win.loadURL(toDataUrl(build.html))
-    // Images are data URIs so decoding is local and fast, but a large document
-    // still needs a beat to lay out before the print engine measures it.
-    await win.webContents.executeJavaScript('document.fonts.ready.then(() => true)', true)
 
     const pdf = await win.webContents.printToPDF({
       pageSize: 'A4',

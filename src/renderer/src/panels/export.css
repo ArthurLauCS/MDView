@@ -19,7 +19,7 @@
     transform var(--dur-fast) var(--ease-out);
 }
 
-.mode:hover:not(:disabled) {
+.mode:hover {
   border-color: var(--accent-line);
   transform: translateY(-1px);
 }
@@ -27,13 +27,6 @@
 .mode.is-active {
   border-color: var(--accent);
   background: var(--accent-soft);
-}
-
-/* An unavailable mode states its reason instead of looking merely greyed out
-   — a disabled control with no explanation is a dead end. */
-.mode:disabled {
-  cursor: default;
-  opacity: 0.55;
 }
 
 .mode__name {
@@ -46,17 +39,6 @@
   font-size: var(--text-xs);
   line-height: 1.6;
   color: var(--text-tertiary);
-}
-
-.mode__tag {
-  align-self: flex-start;
-  font-size: 10.5px;
-  letter-spacing: 0.04em;
-  padding: 1px var(--space-2);
-  border-radius: 3px;
-  background: var(--bg-overlay);
-  border: 1px solid var(--border-soft);
-  color: var(--text-disabled);
 }
 
 .diff {
