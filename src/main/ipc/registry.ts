@@ -83,6 +83,12 @@ export function registerAllHandlers(ctx: HandlerContext): void {
     return inserted
   })
 
+  ipcMain.handle(
+    IPC.ASSET_SAVE_BUFFER,
+    (_e, docPath: string, name: string, bytes: Uint8Array) =>
+      assets.insert(docPath, Buffer.from(bytes), name, extname(name).toLowerCase() || '.png')
+  )
+
   ipcMain.handle(IPC.ASSET_LIST, (_e, docPath: string, text: string) =>
     assets.refs(docPath, text)
   )

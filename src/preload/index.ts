@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC } from '@shared/ipc'
 import type {
   AppSettings,
@@ -39,6 +39,21 @@ const api = {
       ipcRenderer.invoke(IPC.ASSET_FROM_CLIPBOARD, docPath),
     fromFiles: (docPath: string, paths: string[]): Promise<InsertedAsset[]> =>
       ipcRenderer.invoke(IPC.ASSET_FROM_FILES, docPath, paths),
+    /**
+     * Electron 32 deprecated `File.path` and 33 removed it. `webUtils` is the
+     * supported replacement, and it only exists in the preload, so resolving
+     * a dropped file to a real path has to happen on this side of the bridge.
+     */
+    pathForFile: (file: File): string | null => {
+      try {
+        return webUtils.getPathForFile(file) || null
+      } catch {
+        return null
+      }
+    },
+    /** Drag payloads whose bytes only exist in the renderer (rare, but real). */
+    saveBuffer: (docPath: string, name: string, bytes: Uint8Array): Promise<InsertedAsset> =>
+      ipcRenderer.invoke(IPC.ASSET_SAVE_BUFFER, docPath, name, bytes),
     list: (docPath: string, text: string): Promise<AssetRef[]> =>
       ipcRenderer.invoke(IPC.ASSET_LIST, docPath, text),
     orphans: (): Promise<string[]> => ipcRenderer.invoke(IPC.ASSET_ORPHANS),

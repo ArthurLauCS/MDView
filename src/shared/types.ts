@@ -116,6 +116,8 @@ export interface AppSettings {
   outlineVisible: boolean
   typewriterMode: boolean
   highlightCurrentLine: boolean
+  /** Source view refuses edits; the document is presented for reading. */
+  readOnly: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -131,5 +133,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sidebarVisible: true,
   outlineVisible: true,
   typewriterMode: false,
-  highlightCurrentLine: true
+  highlightCurrentLine: true,
+  readOnly: false
 }

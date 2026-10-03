@@ -29,6 +29,7 @@ export const IPC = {
   // ---- assets -------------------------------------------------------------
   ASSET_FROM_CLIPBOARD: 'asset:from-clipboard',
   ASSET_FROM_FILES: 'asset:from-files',
+  ASSET_SAVE_BUFFER: 'asset:save-buffer',
   ASSET_LIST: 'asset:list',
   ASSET_ORPHANS: 'asset:orphans',
   ASSET_REVEAL: 'asset:reveal',
