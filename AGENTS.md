@@ -43,7 +43,7 @@ renderer  →  preload  →  main
 
 ## 编辑器
 
-`src/renderer/src/editor/Editor.tsx` 用"透明 textarea + 高亮镜像层"实现，没有编辑器框架。镜像层与 textarea 的字体度量必须完全一致——`editor.css` 顶部的那组 `font-family / font-size / line-height` 是共用的，改动时两处一起改，否则打字时文字会错位。
+`src/renderer/src/editor/Editor.tsx` 是 CodeMirror 6 单页实时编辑：源码始终是 markdown 原文，`live-preview.ts` 只加装饰（隐藏标记、行样式、表格与图片 widget），不改写文本。新增语法的显示效果时加装饰，不要动文档内容；大纲（`outline/headings.ts`）与编辑器共用同一个解析器，两处对"什么算标题"的判断必须一致。
 
 ## 表格
 
@@ -62,7 +62,7 @@ renderer  →  preload  →  main
 
 ## 语言检测
 
-`src/renderer/src/markdown/detect.ts` 的规则表是数据驱动的。加规则时：
+`src/shared/markdown/detect.ts` 的规则表是数据驱动的。加规则时：
 
 - **强信号必须是该语言独有的**。`function name(` 不是任何语言的强信号——每个 C 系语言都有，它会把差距压垮，让判定退化成"未确定"。
 - 拿不准宁可返回 `null`。错误的高亮比没有高亮更糟。
