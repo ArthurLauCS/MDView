@@ -16,6 +16,7 @@ import sub from 'markdown-it-sub'
 import sup from 'markdown-it-sup'
 import hljs from 'highlight.js/lib/common'
 import { detectLanguage } from './detect'
+import { frontmatterEnd } from './frontmatter'
 
 const md = new MarkdownIt({
   html: true,
@@ -81,5 +82,5 @@ md.use(footnote).use(taskLists, { label: true }).use(deflist).use(mark).use(sub)
 
 /** Rendering is pure and cheap enough to run per keystroke on normal docs. */
 export function renderMarkdown(source: string): string {
-  return md.render(source)
+  return md.render(source.slice(frontmatterEnd(source)))
 }

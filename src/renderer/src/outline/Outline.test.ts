@@ -4,6 +4,11 @@ import { extractHeadings, headingAt, slugify } from './headings'
 const lines = (...l: string[]): string => l.join('\n')
 
 describe('extractHeadings', () => {
+  it('does not read front matter as a setext heading', () => {
+    const got = extractHeadings('---\ntitle: 欢迎\n---\n\n# 正文\n')
+    expect(got.map((h) => [h.text, h.line])).toEqual([['正文', 5]])
+  })
+
   it('reads ATX headings with their line numbers', () => {
     const src = lines('# 一', '正文', '## 二', '### 三')
     const h = extractHeadings(src)

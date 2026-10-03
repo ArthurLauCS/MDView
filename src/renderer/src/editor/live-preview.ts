@@ -2,6 +2,7 @@ import { StateField, type EditorState, type Range } from '@codemirror/state'
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
+import { frontmatterEnd } from '@shared/markdown/frontmatter'
 import { renderMarkdown } from '../markdown/render'
 import { resolveDocumentAssets } from '../markdown/resolve-assets'
 import { cellRange, escapePipes, findTableAt, parseTable, serializeTable, type TableContext } from '../table/model'
@@ -219,9 +220,12 @@ export function previewDecorations(state: EditorState, docDir: string | null): D
   const line = (at: number, className: string): void => {
     ranges.push(Decoration.line({ class: className }).range(state.doc.lineAt(at).from))
   }
+  const body = frontmatterEnd(source)
+  for (let pos = 0; pos < body; pos = state.doc.lineAt(pos).to + 1) line(pos, 'live-frontmatter')
   syntaxTree(state).iterate({
     enter(node) {
       const { name, from, to } = node
+      if (from < body && name !== 'Document') return false
       const heading = /^(?:ATX|Setext)Heading(\d)$/.exec(name)
       if (heading) line(from, `live-heading live-h${heading[1]}`)
       if (name === 'HeaderMark') {

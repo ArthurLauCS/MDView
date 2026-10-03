@@ -1,4 +1,5 @@
 import { markdownLanguage } from '@codemirror/lang-markdown'
+import { frontmatterEnd } from '@shared/markdown/frontmatter'
 
 export interface Heading {
   level: 1 | 2 | 3 | 4 | 5 | 6
@@ -29,10 +30,12 @@ export function extractHeadings(source: string): Heading[] {
   const ids = new Set<string>()
   let previous = 0
   let line = 1
+  const body = frontmatterEnd(source)
   // Share the editor's parser so fenced samples and real headings agree.
   markdownLanguage.parser.parse(source).iterate({ enter(node) {
     const match = /^(ATX|Setext)Heading([1-6])$/.exec(node.name)
     if (!match) return
+    if (node.from < body) return false
     const level = Number(match[2]) as Heading['level']
     const raw = source.slice(node.from, node.to)
     const label = match[1] === 'ATX'

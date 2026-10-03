@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { EditorState } from '@codemirror/state'
 import { ensureSyntaxTree } from '@codemirror/language'
 import { previewDecorations, liveMarkdown } from './live-preview'
+import { renderMarkdown } from '../markdown/render'
 
 function decorations(source: string) {
   const state = EditorState.create({ doc: source, extensions: [liveMarkdown()] })
@@ -14,6 +15,16 @@ function decorations(source: string) {
 }
 
 describe('live Markdown editing', () => {
+  it('shows front matter as metadata, not as a rule and a heading', () => {
+    const source = '---\ntitle: 欢迎\n---\n\n# 正文\n\n---\n'
+    const { result } = decorations(source)
+    expect(result.filter((r) => r.spec.class === 'live-frontmatter').map((r) => r.from)).toEqual([0, 4, 14])
+    expect(result.filter((r) => String(r.spec.class).startsWith('live-heading')).map((r) => r.from)).toEqual([19])
+    expect(result.filter((r) => r.spec.widget).map((r) => r.from)).toEqual([25])
+    expect(renderMarkdown(source)).not.toContain('<h2')
+    expect(renderMarkdown('---\n\n正文')).toContain('<hr>')
+  })
+
   it('styles prose without rewriting its Markdown or image paths', () => {
     const source = '# 标题\n\n**加粗** 和 *斜体*，`code`，==高亮==\n\n![图](./文档_img/a.png)'
     const { state, result } = decorations(source)

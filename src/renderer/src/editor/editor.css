@@ -111,6 +111,11 @@
   padding-inline: var(--space-4);
   color: var(--text-secondary);
 }
+.editor__surface .live-frontmatter {
+  font-family: var(--font-code);
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
 .live-code-info { color: var(--text-tertiary); font-size: var(--text-xs); }
 
 .editor__surface .live-quote {
