@@ -107,6 +107,7 @@ const api = {
      */
     resolveStock: (name: string): Promise<string | null> =>
       ipcRenderer.invoke(IPC.APP_RESOLVE_STOCK, name),
+    pluginPath: (): Promise<string> => ipcRenderer.invoke(IPC.APP_PLUGIN_PATH),
     launchDocument: (): Promise<string | null> => ipcRenderer.invoke(IPC.APP_LAUNCH_DOCUMENT),
     onOpenDocument: (callback: (path: string) => void): (() => void) => {
       const listener = (_event: unknown, path: string): void => callback(path)

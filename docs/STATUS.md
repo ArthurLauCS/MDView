@@ -16,7 +16,10 @@
 | 正文布局 | 宽度自适应；正文左右边距直接拖动并记住；图片按比例适配正文宽度 |
 | 会话恢复 | 恢复目录和已保存文档；未命名草稿不跨退出保留 |
 | 历史版本 | 右侧可收起工具栏；自动刷新、差异与全文查看、恢复前备份及撤销；连续相同内容去重 |
-| 欢迎文档 + AI 协作规则 | 随安装包分发，从使用说明中打开；首次启动进入空白草稿 |
+| 整理为文档文件夹 | 散装 md 转成 `名称/名称.md + 名称_img/`；先预览，可选保留或回收原文件、是否下载网络图片；代码里的示例不改 |
+| 文件关联 | 安装时注册 `.md` / `.markdown`；双击打开，单实例，第二次双击交给已有窗口 |
+| Claude Code 插件 | `plugin/` 随安装包分发；`/mdview:doc` 按文档文件夹格式写文档（不生成图片 / 尽量生成图片），带校验脚本 |
+| 欢迎文档 + AI 协作规则 | 随安装包分发，从使用说明中打开；规则文本以插件的 `SKILL.md` 为唯一来源 |
 | 设置面板 | 独立入口；外观与字体、文档与保存、编辑器、图片、快捷键分类；字体配置重启保留 |
 | 视觉体系 | 深色优先；中文圆体、英文/代码等宽、装饰标题字体可分别设置；动效 token 化 |
 | 打包 | NSIS 安装包可用，`stock/` 正确随包分发；图标源文件为 `build/icon.svg` |
@@ -31,6 +34,10 @@
 - **`--accent` 是五个 CSS 变量**，用户自定义强调色时，其余四个由 `color-mix`
   推导。浅色模式下 hover 的明暗方向因此可能不理想 —— 一个十六进制值推导不出
   随主题翻转的规则，这个代价不值得更多代码去换。
+- **整理不改写非图片链接**。散装文档里指向旁边其他文件的相对链接（如 `[另一篇](./b.md)`）在移入文件夹后会失效，需要手动处理。
+- **整理后的文档是新路径，历史版本不跟随**。历史按路径归档；保留原文件时原文件的历史仍在。
+- **不能自行设为默认打开方式**。Windows 只允许用户在系统设置里选择，应用只注册为候选并提供跳转。
+- **插件没有做过真实对话的端到端验证**。清单经 `claude plugin validate` 通过，校验脚本有单元测试；AI 实际按规则产出的效果需要在使用中观察。
 - **表格样式类操作没有存储位置**。markdown 表格语法里没有放样式的地方，
   需要额外的标记方案。
 - **`sortByColumn` 靠首行是否非空来判断表头**。表头单元格本身为空时判断会失准。
@@ -38,7 +45,7 @@
 ## 验证方式
 
 ```bash
-npm test              # 340 个测试
+npm test              # 353 个测试
 npm run typecheck     # 主进程 + 渲染进程
 npm run dist          # 打 NSIS 安装包
 npx electron scripts/make-icon.cjs   # 改过 build/icon.svg 后重新生成 build/icon.png
@@ -47,6 +54,9 @@ npx electron scripts/shoot.cjs design-review/round-N   # 视觉走查截图
 npx electron scripts/workflow-check.cjs design-review/workflow-N  # 文档全流程与设置回归
 npx electron scripts/shortcuts-layout-check.cjs design-review/shortcuts-layout-N  # 全部快捷键、导出与正文缩放/拖动
 npx electron scripts/export-check.cjs design-review/export-check-N  # front matter 显示与四种导出的真实产物
+npx electron scripts/launch-check.cjs design-review/launch-check-N  # 启动参数打开文档、第二次启动复用窗口
+npx electron scripts/organize-check.cjs design-review/organize-check-N  # 散装提示、ZIP 拦截、整理全流程
+claude plugin validate plugin        # 插件与市场清单
 ```
 
 截图按轮次存档在 `design-review/`，用于对比是否退化。

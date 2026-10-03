@@ -311,6 +311,8 @@ export function registerAllHandlers(ctx: HandlerContext): void {
       ? join(process.resourcesPath, 'stock')
       : join(__dirname, '..', '..', 'stock')
 
+  ipcMain.handle(IPC.APP_PLUGIN_PATH, () => join(stockRoot(), '..', 'plugin'))
+
   ipcMain.handle(IPC.APP_REVEAL_STOCK, (_e, name: string) => {
     const target = join(stockRoot(), name)
     if (!existsSync(target)) return null

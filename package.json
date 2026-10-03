@@ -19,7 +19,7 @@
     "productName": "MDView",
     "directories": { "output": "release" },
     "files": ["out/**/*", "package.json"],
-    "extraResources": [{ "from": "stock", "to": "stock" }],
+    "extraResources": [{ "from": "stock", "to": "stock" }, { "from": "plugin", "to": "plugin" }],
     "fileAssociations": [
       { "ext": ["md", "markdown"], "name": "Markdown", "description": "Markdown 文档", "role": "Editor" }
     ],

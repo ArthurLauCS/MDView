@@ -73,6 +73,8 @@ export const IPC = {
   APP_REVEAL_STOCK: 'app:reveal-stock',
   /** Resolve a bundled file, copying it into the user's documents on first use. */
   APP_RESOLVE_STOCK: 'app:resolve-stock',
+  /** Where the Claude Code plugin shipped with the app lives on this machine. */
+  APP_PLUGIN_PATH: 'app:plugin-path',
   /** The document this launch was started with, e.g. by a double click. */
   APP_LAUNCH_DOCUMENT: 'app:launch-document',
   /** A later launch handed its document to the running window. */

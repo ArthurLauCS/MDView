@@ -121,10 +121,29 @@ export function HelpPanel({ onClose }: Props): JSX.Element {
               <h3 className="section__title">给 AI 的协作规则</h3>
             </div>
             <p className="panel__note" style={{ marginTop: 0 }}>
-              下面这些规则可以直接交给你的 AI 助手。它们让 AI 生成的图片存进文档自己的
-              图片文件夹，并用相对路径引用 —— 而不是把 base64 塞进 markdown，或者丢一张
-              过一段时间就失效的远程链接。
+              让 AI 直接按文档文件夹格式产出文档：图片存进文档自己的图片文件夹，用相对路径引用，
+              可以要求不生成图片或尽量生成图片。
             </p>
+            <div className="row">
+              <span className="row__label">
+                <span className="row__name">Claude Code 插件</span>
+                <span className="row__hint">
+                  复制后粘进 Claude Code 执行，之后用 <code>/mdview:doc</code> 写文档，或直接让它写一份文档
+                </span>
+              </span>
+              <span className="row__control">
+                <button
+                  className="btn"
+                  onClick={() =>
+                    void window.mdview.app.pluginPath().then((path) =>
+                      window.mdview.clipboard.writeText(`/plugin marketplace add "${path}"\n/plugin install mdview@mdview`)
+                    )
+                  }
+                >
+                  复制安装命令
+                </button>
+              </span>
+            </div>
             {BUNDLED_SKILLS.map((skill) => (
               <div className="row" key={skill.id}>
                 <span className="row__label">
@@ -142,9 +161,8 @@ export function HelpPanel({ onClose }: Props): JSX.Element {
               </div>
             ))}
             <p className="panel__note">
-              复制上面的规则，粘进你 AI 助手的项目规则文件（Claude Code 是
-              <code>CLAUDE.md</code> 或 <code>.claude/skills/</code>，其他工具同理），
-              它再生成图片时就会直接存进文档的图片文件夹。
+              其他 AI 助手没有插件：复制上面的规则，粘进它的规则文件（Codex 是
+              <code>AGENTS.md</code>，Cursor 是 <code>.cursor/rules/</code>）即可，内容与插件里的完全相同。
             </p>
           </section>
 

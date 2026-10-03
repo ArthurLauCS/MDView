@@ -22,6 +22,22 @@ renderer  →  preload  →  main
 2. 如果现有函数覆盖不了你的场景，改那个文件，不要在旁边另写一个。
 3. 写完之后问自己：这个文档文件夹拷到另一台机器上，链接还成立吗？不成立就是 bug。
 
+## 文档文件夹：一种格式
+
+标准形态只有一种：`名称/名称.md` + `名称/名称_img/`。`DocumentMeta.inFolder` 为假的是散装文件，由 `src/main/services/organize.ts` 转换。
+
+- 不要再引入第二种布局或布局设置。应用、转换、插件三处都只认这一种。
+- 需要遍历文档里的图片引用时用 `organize.ts` 的 `mapImageLinks`，它跳过围栏代码块和行内代码。自己写正则会把示例当成引用。
+- 任何按"文档所在文件夹"整体操作的功能（如 ZIP）必须先确认 `inFolder`，否则对散装文件就是在操作别人的目录。
+
+## AI 插件
+
+`plugin/` 是 Claude Code 插件，也是格式规范的**唯一文本来源**：`src/shared/skills/index.ts` 用 `?raw` 读 `SKILL.md`，帮助面板展示的就是插件里的内容。
+
+- 改规则只改 `plugin/mdview/skills/*/SKILL.md`，不要在应用里另存一份。
+- `skills/doc/scripts/check.mjs` 必须零依赖、可独立运行，不能 import 应用代码。它与 `mapImageLinks` 的扫描规则是有意重复的，改一处时两处一起改，`plugin.test.ts` 覆盖脚本行为。
+- 规则与应用行为必须一致：应用写出的链接要能通过 `check.mjs`（欢迎文档在测试里被它校验）。
+
 ## 交互层：动作注册表
 
 快捷键、右键菜单、命令面板三处界面**全部**从 `src/renderer/src/actions/registry.ts` 生成。
@@ -80,6 +96,7 @@ renderer  →  preload  →  main
 ```bash
 npm test              # 单元测试
 npm run typecheck     # 两个 tsconfig 都要过
+claude plugin validate plugin   # 改过 plugin/ 之后
 ```
 
 改完 UI 后的视觉验证：
