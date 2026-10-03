@@ -63,7 +63,42 @@
 
 .titlebar__actions {
   justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
   -webkit-app-region: no-drag;
+}
+
+.titlebar__btn--icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  padding: 0;
+}
+
+/* A miniature of the panel it toggles — the icon states its own meaning. */
+.titlebar__rail {
+  display: block;
+  width: 12px;
+  height: 11px;
+  border: 1.4px solid currentColor;
+  border-radius: 2px;
+  position: relative;
+  opacity: 0.75;
+}
+.titlebar__rail::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 1.4px;
+  bottom: 1.4px;
+  width: 1.4px;
+  background: currentColor;
+  opacity: 0.6;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.titlebar__btn--icon:hover {
+  color: var(--accent);
 }
 
 .titlebar__btn {

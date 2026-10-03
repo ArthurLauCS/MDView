@@ -48,16 +48,28 @@
   line-height: 1.16;
   letter-spacing: var(--tracking-display);
   margin: var(--space-12) 0 var(--space-6);
-  padding: var(--space-6) var(--space-6) var(--space-6) var(--space-8);
-  /* A tinted plate rather than a rule — it reads as a chapter opener. */
+  /* Pulled left by its own padding so the plate's text still starts on the
+     same optical margin as every other block. */
+  padding: var(--space-6) var(--space-6) var(--space-5) var(--space-6);
+  margin-left: calc(-1 * var(--space-6));
+  /* A tinted plate rather than a rule — it reads as a chapter opener. Kept
+     well under a solid fill so it works in both themes without a swap. */
   background: linear-gradient(
-    100deg,
-    var(--accent-soft) 0%,
-    color-mix(in srgb, var(--accent-soft) 34%, transparent) 62%,
-    transparent 100%
+    95deg,
+    color-mix(in srgb, var(--accent) 12%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 4%, transparent) 46%,
+    transparent 86%
   );
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   border-left: 2px solid var(--accent);
+}
+
+@media (max-width: 900px) {
+  .md h1 {
+    font-size: 1.8em;
+    padding: var(--space-5) var(--space-4) var(--space-4) var(--space-4);
+    margin-left: calc(-1 * var(--space-4));
+  }
 }
 
 .md h2 {
@@ -209,7 +221,9 @@
 .md ul,
 .md ol {
   margin: 1.1em 0;
-  padding-left: 1.5em;
+  /* Markers hang outside the text block so wrapped lines align with the
+     first character of content, not with the bullet. */
+  padding-left: 1.35em;
 }
 .md li {
   margin: 0.4em 0;

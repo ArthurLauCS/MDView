@@ -42,8 +42,11 @@ const RULES: Rule[] = [
   },
   {
     lang: 'javascript',
-    strong: [/^\s*(const|let|var)\s+\w+\s*=/m, /=>\s*\{/, /function\s*\w*\s*\(/],
-    weak: [/\brequire\(/, /module\.exports/, /console\.log\(/, /`[^`]*\$\{/]
+    // Declarations alone are shared with TypeScript and every C-like language,
+    // so they are corroboration. JS is identified by its module and runtime
+    // surface, which TypeScript keeps but which a typed snippet rarely shows.
+    strong: [/\brequire\s*\(/, /module\.exports/, /\bexports\.\w+\s*=/, /=>\s*\{[^}]*\}/, /console\.log\(/],
+    weak: [/\b(const|let|var)\s+\w+\s*=/, /`[^`]*\$\{/, /\bfunction\s+\w+\s*\(/]
   },
   {
     lang: 'jsx',
@@ -103,10 +106,11 @@ const RULES: Rule[] = [
   {
     lang: 'sql',
     strong: [
-      /\bSELECT\b[\s\S]*\bFROM\b/i,
+      // `[\s\S]` spans lines, so these need the multiline flag to behave.
+      /^\s*SELECT\b[\s\S]*?\bFROM\b/im,
       /\bINSERT\s+INTO\b/i,
       /\bCREATE\s+(TABLE|INDEX|VIEW)\b/i,
-      /\bUPDATE\b[\s\S]*\bSET\b/i
+      /^\s*UPDATE\b[\s\S]*?\bSET\b/im
     ],
     weak: [/\bWHERE\b/, /\bJOIN\b/, /\bGROUP\s+BY\b/i, /\bNULL\b/]
   },
@@ -162,8 +166,10 @@ const RULES: Rule[] = [
   },
   {
     lang: 'lua',
-    strong: [/^\s*local\s+\w+/m, /\bfunction\s+\w*\s*\(/, /\bnil\b/],
-    weak: [/\bthen\b/, /^\s*end\s*$/m, /\brequire\s*\(/]
+    // `function name(` is not characteristic of anything — every C-family
+    // language has it. Lua is identified by `local`, `nil`, `then`/`end`.
+    strong: [/^\s*local\s+\w+\s*=/m, /\bnil\b/, /\belseif\b/, /\bthen\s*$/m],
+    weak: [/\bfunction\s+[\w.:]*\s*\(/, /^\s*end\s*$/m, /\brequire\s*\(/, /\.\./]
   },
   {
     lang: 'r',
@@ -192,8 +198,11 @@ const RULES: Rule[] = [
   },
   {
     lang: 'dockerfile',
-    strong: [/^FROM\s+\S+/m],
-    weak: [/^RUN\s+/m, /^COPY\s+/m, /^WORKDIR\s+/m, /^EXPOSE\s+/m, /^ENTRYPOINT\s+/m]
+    // A bare `FROM` line is not enough — SQL has `FROM` too, and a Markdown
+    // document can contain either. Dockerfiles are identified by a run of
+    // instructions in upper case at line start.
+    strong: [/^FROM\s+\S+[\s\S]*^RUN\s+/m, /^FROM\s+\S+[\s\S]*^(COPY|ADD|WORKDIR|ENTRYPOINT|CMD)\s+/m],
+    weak: [/^ARG\s+/m, /^ENV\s+/m, /^EXPOSE\s+/m, /^VOLUME\s+/m, /^LABEL\s+/m]
   },
   {
     lang: 'ini',
@@ -221,7 +230,10 @@ const FINGERPRINTS: { re: RegExp; lang: string }[] = [
   { re: /^\s*FROM\s+\S+[\s\S]*^\s*RUN\s+/m, lang: 'dockerfile' }
 ]
 
-const MARGIN = 20
+/** The leader must beat the runner-up by this much or we decline to guess. */
+const MARGIN = 18
+/** Below this absolute score there is simply not enough evidence. */
+const MIN_SCORE = 22
 
 /** Cheap structural check: does this parse as JSON? */
 function isJson(code: string): boolean {
@@ -253,25 +265,45 @@ export function detectLanguage(code: string): Detection {
   const scores = new Map<string, number>()
 
   for (const rule of RULES) {
-    let score = 0
+    let strong = 0
+    let weak = 0
     for (const re of rule.strong) {
-      if (re.test(sample)) score += 22
+      if (re.test(sample)) strong++
     }
     for (const re of rule.weak) {
-      if (re.test(sample)) score += 6
+      if (re.test(sample)) weak++
     }
-    if (score === 0) continue
+    if (strong === 0 && weak === 0) continue
 
-    // Ratio of matching lines to total: a rule that fires everywhere is noise.
-    const density = lines.filter((l) => rule.weak.some((re) => re.test(l))).length / lineCount
-    score += Math.round(density * 14)
+    // A language must show at least one marker that is *characteristic* of it.
+    // Weak signals are corroboration, not identification — treating them as
+    // candidates lets a broad rule like Lua's `function name(` compete with
+    // JavaScript and collapse the margin that keeps the result honest.
+    if (strong === 0) continue
 
-    // TypeScript must outrank the JavaScript rule it structurally contains.
-    if (rule.lang === 'typescript' && scores.has('javascript')) {
-      score += 10
-    }
+    // Strong evidence is worth far more than weak, and both scale with how
+    // many *distinct* markers fired rather than a flat per-rule bonus.
+    let score = strong * 16 + weak * 5
+
+    // Coverage: the share of lines the rule recognises at all. A rule that
+    // fires on one line of forty is a coincidence, not a match.
+    const covered = lines.filter(
+      (l) => rule.strong.some((re) => re.test(l)) || rule.weak.some((re) => re.test(l))
+    ).length
+    const density = covered / lineCount
+    score += Math.round(density * 26)
+
+    // A language needs somewhere for its evidence to land. Without this, a
+    // single keyword in a one-line snippet scores as highly as a real file.
+    if (strong === 0) score = Math.round(score * 0.55)
+
     scores.set(rule.lang, score)
   }
+
+  // TypeScript is a syntactic superset of JavaScript, so every TS block also
+  // scores for JS. The annotation evidence has to outweigh that inheritance.
+  const js = scores.get('javascript')
+  if (js !== undefined && js > 0) scores.set('javascript', Math.round(js * 0.72))
 
   // JSON is also valid-looking YAML in some shapes; the parse above wins, so
   // only reach here when it failed — drop the JSON rule's tail evidence.
@@ -282,7 +314,7 @@ export function detectLanguage(code: string): Detection {
   const second = ranked[1] ?? null
   const gap = second ? topScore - second[1] : topScore
 
-  if (gap < MARGIN || topScore < 14) {
+  if (gap < MARGIN || topScore < MIN_SCORE) {
     return {
       lang: null,
       confidence: 0,
@@ -290,10 +322,15 @@ export function detectLanguage(code: string): Detection {
     }
   }
 
-  const confidence = Math.max(35, Math.min(94, Math.round((topScore / (topScore + 30)) * 100)))
+  // Confidence blends absolute evidence with the margin over the runner-up:
+  // a high score with a close second is not a confident answer.
+  const strength = Math.min(1, topScore / 90)
+  const separation = Math.min(1, gap / 60)
+  const confidence = Math.round(38 + 54 * (strength * 0.62 + separation * 0.38))
+
   return {
     lang: topLang,
-    confidence,
+    confidence: Math.max(38, Math.min(95, confidence)),
     runnerUp: second ? { lang: second[0], score: second[1] } : null
   }
 }

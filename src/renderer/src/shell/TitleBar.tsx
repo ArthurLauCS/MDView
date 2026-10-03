@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { usePatchSettings, useSettings } from '../state/settings'
 import './titlebar.css'
 
 interface Props {
@@ -11,6 +12,8 @@ interface Props {
  */
 export function TitleBar({ onOpenFolder }: Props): JSX.Element {
   const [maximized, setMaximized] = useState(false)
+  const settings = useSettings()
+  const patch = usePatchSettings()
 
   useEffect(() => {
     void window.mdview.window.isMaximized().then(setMaximized)
@@ -44,6 +47,14 @@ export function TitleBar({ onOpenFolder }: Props): JSX.Element {
       </div>
 
       <div className="titlebar__actions">
+        <button
+          className="titlebar__btn titlebar__btn--icon"
+          onClick={() => patch({ sidebarVisible: !settings.sidebarVisible })}
+          aria-label={settings.sidebarVisible ? '隐藏侧栏' : '显示侧栏'}
+          title="显示 / 隐藏侧栏  Ctrl+\"
+        >
+          <span className="titlebar__rail" aria-hidden />
+        </button>
         <button className="titlebar__btn" onClick={onOpenFolder}>
           打开目录
         </button>

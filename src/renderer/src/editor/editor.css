@@ -1,0 +1,227 @@
+/* =========================================================================
+   Source editor.
+
+   The textarea is transparent and the highlight mirror sits underneath it.
+   Both share this metric block verbatim — any divergence shows up as text
+   drifting out of alignment while typing, so these values must not be
+   duplicated anywhere else.
+   ========================================================================= */
+
+.editor,
+.editor__mirror code,
+.editor__input {
+  font-family: var(--font-code);
+  font-size: 14px;
+  line-height: 1.7;
+  letter-spacing: 0;
+  tab-size: 2;
+}
+
+.editor {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: 1fr auto;
+  gap: 0 var(--space-3);
+  padding: var(--space-6) var(--space-6) 0;
+  background: var(--bg-base);
+  overflow: hidden;
+}
+
+/* ---- gutter ------------------------------------------------------------- */
+
+.editor__gutter {
+  grid-row: 1;
+  overflow: hidden;
+  padding-top: 0;
+  text-align: right;
+  user-select: none;
+  color: var(--text-disabled);
+  font-variant-numeric: tabular-nums;
+}
+
+.editor__lineno {
+  display: block;
+  font-family: var(--font-code);
+  font-size: 14px;
+  line-height: 1.7;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.editor__lineno.is-current {
+  color: var(--accent);
+}
+
+/* ---- panes -------------------------------------------------------------- */
+
+.editor__pane {
+  grid-row: 1;
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.editor__mirror,
+.editor__input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0 0 var(--space-16);
+  border: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+  overflow: auto;
+}
+
+.editor__mirror {
+  pointer-events: none;
+  color: var(--text-primary);
+  background: transparent;
+  overflow: hidden;
+}
+
+.editor__input {
+  color: transparent;
+  background: transparent;
+  caret-color: var(--accent);
+  resize: none;
+  outline: none;
+  /* Selection must be visible through a transparent text fill. */
+  z-index: 1;
+}
+
+.editor__input::selection {
+  background: var(--accent-soft);
+  color: transparent;
+}
+
+/* The band is anchored to the line box, not to the em box, so it has to
+   account for the element's own padding-bottom and the 1.7 line-height. */
+.editor__input.is-line-highlight {
+  background-image: linear-gradient(var(--bg-hover), var(--bg-hover));
+  background-repeat: no-repeat;
+  background-size: 100% 1.7em;
+  background-position: 0 calc(var(--caret-line, 0) * 1.7em);
+  background-attachment: local;
+}
+
+/* ---- status bar --------------------------------------------------------- */
+
+.editor__status {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 26px;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  border-top: 1px solid var(--border-soft);
+  margin: 0 calc(-1 * var(--space-6));
+  padding: 0 var(--space-4);
+  font-variant-numeric: tabular-nums;
+}
+
+.editor__status-sep {
+  width: 1px;
+  height: 10px;
+  background: var(--border-soft);
+}
+
+/* =========================================================================
+   Source tokens. Deliberately quieter than the rendered view — this is a
+   working surface, and loud syntax colouring makes prose hard to scan.
+   ========================================================================= */
+
+.md-tok-heading-marker {
+  color: var(--accent);
+  opacity: 0.8;
+}
+.md-tok-heading-1 {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.md-tok-heading-2 {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.md-tok-heading-3,
+.md-tok-heading-4,
+.md-tok-heading-5,
+.md-tok-heading-6 {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.md-tok-strong {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.md-tok-emphasis {
+  font-style: italic;
+  color: var(--text-primary);
+}
+.md-tok-strike {
+  text-decoration: line-through;
+  color: var(--text-tertiary);
+}
+.md-tok-mark {
+  background: var(--accent-soft);
+  border-radius: 3px;
+}
+.md-tok-code-inline {
+  color: color-mix(in srgb, var(--accent) 60%, var(--text-primary));
+  background: var(--bg-inset);
+  border-radius: 3px;
+}
+.md-tok-code {
+  color: var(--hl-string);
+}
+.md-tok-fence {
+  color: var(--accent);
+  opacity: 0.75;
+}
+.md-tok-lang {
+  color: var(--hl-type);
+  font-style: italic;
+}
+.md-tok-quote-marker {
+  color: var(--accent);
+  opacity: 0.7;
+}
+.md-tok-list-marker {
+  color: var(--accent);
+  opacity: 0.85;
+}
+.md-tok-task {
+  color: var(--hl-func);
+}
+.md-tok-hr {
+  color: var(--text-disabled);
+}
+.md-tok-bracket {
+  color: var(--text-tertiary);
+}
+.md-tok-link-text {
+  color: var(--text-primary);
+}
+.md-tok-link-url {
+  color: var(--hl-func);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--hl-func) 40%, transparent);
+  text-underline-offset: 2px;
+}
+.md-tok-image-marker {
+  color: var(--accent);
+}
+.md-tok-math {
+  color: var(--hl-type);
+}
+.md-tok-footnote {
+  color: var(--hl-number);
+}
+.md-tok-link {
+  color: var(--hl-func);
+}
