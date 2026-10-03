@@ -70,6 +70,9 @@ function createWindow(): BrowserWindow {
     }
   })
 
+  // The renderer owns all commands; Electron's default menu steals bindings
+  // such as Ctrl+Shift+I and Ctrl+Shift+W before they reach the editor.
+  win.removeMenu()
   win.once('ready-to-show', () => win.show())
 
   // Never let a document navigate the shell away from the app.

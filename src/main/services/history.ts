@@ -1,6 +1,6 @@
 import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import type { DiffLine, DiffSummary, Revision } from '@shared/types'
 
 interface Index {
@@ -15,11 +15,12 @@ interface Index {
  * folder and have them find a `.history` directory in it — and it means
  * history is never mistaken for content.
  *
- * Identical content is stored once, so a document that is saved repeatedly
- * without changing costs nothing and the list stays readable.
+ * Consecutive identical content is skipped, so repeated saves without edits
+ * do not add noise to the timeline.
  */
 export class HistoryService {
   private readonly root: string
+  private readonly pending = new Map<string, Promise<unknown>>()
 
   constructor(userDataDir: string) {
     this.root = join(userDataDir, 'history')
@@ -29,11 +30,25 @@ export class HistoryService {
     return join(this.root, docId)
   }
 
+  private async mutate<T>(docId: string, action: () => Promise<T>): Promise<T> {
+    // Autosave and restore can arrive together; one index update must not
+    // overwrite the other or race a clear/delete of its blobs.
+    const next = (this.pending.get(docId) ?? Promise.resolve()).catch(() => undefined).then(action)
+    this.pending.set(docId, next)
+    try { return await next }
+    finally { if (this.pending.get(docId) === next) this.pending.delete(docId) }
+  }
+
   private async readIndex(docId: string): Promise<Index> {
     try {
       const raw = await fs.readFile(join(this.dirFor(docId), 'index.json'), 'utf8')
       const parsed = JSON.parse(raw) as Index
-      return Array.isArray(parsed.revs) ? parsed : { revs: [] }
+      const seen = new Set<string>()
+      return { revs: (Array.isArray(parsed.revs) ? parsed.revs : []).filter((rev) => {
+        if (seen.has(rev.id)) return false
+        seen.add(rev.id)
+        return true
+      }) }
     } catch {
       return { revs: [] }
     }
@@ -42,26 +57,33 @@ export class HistoryService {
   private async writeIndex(docId: string, index: Index): Promise<void> {
     const dir = this.dirFor(docId)
     await fs.mkdir(dir, { recursive: true })
-    await fs.writeFile(join(dir, 'index.json'), JSON.stringify(index), 'utf8')
+    await fs.writeFile(join(dir, 'index.tmp'), JSON.stringify(index), 'utf8')
+    await fs.rename(join(dir, 'index.tmp'), join(dir, 'index.json'))
   }
 
   /**
    * Record a snapshot. Returns the revision, or null when the content is
    * identical to the newest one — a no-op save should not litter the list.
    */
-  async record(
+  record(
+    docId: string, text: string, kind: Revision['kind'], opts: { minGapMs?: number } = {}
+  ): Promise<Revision | null> {
+    return this.mutate(docId, () => this.recordSnapshot(docId, text, kind, opts))
+  }
+
+  private async recordSnapshot(
     docId: string,
     text: string,
     kind: Revision['kind'],
     opts: { minGapMs?: number } = {}
   ): Promise<Revision | null> {
-    const id = createHash('sha256').update(text).digest('hex').slice(0, 20)
+    const hash = createHash('sha256').update(text).digest('hex').slice(0, 20)
     const dir = this.dirFor(docId)
     await fs.mkdir(dir, { recursive: true })
 
     const index = await this.readIndex(docId)
     const newest = index.revs[0]
-    if (newest && newest.id === id) return null
+    if (newest && newest.id.split('-')[0] === hash) return null
 
     // Throttle autosave snapshots: a burst of typing should leave a few
     // restore points, not one per keystroke pause.
@@ -70,6 +92,9 @@ export class HistoryService {
       return null
     }
 
+    // The same content can recur after an undo/restore. Each occurrence needs
+    // its own identity; old hash-only revision files remain readable.
+    const id = `${hash}-${randomUUID()}`
     await fs.writeFile(join(dir, `${id}.md`), text, 'utf8')
     const rev: Revision = { id, at: Date.now(), bytes: Buffer.byteLength(text), kind }
     index.revs.unshift(rev)
@@ -104,7 +129,11 @@ export class HistoryService {
   }
 
   /** Forget one revision, and its blob when nothing else points at it. */
-  async forget(docId: string, revId: string): Promise<boolean> {
+  forget(docId: string, revId: string): Promise<boolean> {
+    return this.mutate(docId, () => this.forgetSnapshot(docId, revId))
+  }
+
+  private async forgetSnapshot(docId: string, revId: string): Promise<boolean> {
     const index = await this.readIndex(docId)
     const before = index.revs.length
     index.revs = index.revs.filter((r) => r.id !== revId)
@@ -114,8 +143,8 @@ export class HistoryService {
     return true
   }
 
-  async clear(docId: string): Promise<void> {
-    await fs.rm(this.dirFor(docId), { recursive: true, force: true })
+  clear(docId: string): Promise<void> {
+    return this.mutate(docId, () => fs.rm(this.dirFor(docId), { recursive: true, force: true }))
   }
 }
 
@@ -166,32 +195,16 @@ export function summarise(diff: DiffLine[], context = 3): DiffSummary {
   const added = diff.filter((d) => d.kind === 'add').length
   const removed = diff.filter((d) => d.kind === 'del').length
 
-  const hunks: DiffLine[][] = []
-  let current: DiffLine[] = []
-  let run = 0
-
-  for (const line of diff) {
-    if (line.kind === 'same') {
-      run++
-      if (current.length > 0 && run > context * 2) {
-        current.push(...Array.from({ length: context }, () => line))
-        hunks.push(current)
-        current = []
-        run = 0
-      } else if (current.length > 0) {
-        current.push(line)
-      }
-    } else {
-      if (current.length === 0) {
-        // Open the hunk with the preceding unchanged lines for orientation.
-        const at = diff.indexOf(line)
-        current.push(...diff.slice(Math.max(0, at - context), at))
-      }
-      current.push(line)
-      run = 0
-    }
-  }
-  if (current.some((l) => l.kind !== 'same')) hunks.push(current)
+  const spans: { from: number; to: number }[] = []
+  diff.forEach((line, at) => {
+    if (line.kind === 'same') return
+    const from = Math.max(0, at - context)
+    const to = Math.min(diff.length, at + context + 1)
+    const previous = spans[spans.length - 1]
+    if (previous && from <= previous.to) previous.to = to
+    else spans.push({ from, to })
+  })
+  const hunks = spans.map(({ from, to }) => diff.slice(from, to))
 
   return { added, removed, hunks }
 }

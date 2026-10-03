@@ -1,8 +1,8 @@
 /* =========================================================================
    The document itself.
 
-   Measure is capped at `--measure` and the left/right margin grows with the
-   window, so a maximised window stays readable instead of stretching lines.
+   Shared rendering defaults. The live editor overrides measure and padding
+   with fluid width and directly draggable writing margins.
    ========================================================================= */
 
 .md {
@@ -31,17 +31,17 @@
 
 /* ---- headings: each level has its own voice ---------------------------- */
 
-.md h1,
-.md h2,
-.md h3,
-.md h4,
-.md h5,
-.md h6 {
+.md :is(h1, .live-h1),
+.md :is(h2, .live-h2),
+.md :is(h3, .live-h3),
+.md :is(h4, .live-h4),
+.md :is(h5, .live-h5),
+.md :is(h6, .live-h6) {
   position: relative;
   scroll-margin-top: calc(var(--titlebar-h) + var(--space-6));
 }
 
-.md h1 {
+.md :is(h1, .live-h1) {
   font-family: var(--font-display);
   font-size: 2.15em;
   font-weight: 500;
@@ -65,14 +65,14 @@
 }
 
 @media (max-width: 900px) {
-  .md h1 {
+  .md :is(h1, .live-h1) {
     font-size: 1.8em;
     padding: var(--space-5) var(--space-4) var(--space-4) var(--space-4);
     margin-left: calc(-1 * var(--space-4));
   }
 }
 
-.md h2 {
+.md :is(h2, .live-h2) {
   font-family: var(--font-read);
   font-size: 1.55em;
   font-weight: 600;
@@ -85,7 +85,7 @@
     100% 1px no-repeat;
 }
 
-.md h3 {
+.md :is(h3, .live-h3) {
   font-family: var(--font-ui);
   font-size: 1.2em;
   font-weight: 640;
@@ -94,7 +94,7 @@
   margin: var(--space-8) 0 var(--space-3);
 }
 
-.md h4 {
+.md :is(h4, .live-h4) {
   font-family: var(--font-ui);
   font-size: 1.02em;
   font-weight: 640;
@@ -103,7 +103,7 @@
   color: var(--text-primary);
 }
 
-.md h5 {
+.md :is(h5, .live-h5) {
   font-family: var(--font-ui);
   font-size: 0.84em;
   font-weight: 600;
@@ -115,7 +115,7 @@
   border-left: 2px solid var(--accent-line);
 }
 
-.md h6 {
+.md :is(h6, .live-h6) {
   font-family: var(--font-code);
   font-size: 0.78em;
   font-weight: 500;
@@ -140,7 +140,7 @@
     transform var(--dur-fast) var(--ease-out);
   text-decoration: none;
 }
-.md h1 .heading-anchor {
+.md :is(h1, .live-h1) .heading-anchor {
   left: -1.1em;
   top: 0.35em;
 }

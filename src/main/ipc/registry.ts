@@ -4,6 +4,10 @@ import { existsSync } from 'node:fs'
 import { dirname, extname, join, relative } from 'node:path'
 import { IPC } from '@shared/ipc'
 import { previewPlainMd } from '../services/export'
+import { archiveNameFor, runZip } from '../export/archive'
+import { buildHtml } from '../export/html'
+import { renderPdf, writePdf } from '../export/pdf'
+import { previewHtml, previewPdf, previewZip } from '../export/preview'
 import { diffLines, summarise } from '../services/history'
 import type { SettingsService } from '../services/settings'
 import type { WorkspaceService } from '../services/workspace'
@@ -33,6 +37,16 @@ export function registerAllHandlers(ctx: HandlerContext): void {
   // ---- window chrome ------------------------------------------------------
   ipcMain.on(IPC.WINDOW_MINIMIZE, () => getWindow()?.minimize())
   ipcMain.on(IPC.WINDOW_CLOSE, () => getWindow()?.close())
+  let closeApproved = false
+  getWindow()?.on('close', (event) => {
+    if (closeApproved || getWindow()?.webContents.isDestroyed()) return
+    event.preventDefault()
+    getWindow()?.webContents.send(IPC.WINDOW_REQUEST_CLOSE)
+  })
+  ipcMain.on(IPC.WINDOW_CONFIRM_CLOSE, () => {
+    closeApproved = true
+    getWindow()?.close()
+  })
   ipcMain.on(IPC.WINDOW_TOGGLE_MAXIMIZE, () => {
     const win = getWindow()
     if (!win) return
@@ -60,7 +74,22 @@ export function registerAllHandlers(ctx: HandlerContext): void {
   ipcMain.handle(IPC.DOC_READ, (_e, path: string) => documents.read(path))
   ipcMain.handle(IPC.DOC_WRITE, async (_e, path: string, text: string) => {
     await documents.write(path, text)
-    return true
+    return documents.metaFor(path)
+  })
+  ipcMain.handle(IPC.DIALOG_OPEN_DOCUMENT, async () => {
+    const result = await dialog.showOpenDialog(getWindow()!, {
+      title: '打开文档', properties: ['openFile'],
+      filters: [{ name: 'Markdown 文档', extensions: ['md', 'markdown', 'mdx'] }]
+    })
+    return result.canceled ? null : result.filePaths[0]
+  })
+  ipcMain.handle(IPC.DIALOG_CONFIRM_SAVE, async (_event, name: string) => {
+    const result = await dialog.showMessageBox(getWindow()!, {
+      type: 'question', title: '保存文档', message: `是否保存「${name}」的修改？`,
+      detail: '不保存会丢弃本次尚未写入文件的内容。',
+      buttons: ['保存', '不保存', '取消'], defaultId: 0, cancelId: 2, noLink: true
+    })
+    return ['save', 'discard', 'cancel'][result.response]
   })
   ipcMain.handle(IPC.DOC_CREATE, (_e, dir: string, stem: string, withAssetFolder: boolean) =>
     documents.create(dir, stem, withAssetFolder)
@@ -103,9 +132,12 @@ export function registerAllHandlers(ctx: HandlerContext): void {
   ipcMain.on(IPC.ASSET_REVEAL, (_e, path: string) => shell.showItemInFolder(path))
 
   // ---- export -------------------------------------------------------------
-  ipcMain.handle(IPC.EXPORT_PREVIEW, (_e, mode: ExportMode, docPath: string, text: string) =>
-    previewPlainMd(docPath, text, settings.get(), mode)
-  )
+  ipcMain.handle(IPC.EXPORT_PREVIEW, async (_e, mode: ExportMode, docPath: string, text: string) => {
+    if (mode === 'zip') return previewZip(docPath)
+    if (mode === 'html') return previewHtml(docPath, text, settings.get())
+    if (mode === 'pdf') return previewPdf(docPath, text, settings.get())
+    return previewPlainMd(docPath, text, settings.get(), mode)
+  })
 
   ipcMain.handle(IPC.EXPORT_RUN, async (_e, mode: ExportMode, docPath: string, text: string) => {
     const win = getWindow()
@@ -122,12 +154,59 @@ export function registerAllHandlers(ctx: HandlerContext): void {
       return res.filePath
     }
 
+    if (mode === 'zip') {
+      const { archive } = await runZip(docPath)
+      const res = await dialog.showSaveDialog(win, {
+        title: '打包文档文件夹',
+        defaultPath: join(docPath, '..', archiveNameFor(docPath)),
+        filters: [{ name: 'ZIP', extensions: ['zip'] }]
+      })
+      if (res.canceled || !res.filePath) return null
+      await fs.writeFile(res.filePath, archive)
+      return res.filePath
+    }
+
+    if (mode === 'html') {
+      const preview = await previewHtml(docPath, text, settings.get())
+      const res = await dialog.showSaveDialog(win, {
+        title: '导出为单文件 HTML',
+        defaultPath: preview.targetPath,
+        filters: [{ name: 'HTML', extensions: ['html'] }]
+      })
+      if (res.canceled || !res.filePath) return null
+      const build = await buildHtml(
+        docPath,
+        text,
+        settings.get().theme === 'light' ? 'light' : 'dark'
+      )
+      await fs.writeFile(res.filePath, build.html, 'utf8')
+      return res.filePath
+    }
+
+    if (mode === 'pdf') {
+      const preview = await previewPdf(docPath, text, settings.get())
+      const res = await dialog.showSaveDialog(win, {
+        title: '导出为 PDF',
+        defaultPath: preview.targetPath,
+        filters: [{ name: 'PDF', extensions: ['pdf'] }]
+      })
+      if (res.canceled || !res.filePath) return null
+      const { pdf } = await renderPdf(
+        docPath,
+        text,
+        settings.get().theme === 'light' ? 'light' : 'dark'
+      )
+      await writePdf(res.filePath, pdf)
+      return res.filePath
+    }
+
     throw new Error(`export mode not implemented yet: ${mode}`)
   })
 
   // ---- shell + clipboard --------------------------------------------------
   ipcMain.handle(IPC.SHELL_OPEN_EXTERNAL, (_e, url: string) => shell.openExternal(url))
 
+  ipcMain.handle(IPC.CLIPBOARD_READ_TABLE, () => clipboard.readHTML() || clipboard.readText())
   ipcMain.handle(IPC.CLIPBOARD_WRITE_TEXT, (_e, text: string) => {
     clipboard.writeText(text)
     return true
@@ -176,7 +255,7 @@ export function registerAllHandlers(ctx: HandlerContext): void {
   ipcMain.handle(
     IPC.HISTORY_RECORD,
     (_e, docId: string, text: string, kind: 'auto' | 'manual' | 'restore') =>
-      history.record(docId, text, kind, { minGapMs: kind === 'auto' ? 20_000 : 0 })
+      history.record(docId, text, kind, { minGapMs: kind === 'auto' ? settings.get().historyIntervalMs : 0 })
   )
   ipcMain.handle(IPC.HISTORY_FORGET, (_e, docId: string, revId: string) =>
     history.forget(docId, revId)

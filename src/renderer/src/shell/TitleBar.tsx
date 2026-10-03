@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react'
-import { usePatchSettings, useSettings } from '../state/settings'
+import { useSettings } from '../state/settings'
 import { useDocuments } from '../state/documents'
-import { openPanel } from '../state/ui'
+import { findAction } from '../actions/registry'
+import { prettyKey } from '../actions/keymap'
+import { editorContext } from '../state/editor-context'
 import './titlebar.css'
-
-interface Props {
-  onOpenFolder: () => void
-}
 
 /**
  * Frameless window chrome laid out the way Windows users expect: the app's
@@ -16,14 +14,17 @@ interface Props {
  * The buttons are Segoe Fluent glyphs rather than macOS traffic lights —
  * a close button that lights up red on hover reads as a foreign window.
  */
-export function TitleBar({ onOpenFolder }: Props): JSX.Element {
+export function TitleBar(): JSX.Element {
   const [maximized, setMaximized] = useState(false)
   const settings = useSettings()
-  const patch = usePatchSettings()
-  const { active } = useDocuments()
+  const { active, dirty } = useDocuments()
+  const sidebarAction = findAction('view.toggleSidebar')!
 
   useEffect(() => {
-    void window.mdview.window.isMaximized().then(setMaximized)
+    const refresh = (): void => { void window.mdview.window.isMaximized().then(setMaximized) }
+    refresh()
+    window.addEventListener('resize', refresh)
+    return () => window.removeEventListener('resize', refresh)
   }, [])
 
   return (
@@ -31,28 +32,26 @@ export function TitleBar({ onOpenFolder }: Props): JSX.Element {
       <div className="titlebar__lead">
         <button
           className="titlebar__btn titlebar__btn--icon"
-          onClick={() => patch({ sidebarVisible: !settings.sidebarVisible })}
+          onClick={() => void sidebarAction.run(editorContext())}
           aria-label={settings.sidebarVisible ? '隐藏侧栏' : '显示侧栏'}
-          title="显示 / 隐藏侧栏  Ctrl+\"
+          title={`${sidebarAction.title}  ${prettyKey(sidebarAction.key!)}`}
         >
           <span className="titlebar__rail" aria-hidden />
         </button>
-        <button className="titlebar__btn" onClick={onOpenFolder}>
-          打开目录
-        </button>
-        <button
-          className="titlebar__btn"
-          onClick={() => openPanel('help')}
-          title="使用说明与快捷键  F1"
-        >
-          帮助
-        </button>
+        {['document.new', 'document.open', 'document.save', 'workspace.open', 'view.settings', 'view.help'].map((id) => {
+          const action = findAction(id)!
+          return <button key={id} className={`titlebar__btn titlebar__btn--${id.split('.')[1]}`}
+            onClick={() => void action.run(editorContext())} aria-label={action.title}
+            title={`${action.title}${action.key ? `  ${prettyKey(action.key)}` : ''}`}>
+            {action.title}
+          </button>
+        })}
       </div>
 
       <div className="titlebar__center">
         {active ? (
           <span className="titlebar__doc">
-            <span className="titlebar__doc-name">{active.meta.stem}</span>
+            <span className="titlebar__doc-name">{dirty ? '● ' : ''}{active.meta.stem}</span>
             <span className="titlebar__doc-dir">{active.meta.parentDir.replace(/.*[\\/]/, '')}</span>
           </span>
         ) : (
@@ -76,7 +75,6 @@ export function TitleBar({ onOpenFolder }: Props): JSX.Element {
           className="wbtn"
           onClick={() => {
             window.mdview.window.toggleMaximize()
-            setMaximized((m) => !m)
           }}
           aria-label={maximized ? '向下还原' : '最大化'}
           title={maximized ? '向下还原' : '最大化'}

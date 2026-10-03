@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import { openDocument } from './state/documents'
 import { patchSettings } from './state/settings'
+import { editorContext } from './state/editor-context'
 import './styles/tokens.css'
 import './styles/fonts.css'
 import './styles/base.css'
@@ -26,11 +27,13 @@ declare global {
       setSettings: (patch: Record<string, unknown>) => Promise<void>
       openPanel: (id: 'settings' | 'export' | 'shortcuts' | 'palette') => void
       closePanel: () => void
+      editorContext: typeof editorContext
     }
   }
 }
 
 window.__mdview = {
+  editorContext,
   openWorkspace: async (path) => {
     const { openWorkspacePath } = await import('./state/workspace')
     await openWorkspacePath(path)

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { openPanel } from '../state/ui'
 import { resolveWelcome } from '../state/welcome'
 import { BUNDLED_SKILLS, WELCOME_DOC_REL } from '@shared/skills'
 
@@ -68,6 +67,18 @@ export function HelpPanel({ onClose }: Props): JSX.Element {
 
         <div className="panel__body">
           <section className="section">
+            <div className="section__head"><h3 className="section__title">从写作到保存</h3></div>
+            <ol className="help__steps">
+              <li>首次启动即可在空白文档输入。点击「新建文档」或按 Ctrl+N 开始另一篇。</li>
+              <li>按 Ctrl+S 选择文件名与位置。取消对话框会保留内容，未命名时不自动保存、不记录快照。</li>
+              <li>首次保存成功后，按设置启用自动保存与版本历史；关闭自动保存时用 Ctrl+S 手动保存。</li>
+              <li>插图前先保存文档。图片存放在文档旁，分享时携带文档及其图片文件夹。</li>
+              <li>新建、打开其他文件或退出时，未保存修改可选择保存、不保存或取消；保存失败会保留当前文档。</li>
+              <li>「设置」独立管理外观、文档、编辑器和图片；快捷键在其中按功能分类。F1 可直接进入快捷键页。</li>
+              <li>正文和图片随窗口伸缩；拖动正文两侧细线分别调整边距，双击恢复默认。导出快捷键 Ctrl+Shift+E 在其他面板中仍可用。</li>
+            </ol>
+          </section>
+          <section className="section">
             <div className="section__head">
               <h3 className="section__title">入门</h3>
             </div>
@@ -101,34 +112,6 @@ export function HelpPanel({ onClose }: Props): JSX.Element {
                 {stock.status === 'missing' && (
                   <span className="row__hint">这个构建没有包含欢迎文档</span>
                 )}
-              </span>
-            </div>
-          </section>
-
-          <section className="section">
-            <div className="section__head">
-              <h3 className="section__title">快捷键</h3>
-            </div>
-            <div className="row">
-              <span className="row__label">
-                <span className="row__name">快捷键速查表</span>
-                <span className="row__hint">按分组列出全部命令，可以搜索</span>
-              </span>
-              <span className="row__control">
-                <button className="btn" onClick={() => openPanel('shortcuts')}>
-                  打开 F1
-                </button>
-              </span>
-            </div>
-            <div className="row">
-              <span className="row__label">
-                <span className="row__name">命令面板</span>
-                <span className="row__hint">输入中文或英文都能搜到，每条命令自带快捷键提示</span>
-              </span>
-              <span className="row__control">
-                <button className="btn" onClick={() => openPanel('palette')}>
-                  打开 Ctrl+P
-                </button>
               </span>
             </div>
           </section>

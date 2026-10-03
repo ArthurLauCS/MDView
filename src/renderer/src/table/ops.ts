@@ -125,6 +125,155 @@ export function setCell(cells: Cells, pos: CellPos, value: string): Cells {
   })
 }
 
+/** Empty the cell but leave the row and column structure alone. */
+export function clearCell(cells: Cells, pos: CellPos): Cells {
+  const row = cells[pos.row]
+  if (!row || pos.col < 0 || pos.col >= row.length) return cells.map((r) => r.slice())
+  return setCell(cells, pos, '')
+}
+
+const TRAILING_BREAK = /(?:<br\s*\/?>)+$/i
+
+/**
+ * Toggle a `<br>` at the end of a cell — the only way markdown holds two lines
+ * in one cell. Toggling rather than appending keeps a second press from
+ * stacking a run of breaks the user did not ask for.
+ */
+export function toggleCellNewline(cells: Cells, pos: CellPos): Cells {
+  const row = cells[pos.row]
+  if (!row || pos.col < 0 || pos.col >= row.length) return cells.map((r) => r.slice())
+  const value = row[pos.col]
+  return setCell(cells, pos, TRAILING_BREAK.test(value) ? value.replace(TRAILING_BREAK, '') : value + '<br>')
+}
+
+/** One row as a standalone, pasteable table with a real header row. */
+export function rowAsTable(cells: Cells, row: number, aligns: Align[]): string {
+  const line = cells[row]
+  if (!line) return ''
+  // The header is its own header; anything below it needs the real one above,
+  // or the pasted markdown would not parse as a table at all.
+  if (row === 0) return serializeTable([line], aligns)
+  const width = colCount(cells)
+  const header = Array.from({ length: width }, (_, c) => cells[0]?.[c] ?? '')
+  return serializeTable([header, line], aligns)
+}
+
+/** The row's markdown and the matrix with that row removed. */
+export function cutRow(
+  cells: Cells,
+  row: number,
+  aligns: Align[]
+): { markdown: string; cells: Cells } {
+  return { markdown: rowAsTable(cells, row, aligns), cells: deleteRow(cells, row) }
+}
+
+/* ---- rendering styles --------------------------------------------------- */
+
+export type TableStyle = 'zebra' | 'compact' | 'borderless' | 'card' | 'center'
+
+/**
+ * Visual weight is one slot: a row cannot be striped and a card at once.
+ * The rest are independent flags, so they compose freely.
+ */
+const EXCLUSIVE: TableStyle[] = ['zebra', 'card']
+
+/**
+ * Plain markdown has nowhere to store how a table should look, so the style
+ * rides along in an HTML comment on the line after the block. `findTableAt`
+ * stops before it, which is what keeps it out of `parseTable` and lets
+ * `serializeTable` round-trip the table without touching it.
+ */
+const MARKER_RE = /^\s*<!--\s*mdview:table\s+style=([^>]*?)\s*-->\s*$/
+
+const STYLES: TableStyle[] = ['zebra', 'compact', 'borderless', 'card', 'center']
+
+function isStyle(v: string): v is TableStyle {
+  return (STYLES as string[]).includes(v)
+}
+
+function stylesFromMarker(line: string): TableStyle[] {
+  const m = MARKER_RE.exec(line)
+  if (!m) return []
+  const found = m[1].split(',').map((s) => s.trim()).filter(isStyle)
+  // A hand-edited `style=zebra,card` keeps the first and drops the second,
+  // so reading is as exclusive as writing.
+  const visual = EXCLUSIVE.filter((s) => found.includes(s)).slice(0, 1)
+  return [...visual, ...found.filter((s) => !EXCLUSIVE.includes(s))]
+}
+
+function markerLine(styles: TableStyle[]): string {
+  return `<!-- mdview:table style=${styles.join(',')} -->`
+}
+
+/**
+ * Offsets of the marker line when the table carries one. `ctx.end` sits at the
+ * end of the table's own last line, so the marker — if it exists — is the line
+ * after that, never the first thing past `end`.
+ */
+function markerSpan(src: string, end: number): { start: number; end: number } | null {
+  const after = src.slice(end)
+  const lineBreak = after.indexOf('\n')
+  if (lineBreak === -1) return null
+  const start = end + lineBreak + 1
+  const rest = src.slice(start)
+  const nextBreak = rest.indexOf('\n')
+  const line = nextBreak === -1 ? rest : rest.slice(0, nextBreak)
+  if (!MARKER_RE.test(line)) return null
+  return { start, end: nextBreak === -1 ? src.length : start + nextBreak }
+}
+
+/**
+ * Offset just past the table block, taking a trailing marker line with it.
+ * Deliberately not folded into `TableContext.end`: `end` marks where the
+ * table's own text stops, and moving it would change `ctx.raw` for every
+ * document that has a style.
+ */
+export function tableRegionEnd(src: string, end: number): number {
+  return markerSpan(src, end)?.end ?? end
+}
+
+/** The style the table carries, empty when it has never been styled. */
+export function tableStyles(src: string, ctx: { end: number }): TableStyle[] {
+  const span = markerSpan(src, ctx.end)
+  return span ? stylesFromMarker(src.slice(span.start, span.end)) : []
+}
+
+/** Apply, clear or drop the marker line after the table block. */
+export function setTableStyle(src: string, ctx: { end: number }, style: TableStyle, on: boolean): string {
+  const span = markerSpan(src, ctx.end)
+  const present = span ? stylesFromMarker(src.slice(span.start, span.end)) : []
+
+  let next = present
+  if (on) {
+    // Choosing one visual weight replaces the other rather than sitting beside
+    // it, so a marker can never read `style=zebra,card`. Only the visual styles
+    // displace anything; the flags compose.
+    next = EXCLUSIVE.includes(style) ? present.filter((s) => !EXCLUSIVE.includes(s)) : present
+    if (!next.includes(style)) next = [...next, style]
+  } else {
+    next = present.filter((s) => s !== style)
+  }
+
+  if (next.length === 0) {
+    // Dropping the last style takes the whole line with its line break, so the
+    // blank line that followed the table is what remains.
+    if (!span) return src
+    const tail = src.slice(span.end)
+    const head = src.slice(0, span.start)
+    return tail.startsWith('\n') ? head + tail.slice(1) : head + tail
+  }
+
+  const line = markerLine(next)
+  if (span) return src.slice(0, span.start) + line + src.slice(span.end)
+  // A table that ends the document has no line to insert before, so the marker
+  // is appended; otherwise it takes the slot directly under the table and
+  // whatever followed the table keeps its own line.
+  const after = src.slice(ctx.end)
+  const lineBreak = after.indexOf('\n')
+  if (lineBreak === -1) return src + '\n' + line
+  return src.slice(0, ctx.end + lineBreak + 1) + line + '\n' + src.slice(ctx.end + lineBreak + 1)
+}
+
 export function setColumnAlign(aligns: Align[], col: number, align: Align): Align[] {
   const out = aligns.slice()
   while (out.length <= col) out.push('none')
@@ -520,18 +669,36 @@ const STAT_LABEL: Record<StatsKind, string> = {
 }
 
 /**
+ * True for a row this function previously appended. `appendStatsRow` only
+ * labels its row when there is a second column to put the value in, so a
+ * one-column table cannot be recognised and keeps the old folding behaviour.
+ * A data row that happens to be labelled `合计` is indistinguishable from a
+ * summary row and will be skipped too — the accepted cost of not asking the
+ * user to confirm.
+ */
+function isStatsRow(row: string[], cols: number): boolean {
+  if (cols < 2) return false
+  return Object.values(STAT_LABEL).includes((row[0] ?? '').trim())
+}
+
+/**
  * Append a summary row for one column.
  *
  * Every row is scanned — the header row is included, so a table with no header
  * still works; its text just never parses as a number. `count` counts the
  * values that also feed `sum`/`avg` (numeric cells), not non-empty cells, so
  * the five kinds agree on what a value is.
+ *
+ * A stats row already in the table is left out of the scan, so running the
+ * same statistic twice reports the data rather than its own previous answer.
+ * The rows below it stay: statistics are appended, never reordered to the end.
  */
 export function appendStatsRow(cells: Cells, col: number, kind: StatsKind): Cells {
   const cols = colCount(cells)
   if (cols === 0) return cells.slice()
   const values: number[] = []
   for (const row of cells) {
+    if (isStatsRow(row, cols)) continue
     const n = toNumber(row[col] ?? '')
     if (n !== null) values.push(n)
   }

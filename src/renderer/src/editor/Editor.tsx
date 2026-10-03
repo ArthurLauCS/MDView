@@ -1,6 +1,12 @@
-import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, forwardRef } from 'react'
-import { highlightSource } from './highlight'
-import { autoPair, continuationPrefix } from '../actions/markdown-ops'
+import { useEffect, useLayoutEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react'
+import { Compartment, EditorState, Transaction } from '@codemirror/state'
+import { EditorView, keymap, highlightActiveLine, placeholder, scrollPastEnd } from '@codemirror/view'
+import { defaultKeymap, history, historyKeymap, indentWithTab, isolateHistory, undo, redo } from '@codemirror/commands'
+import { markdownKeymap } from '@codemirror/lang-markdown'
+import { indentUnit, syntaxTree } from '@codemirror/language'
+import { autoPair } from '../actions/markdown-ops'
+import { focusTableCell, livePreview, liveMarkdown } from './live-preview'
+import { PageMargins } from './PageMargins'
 import './editor.css'
 
 export interface EditorHandle {
@@ -10,291 +16,190 @@ export interface EditorHandle {
   setSource: (text: string) => void
   replace: (start: number, end: number, text: string, cursor?: number) => void
   select: (start: number, end: number) => void
+  jump: (offset: number) => void
   focus: () => void
-  /** Screenshot-friendly: the element a drop target should be attached to. */
-  element: () => HTMLTextAreaElement | null
+  undo: () => void
+  redo: () => void
+  element: () => HTMLElement | null
 }
 
 interface Props {
   source: string
+  docPath: string
   onChange: (next: string) => void
   onContextMenu: (x: number, y: number) => void
   onCursorChange?: (cursor: number) => void
-  /** Image pastes are intercepted here; other pastes pass through untouched. */
-  onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void
-  /** Intercept keys before the editor handles them. Return true to consume. */
-  onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => boolean
+  onPaste?: (e: ClipboardEvent) => void
   readOnly?: boolean
   typewriter?: boolean
   highlightLine?: boolean
-  /** Editor behaviours the user can turn off individually. */
   spellCheck?: boolean
   autoPair?: boolean
   smartLists?: boolean
+  tabSize?: number
 }
 
-const LINE_HEIGHT = 1.7
-
-/**
- * A textarea with a syntax-highlighted mirror painted underneath it.
- *
- * The textarea keeps its own text transparent and the caret visible, while a
- * `<pre>` renders the coloured copy. Both use identical metrics, so they stay
- * aligned through scrolling, wrapping and font changes without any sync code.
- * This is far cheaper than a full editor framework and keeps every native
- * behaviour — IME, undo, spellcheck, accessibility — intact, which matters
- * more here than bespoke key handling.
- */
-export const Editor = forwardRef<EditorHandle, Props>(function Editor(
-  {
-    source,
-    onChange,
-    onContextMenu,
-    onCursorChange,
-    onPaste,
-    onKeyDown,
-    readOnly,
-    typewriter,
-    highlightLine,
-    spellCheck,
-    autoPair: pairingEnabled = true,
-    smartLists = true
-  },
-  ref
-) {
-  const taRef = useRef<HTMLTextAreaElement>(null)
-  const preRef = useRef<HTMLPreElement>(null)
-  const gutterRef = useRef<HTMLDivElement>(null)
+export const Editor = forwardRef<EditorHandle, Props>(function Editor(props, ref) {
+  const host = useRef<HTMLDivElement>(null)
+  const viewRef = useRef<EditorView | null>(null)
+  const current = useRef(props)
+  current.current = props
+  const config = useRef(new Compartment())
+  const documentConfig = useRef(new Compartment())
   const [cursor, setCursor] = useState(0)
 
-  const lines = useMemo(() => source.split('\n'), [source])
-  const html = useMemo(() => highlightSource(source), [source])
-
-  const { line, col } = useMemo(() => {
-    const before = source.slice(0, cursor)
-    const lineIndex = before.split('\n').length - 1
-    const lineStart = before.lastIndexOf('\n') + 1
-    return { line: lineIndex, col: cursor - lineStart }
-  }, [source, cursor])
-
-  /** Keep the mirror and gutter glued to the textarea's own scroll offset. */
-  const syncScroll = useCallback((): void => {
-    const ta = taRef.current
-    if (!ta) return
-    if (preRef.current) {
-      preRef.current.scrollTop = ta.scrollTop
-      preRef.current.scrollLeft = ta.scrollLeft
-    }
-    if (gutterRef.current) gutterRef.current.scrollTop = ta.scrollTop
-  }, [])
-
-  const syncCursor = useCallback((): void => {
-    const ta = taRef.current
-    if (!ta) return
-    setCursor(ta.selectionStart)
-    onCursorChange?.(ta.selectionStart)
-  }, [onCursorChange])
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      getSource: () => taRef.current?.value ?? source,
-      getCursor: () => taRef.current?.selectionStart ?? 0,
-      getSelection: () => {
-        const ta = taRef.current
-        if (!ta || ta.selectionStart === ta.selectionEnd) return null
-        return { start: ta.selectionStart, end: ta.selectionEnd }
-      },
-      setSource: (text) => {
-        onChange(text)
-      },
-      replace: (start, end, text, at) => {
-        const ta = taRef.current
-        if (!ta) return
-        const next = ta.value.slice(0, start) + text + ta.value.slice(end)
-        onChange(next)
-        const caret = at ?? start + text.length
-        // The DOM value updates on the next render, so restore after paint.
-        requestAnimationFrame(() => {
-          ta.setSelectionRange(caret, caret)
-          syncCursor()
-          if (typewriter) centreLine(ta)
-        })
-      },
-      select: (start, end) => {
-        taRef.current?.focus()
-        taRef.current?.setSelectionRange(start, end)
-        syncCursor()
-      },
-      focus: () => taRef.current?.focus(),
-      element: () => taRef.current
+  const configure = () => [
+    EditorState.tabSize.of(current.current.tabSize ?? 2),
+    indentUnit.of(' '.repeat(current.current.tabSize ?? 2)),
+    EditorState.readOnly.of(!!current.current.readOnly),
+    EditorView.editable.of(!current.current.readOnly),
+    EditorView.contentAttributes.of({
+      class: 'md',
+      'aria-label': 'Markdown 文档',
+      spellcheck: String(!!current.current.spellCheck)
     }),
-    [source, onChange, syncCursor, typewriter]
-  )
+    current.current.highlightLine ? highlightActiveLine() : [],
+    current.current.smartLists ? keymap.of(markdownKeymap) : []
+  ]
 
-  useEffect(() => {
-    if (typewriter && taRef.current) centreLine(taRef.current)
-  }, [cursor, typewriter])
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
-    if (onKeyDown?.(e)) return
-    const ta = e.currentTarget
-
-    // Smart list continuation. Done here rather than in the action registry
-    // because it depends on browser-native Enter handling.
-    if (smartLists && e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey) {
-      const lineStart = ta.value.lastIndexOf('\n', ta.selectionStart - 1) + 1
-      const current = ta.value.slice(lineStart, ta.selectionStart)
-      const prefix = continuationPrefix(current)
-      if (prefix) {
-        e.preventDefault()
-        const insert = `\n${prefix}`
-        const next = ta.value.slice(0, ta.selectionStart) + insert + ta.value.slice(ta.selectionEnd)
-        onChange(next)
-        const caret = ta.selectionStart + insert.length
-        requestAnimationFrame(() => {
-          ta.setSelectionRange(caret, caret)
-          syncCursor()
-        })
-        return
-      }
-      if (/^\s*(```|~~~)/.test(current) && ta.selectionStart === ta.selectionEnd) {
-        e.preventDefault()
-        const insert = `\n\n${current.match(/^\s*/)?.[0] ?? ''}\`\`\`\n`
-        const next = ta.value.slice(0, ta.selectionStart) + insert + ta.value.slice(ta.selectionEnd)
-        onChange(next)
-        const caret = ta.selectionStart + 1
-        requestAnimationFrame(() => {
-          ta.setSelectionRange(caret, caret)
-          syncCursor()
-        })
-        return
-      }
-    }
-
-    // Auto-pairing, but never inside a code fence — there the user wants the
-    // literal character, and the closing-bracket skip would fight them.
-    if (pairingEnabled && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && !readOnly) {
-      const inFence = isInsideFence(ta.value, ta.selectionStart)
-      if (!inFence) {
-        const sel =
-          ta.selectionStart === ta.selectionEnd
-            ? null
-            : { start: ta.selectionStart, end: ta.selectionEnd }
-        const result = autoPair(ta.value, ta.selectionStart, sel, e.key)
-        if (result === 'skip-close') {
-          e.preventDefault()
-          const next = ta.selectionStart + 1
-          requestAnimationFrame(() => {
-            ta.setSelectionRange(next, next)
-            syncCursor()
-          })
-          return
-        }
-        if (result) {
-          e.preventDefault()
-          onChange(result.text)
-          requestAnimationFrame(() => {
-            if (result.selection) ta.setSelectionRange(result.selection[0], result.selection[1])
-            else ta.setSelectionRange(result.cursor, result.cursor)
-            syncCursor()
-          })
-        }
-      }
-    }
-
-    if (e.key === 'Tab') {
-      e.preventDefault()
-      const start = ta.selectionStart
-      const end = ta.selectionEnd
-      if (start === end) {
-        const next = ta.value.slice(0, start) + '  ' + ta.value.slice(end)
-        onChange(next)
-        requestAnimationFrame(() => {
-          ta.setSelectionRange(start + 2, start + 2)
-          syncCursor()
-        })
-      } else {
-        const from = ta.value.lastIndexOf('\n', start - 1) + 1
-        const block = ta.value.slice(from, end)
-        const shifted = e.shiftKey
-          ? block.replace(/^ {1,2}/gm, '')
-          : block.replace(/^/gm, '  ')
-        onChange(ta.value.slice(0, from) + shifted + ta.value.slice(end))
-        requestAnimationFrame(() => {
-          ta.setSelectionRange(from, from + shifted.length)
-          syncCursor()
-        })
-      }
-    }
+  const select = (start: number, end: number): void => {
+    const view = viewRef.current
+    if (!view) return
+    start = Math.min(start, view.state.doc.length)
+    end = Math.min(end, view.state.doc.length)
+    if (focusTableCell(view, start, end)) return
+    view.dispatch({ selection: { anchor: start, head: end }, scrollIntoView: true })
+    view.focus()
   }
 
+  useImperativeHandle(ref, () => ({
+    getSource: () => viewRef.current?.state.doc.toString() ?? current.current.source,
+    getCursor: () => viewRef.current?.state.selection.main.from ?? 0,
+    getSelection: () => {
+      const range = viewRef.current?.state.selection.main
+      return range && !range.empty ? { start: range.from, end: range.to } : null
+    },
+    setSource: (text) => {
+      const view = viewRef.current
+      if (view && !view.state.readOnly) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text }, annotations: isolateHistory.of('full') })
+    },
+    replace: (start, end, text, at) => {
+      const view = viewRef.current
+      if (!view || view.state.readOnly) return
+      const cursor = at ?? start + text.length
+      view.dispatch({ changes: { from: start, to: end, insert: text }, selection: { anchor: cursor }, userEvent: 'input' })
+      select(cursor, cursor)
+    },
+    select,
+    jump: (offset) => {
+      const view = viewRef.current
+      if (!view) return
+      view.dispatch({ selection: { anchor: offset }, effects: EditorView.scrollIntoView(offset, { y: 'start', yMargin: 16 }) })
+      view.focus()
+    },
+    focus: () => viewRef.current?.focus(),
+    undo: () => { if (viewRef.current && !viewRef.current.state.readOnly) undo(viewRef.current) },
+    redo: () => { if (viewRef.current && !viewRef.current.state.readOnly) redo(viewRef.current) },
+    element: () => viewRef.current?.contentDOM ?? null
+  }), [])
+
+  useLayoutEffect(() => {
+    const view = new EditorView({
+      parent: host.current!,
+      state: EditorState.create({
+        doc: current.current.source,
+        extensions: [
+          liveMarkdown(),
+          history(),
+          config.current.of(configure()),
+          keymap.of([...historyKeymap, indentWithTab, ...defaultKeymap]),
+          EditorView.lineWrapping,
+          scrollPastEnd(),
+          documentConfig.current.of(livePreview(current.current.docPath ? current.current.docPath.replace(/[\\/][^\\/]+$/, '') : null)),
+          placeholder('从这里开始写作…'),
+          EditorView.domEventHandlers({
+            contextmenu(event) {
+              event.preventDefault()
+              current.current.onContextMenu(event.clientX, event.clientY)
+              return true
+            },
+            paste(event) {
+              if (current.current.readOnly) return true
+              current.current.onPaste?.(event)
+              return event.defaultPrevented
+            }
+          }),
+          EditorView.inputHandler.of((view, from, to, text) => {
+            if (!current.current.autoPair || view.composing || text.length !== 1) return false
+            for (let node = syntaxTree(view.state).resolveInner(from, -1); node; node = node.parent!) {
+              if (node.name === 'FencedCode' || node.name === 'CodeBlock') return false
+            }
+            const source = view.state.doc.toString()
+            const result = autoPair(source, from, from === to ? null : { start: from, end: to }, text)
+            if (!result) return false
+            if (result === 'skip-close') view.dispatch({ selection: { anchor: from + 1 } })
+            else view.dispatch({
+              changes: { from: 0, to: source.length, insert: result.text },
+              selection: { anchor: result.selection?.[0] ?? result.cursor, head: result.selection?.[1] ?? result.cursor },
+              userEvent: 'input.type'
+            })
+            return true
+          }),
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged && !update.transactions.every((tr) => tr.annotation(Transaction.addToHistory) === false)) {
+              current.current.onChange(update.state.doc.toString())
+            }
+            if (update.docChanged || update.selectionSet) {
+              const offset = update.state.selection.main.from
+              setCursor(offset)
+              current.current.onCursorChange?.(offset)
+              if (current.current.typewriter && update.view.hasFocus && update.docChanged) {
+                requestAnimationFrame(() => {
+                  if (viewRef.current === view) view.dispatch({ effects: EditorView.scrollIntoView(offset, { y: 'center' }) })
+                })
+              }
+            }
+          })
+        ]
+      })
+    })
+    viewRef.current = view
+    view.focus()
+    return () => {
+      viewRef.current = null
+      view.destroy()
+    }
+  }, [])
+
+  useEffect(() => {
+    viewRef.current?.dispatch({ effects: documentConfig.current.reconfigure(livePreview(props.docPath ? props.docPath.replace(/[\\/][^\\/]+$/, '') : null)) })
+  }, [props.docPath])
+
+  useEffect(() => {
+    viewRef.current?.dispatch({ effects: config.current.reconfigure(configure()) })
+  }, [props.readOnly, props.highlightLine, props.spellCheck, props.smartLists, props.tabSize])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view || props.source === view.state.doc.toString()) return
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: props.source },
+      annotations: Transaction.addToHistory.of(false)
+    })
+  }, [props.source])
+
+  const before = props.source.slice(0, cursor)
   return (
     <div className="editor">
-      <div className="editor__gutter" ref={gutterRef} aria-hidden>
-        {lines.map((_, i) => (
-          <span key={i} className={`editor__lineno ${i === line ? 'is-current' : ''}`}>
-            {i + 1}
-          </span>
-        ))}
+      <div className="editor__surface">
+        <div className="editor__mount" ref={host} />
+        <PageMargins />
       </div>
-
-      <div className="editor__pane">
-        <pre className="editor__mirror" ref={preRef} aria-hidden>
-          <code dangerouslySetInnerHTML={{ __html: html + '\n' }} />
-        </pre>
-        <textarea
-          ref={taRef}
-          className={`editor__input ${highlightLine ? 'is-line-highlight' : ''}`}
-          // The current-line band is painted by CSS at this offset, which keeps
-          // it in the textarea's own scroll space instead of a separate layer.
-          style={highlightLine ? ({ '--caret-line': line } as React.CSSProperties) : undefined}
-          value={source}
-          readOnly={readOnly}
-          spellCheck={spellCheck ?? false}
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="off"
-          onChange={(e) => onChange(e.target.value)}
-          onPaste={onPaste}
-          onKeyDown={handleKeyDown}
-          onScroll={syncScroll}
-          onSelect={syncCursor}
-          onClick={syncCursor}
-          onKeyUp={syncCursor}
-          onContextMenu={(e) => {
-            e.preventDefault()
-            onContextMenu(e.clientX, e.clientY)
-          }}
-          aria-label="Markdown 源码"
-        />
-      </div>
-
       <div className="editor__status">
-        <span>
-          第 {line + 1} 行，第 {col + 1} 列
-        </span>
-        <span className="editor__status-sep" />
-        <span>{source.length} 字符</span>
+        <span>第 {before.split('\n').length} 行</span>
+        <span>{props.source.length} 字符</span>
+        <span>{props.readOnly ? '只读' : '直接编辑'}</span>
       </div>
     </div>
   )
 })
-
-function centreLine(ta: HTMLTextAreaElement): void {
-  const before = ta.value.slice(0, ta.selectionStart)
-  const lineIndex = before.split('\n').length - 1
-  const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || 24
-  const target = lineIndex * lineHeight - ta.clientHeight / 2 + lineHeight
-  // Direct assignment, never smooth scrolling — smooth fights every keystroke.
-  ta.scrollTop = Math.max(0, target)
-}
-
-/** Cheap fence toggle scan; a full parse would be wasteful per keystroke. */
-function isInsideFence(src: string, offset: number): boolean {
-  const before = src.slice(0, offset)
-  const fences = before.match(/^```/gm)
-  return (fences?.length ?? 0) % 2 === 1
-}
-
-export { LINE_HEIGHT }

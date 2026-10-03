@@ -9,7 +9,7 @@ import type { ActionContext } from '../actions/types'
  * Read-only from the outside — nothing but the editor should be able to
  * rewrite a user's document through this.
  */
-let current: ActionContext | null = null
+let current: (() => ActionContext) | null = null
 let scopes: Set<string> = new Set(['app', 'global'])
 
 /**
@@ -38,7 +38,7 @@ export const EMPTY_CONTEXT: ActionContext = {
 type Listener = () => void
 const listeners = new Set<Listener>()
 
-export function publishEditorContext(ctx: ActionContext | null, available: Set<string>): void {
+export function publishEditorContext(ctx: (() => ActionContext) | null, available: Set<string>): void {
   current = ctx
   scopes = available
   for (const l of listeners) l()
@@ -46,7 +46,7 @@ export function publishEditorContext(ctx: ActionContext | null, available: Set<s
 
 /** Never null — callers that need the live one should check `docPath`. */
 export function editorContext(): ActionContext {
-  return current ?? EMPTY_CONTEXT
+  return current?.() ?? EMPTY_CONTEXT
 }
 
 export function availableScopes(): Set<string> {
@@ -64,5 +64,5 @@ export function useEditorContext(): { ctx: ActionContext; scopes: Set<string> } 
     }
   }, [])
 
-  return { ctx: current ?? EMPTY_CONTEXT, scopes }
+  return { ctx: editorContext(), scopes }
 }

@@ -3,19 +3,22 @@ import { TitleBar } from './shell/TitleBar'
 import { Sidebar } from './shell/Sidebar'
 import { Welcome } from './shell/Welcome'
 import { EditorPane } from './shell/EditorPane'
+import { HistoryDock } from './history/HistoryPanel'
+import { resolveBinding } from './actions/keymap'
 import { CommandPalette } from './shell/CommandPalette'
 import { PanelHost } from './panels/PanelHost'
 import { useDocuments } from './state/documents'
 import { applySettings, patchSettings, useSettings } from './state/settings'
 import { useWorkspace } from './state/workspace'
-import { useEditorContext } from './state/editor-context'
-import { closePanel, togglePanel, usePanel } from './state/ui'
+import { editorContext, useEditorContext } from './state/editor-context'
+import { closePanel, usePanel } from './state/ui'
 import { useSessionBoot, touchSession } from './state/session'
+import './shell/sidepanel.css'
 
 export function App(): JSX.Element {
   const settings = useSettings()
   const workspace = useWorkspace()
-  const { active } = useDocuments()
+  const { active, key: documentKey, error: documentError } = useDocuments()
   const { ctx, scopes } = useEditorContext()
   const panel = usePanel()
   const boot = useSessionBoot()
@@ -24,7 +27,7 @@ export function App(): JSX.Element {
   /** Keep the session pointed at whatever is in front. */
   useEffect(() => {
     if (!active) return
-    touchSession({ activeDoc: active.meta.path })
+    touchSession({ activeDoc: active.meta.path || null, openDocs: active.meta.path ? [active.meta.path] : [] })
   }, [active?.meta.path])
 
   useEffect(() => {
@@ -38,36 +41,41 @@ export function App(): JSX.Element {
    */
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      const mod = e.ctrlKey || e.metaKey
-      if (e.key === 'F1') {
-        e.preventDefault()
-        togglePanel('shortcuts')
-      } else if (mod && e.key.toLowerCase() === 'p') {
-        e.preventDefault()
-        togglePanel('palette')
-      } else if (mod && e.key === ',') {
-        e.preventDefault()
-        togglePanel('settings')
-      } else if (mod && e.shiftKey && e.key.toLowerCase() === 'e') {
-        e.preventDefault()
-        togglePanel('export')
-      } else if (mod && e.key.toLowerCase() === 'h') {
-        // Ctrl+Shift+H was already taken by 高亮, and history reads more
-        // naturally on the unshifted chord anyway.
-        e.preventDefault()
-        togglePanel('history')
+      if (e.defaultPrevented || e.isComposing || e.repeat) return
+      const action = resolveBinding(e)
+      if (!action) return
+      const ctx = editorContext()
+      const target = e.target as HTMLElement
+      const image = target instanceof HTMLImageElement && target.closest('.live-rendered') ? target : null
+      const inScope = action.scope === 'table' || action.scope === 'tableColumn' ? ctx.inTable
+        : action.scope === 'codeblock' ? ctx.inCodeBlock : action.scope === 'find' ? !!ctx.selection
+        : action.scope === 'image' ? !!image : scopes.has(action.scope)
+      if (!inScope || action.enabled?.(ctx) === false) return
+      const appAction = ['app', 'global'].includes(action.scope)
+      if (!appAction && panel) {
+        if (target.closest('.editor')) { e.preventDefault(); e.stopPropagation() }
+        return
       }
+      if (!appAction && target.closest('input, textarea, [contenteditable]') && !target.closest('.editor')) return
+      e.preventDefault()
+      e.stopPropagation()
+      void action.run(image ? { ...ctx, fullscreenImage: () => { void image.requestFullscreen() } } : ctx)
       // Escape is deliberately not handled here — PanelHost owns dismissal
       // for the panels, and the palette owns its own. Handling it in both
       // places meant two handlers racing on the same keystroke.
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
+    // App shortcuts must win over the focused editor or settings input.
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [ctx, scopes, panel])
 
   useEffect(() => {
     void applySettings()
   }, [])
+
+  useEffect(() => {
+    if (!panel) ctx.focus()
+  }, [panel])
 
   /**
    * A sidebar that is a fixed column on a wide window is an overlay on a
@@ -80,7 +88,7 @@ export function App(): JSX.Element {
     let userChoice = settings.sidebarVisible
 
     const onResize = (): void => {
-      const narrow = window.innerWidth < NARROW
+      const narrow = window.innerWidth <= NARROW
       if (narrow && userChoice) {
         userChoice = false
         void patchSettings({ sidebarVisible: false })
@@ -101,11 +109,18 @@ export function App(): JSX.Element {
     root.dataset.theme = settings.theme === 'light' ? 'light' : 'dark'
     root.dataset.motion = settings.motion
     root.style.setProperty('--reading-size', `${settings.fontSize}px`)
-    root.style.setProperty('--measure', `${settings.measure}ch`)
+    root.style.setProperty('--page-margin-left', `${settings.pageMarginLeft}%`)
+    root.style.setProperty('--page-margin-right', `${settings.pageMarginRight}%`)
+    root.style.setProperty('--sidebar-w', `${settings.sidebarWidth}px`)
+    root.style.setProperty('--history-w', `${settings.historyWidth}px`)
     root.style.setProperty('--editor-font-size', `${settings.codeFontSize ?? 14}px`)
     root.style.setProperty('--editor-line-height', String(settings.lineHeight ?? 1.7))
     root.style.setProperty('--editor-caret-shape', settings.cursorStyle ?? 'bar')
     root.style.setProperty('--editor-tab-size', String(settings.tabSize ?? 2))
+    for (const [name, font] of [['ui', settings.fontUi], ['read', settings.fontRead], ['code', settings.fontCode], ['display', settings.fontDisplay]]) {
+      if (font) root.style.setProperty(`--font-${name}`, `${name === 'code' ? '' : '"MDView Latin", '}${JSON.stringify(font)}, var(--font-${name}-default)`)
+      else root.style.removeProperty(`--font-${name}`)
+    }
 
     // The accent is one value to the user and five tokens to the stylesheet.
     // Deriving the rest here keeps a user's colour from leaving hover and
@@ -126,7 +141,14 @@ export function App(): JSX.Element {
     settings.theme,
     settings.motion,
     settings.fontSize,
-    settings.measure,
+    settings.fontUi,
+    settings.fontRead,
+    settings.fontCode,
+    settings.fontDisplay,
+    settings.pageMarginLeft,
+    settings.pageMarginRight,
+    settings.sidebarWidth,
+    settings.historyWidth,
     settings.codeFontSize,
     settings.lineHeight,
     settings.cursorStyle,
@@ -144,22 +166,20 @@ export function App(): JSX.Element {
 
   return (
     <div className="app-root">
-      <TitleBar onOpenFolder={openFolder} />
+      <TitleBar />
+      {(documentError || error) && <div className="app-error" role="alert">{documentError || error}</div>}
       <div className="app-body">
         {settings.sidebarVisible && <Sidebar />}
-        {error ? (
-          <main className="doc doc--center">
-            <p className="doc__notice doc__notice--error">{error}</p>
-          </main>
-        ) : !boot.booted ? (
+        {!boot.booted ? (
           // Hold the first paint until the session is read — rendering the
           // welcome screen and then swapping it out would flash.
           <main className="doc doc--center" />
         ) : active ? (
-          <EditorPane />
+          <EditorPane key={documentKey} />
         ) : (
           <Welcome onOpenFolder={openFolder} />
         )}
+        <HistoryDock />
       </div>
 
       {/* Overlays sit at the top level so they are reachable whatever is

@@ -1,216 +1,372 @@
-/**
- * Visual verification harness.
- *
- * Boots the real application — same main process, same IPC handlers, same
- * preload — then drives the UI into a few states and writes PNGs.
- * Screenshots are the only honest way to check a design claim, so this is a
- * first-class script rather than a debug leftover.
- *
- *   node scripts/shoot.cjs [outDir]
- */
-const { app, BrowserWindow } = require('electron')
+/** Real Electron regression checks and screenshots. Uses an isolated profile and document copies. */
+const { app, BrowserWindow, dialog } = require('electron')
+// The legacy editing scenarios intentionally discard their temporary buffers.
+dialog.showMessageBox = async () => ({ response: 1, checkboxChecked: false })
 const path = require('node:path')
 const fs = require('node:fs/promises')
-
-const OUT = path.resolve(process.argv[2] || 'design-review/round-1')
+const assert = require('node:assert/strict')
+const OUT = path.resolve(process.argv[2] || 'design-review/live-editor')
 const ROOT = path.resolve(__dirname, '..')
-const SAMPLE = path.join(ROOT, 'sample')
-
-// Load the app's own main process first so every IPC handler is registered
-// before any window exists.
+const WORKSPACE = path.join(OUT, 'workspace')
+require('node:fs').mkdirSync(path.join(OUT, 'documents'), { recursive: true })
+app.setPath('userData', path.join(OUT, 'profile'))
+app.setPath('documents', path.join(OUT, 'documents'))
 require(path.join(ROOT, 'out/main/index.js'))
-
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
-async function shoot(win, name) {
-  const img = await win.webContents.capturePage()
-  await fs.mkdir(OUT, { recursive: true })
-  await fs.writeFile(path.join(OUT, `${name}.png`), img.toPNG())
-  console.log('wrote', `${name}.png`)
-}
-
-function firstWindow() {
-  const win = BrowserWindow.getAllWindows()[0]
-  if (!win) throw new Error('no window was created by the main process')
-  return win
-}
-
 async function main() {
-  // Wait for the main process to have finished creating its window.
-  for (let i = 0; i < 60 && BrowserWindow.getAllWindows().length === 0; i++) {
-    await wait(100)
-  }
-  const win = firstWindow()
+  await fs.mkdir(WORKSPACE, { recursive: true })
+  await fs.cp(path.join(ROOT, 'stock', '欢迎使用'), path.join(WORKSPACE, '欢迎使用'), { recursive: true })
+  for (let i = 0; i < 60 && !BrowserWindow.getAllWindows().length; i++) await wait(100)
+  const win = BrowserWindow.getAllWindows()[0]
   win.setSize(1440, 900)
-  await wait(1500)
-
-  await shoot(win, '01-welcome')
-
-  await win.webContents.executeJavaScript(
-    `window.__mdview.openWorkspace(${JSON.stringify(SAMPLE)})`
-  )
-  await wait(1200)
-  await shoot(win, '02-sidebar')
-
-  const docPath = path.join(SAMPLE, '我的笔记', '我的笔记.md')
-  await win.webContents.executeJavaScript(
-    `window.__mdview.openDocument(${JSON.stringify(docPath)})`
-  )
-  console.log('opened:', docPath)
-  await wait(1400)
-  await shoot(win, '03-editor-source')
-
-  const clickMode = (label) =>
-    win.webContents.executeJavaScript(`
-      (() => {
-        const b = [...document.querySelectorAll('.ep__mode')].find((x) => x.textContent.includes(${JSON.stringify(label)}))
-        if (b) b.click()
-        return !!b
-      })()
-    `)
-
-  await clickMode('阅读')
-  await wait(1100)
-  await shoot(win, '04-read')
-
-  // Scroll the rendered view down to the table and code sections — those are
-  // the two blocks most likely to have layout defects.
-  await win.webContents.executeJavaScript(`
-    (() => {
-      const el = document.querySelector('.ep__preview')
-      if (!el) return false
-      const table = el.querySelector('table')
-      if (table) { el.scrollTop = table.offsetTop - 60; return true }
-      return false
-    })()
-  `)
-  await wait(800)
-  await shoot(win, '04b-table')
-
-  await win.webContents.executeJavaScript(`
-    (() => {
-      const el = document.querySelector('.ep__preview')
-      if (!el) return false
-      const code = el.querySelector('.codeblock')
-      if (code) { el.scrollTop = code.offsetTop - 40; return true }
-      return false
-    })()
-  `)
-  await wait(800)
-  await shoot(win, '04c-code')
-
-  // The language badge and copy button are hover-only, so read them out and
-  // force them visible for the screenshot.
-  const detected = await win.webContents.executeJavaScript(`
-    (() => {
-      const blocks = [...document.querySelectorAll('.codeblock')]
-      const info = blocks.map((b) => ({
-        lang: b.dataset.lang,
-        confidence: b.dataset.confidence ?? null
-      }))
-      blocks.forEach((b) => {
-        const bar = b.querySelector('.codeblock__bar')
-        if (bar) bar.style.opacity = '1'
-      })
-      return info
-    })()
-  `)
-  console.log('detected languages:', JSON.stringify(detected))
-  await wait(300)
-  await shoot(win, '04d-code-badges')
-
-  await clickMode('分栏')
-  await wait(1100)
-  await shoot(win, '05-split')
-
-  await win.webContents.executeJavaScript(`window.__mdview.setSettings({ theme: 'light' })`)
-  await wait(800)
-  await shoot(win, '06-light-split')
-
-  await win.webContents.executeJavaScript(`window.__mdview.setSettings({ theme: 'dark' })`)
-  await clickMode('源码')
-  await wait(800)
-
-  // Command palette
-  await win.webContents.executeJavaScript(`
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'p', ctrlKey: true, bubbles: true }))
-  `)
-  await wait(900)
-  await shoot(win, '07-palette')
-
-  await win.webContents.executeJavaScript(`
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
-  `)
-  await wait(500)
-  const paletteClosed = await win.webContents.executeJavaScript(
-    `!document.querySelector('.palette')`
-  )
-  console.log('palette closed by Escape:', paletteClosed)
-
-  // Panels — each is opened through the app's own key handler.
-  const press = (key, opts = {}) =>
-    win.webContents.executeJavaScript(`
-      window.dispatchEvent(new KeyboardEvent('keydown', ${JSON.stringify({ key, bubbles: true, ...opts })}))
-    `)
-
-  await press('F1')
-  await wait(900)
-  await shoot(win, '11-shortcuts')
-  await press('Escape')
-  await wait(400)
-
-  await press(',', { ctrlKey: true })
-  await wait(900)
-  await shoot(win, '12-settings')
-  await press('Escape')
-  await wait(400)
-
-  await press('e', { ctrlKey: true, shiftKey: true })
-  await wait(1200)
-  await shoot(win, '13-export')
-  await press('Escape')
-  await wait(400)
-
-  // Context menu with a selection in the editor
-  await win.webContents.executeJavaScript(`
-    (() => {
-      const ta = document.querySelector('.editor__input')
-      if (!ta) return false
-      ta.focus()
-      ta.setSelectionRange(600, 660)
-      const r = ta.getBoundingClientRect()
-      ta.dispatchEvent(new MouseEvent('contextmenu', {
-        bubbles: true, cancelable: true,
-        clientX: r.left + 260, clientY: Math.min(r.top + 240, window.innerHeight - 60)
-      }))
-      return true
-    })()
-  `)
-  await wait(900)
-  await shoot(win, '08-contextmenu')
-
-  await win.webContents.executeJavaScript(
-    `document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))`
-  )
-  await wait(400)
-
-  // Narrow breakpoints
-  win.setSize(900, 900)
-  await wait(800)
-  await shoot(win, '09-narrow-900')
-
-  win.setSize(600, 860)
-  await wait(800)
-  await shoot(win, '10-narrow-600')
-
-  win.setSize(1440, 900)
-  await wait(600)
-  app.quit()
-}
-
-app.whenReady().then(() =>
-  main().catch((err) => {
-    console.error('shoot failed:', err)
-    app.exit(1)
+  const errors = []
+  win.webContents.on('console-message', (_event, level, message) => {
+    if (level >= 3) errors.push(message)
   })
-)
+  const run = (code) => win.webContents.executeJavaScript(code, true)
+  const shot = async (name) => {
+    await fs.writeFile(path.join(OUT, `${name}.png`), (await win.webContents.capturePage()).toPNG())
+    console.log('wrote', name)
+  }
+  const press = async (keyCode, modifiers = []) => {
+    win.webContents.sendInputEvent({ type: 'keyDown', keyCode, modifiers })
+    win.webContents.sendInputEvent({ type: 'keyUp', keyCode, modifiers })
+    await wait(150)
+  }
+  const mouse = (type, point) => win.webContents.sendInputEvent({ type, ...point, button: 'left', clickCount: 1, modifiers: type !== 'mouseUp' ? ['leftButtonDown'] : [] })
+  const click = async (point) => { mouse('mouseDown', point); mouse('mouseUp', point); await wait(100) }
+  const textPoint = async (text, offset, scroll = true) => {
+    if (scroll) {
+      await run(`Array.from(document.querySelectorAll('.cm-line, [data-cell-from]')).find(el => el.textContent.includes(${JSON.stringify(text)})).scrollIntoView({block:'center'})`)
+      await wait(100)
+    }
+    return run(`(() => {
+      const el = Array.from(document.querySelectorAll('.cm-line, [data-cell-from]')).find(el => el.textContent.includes(${JSON.stringify(text)}))
+      let at = el.textContent.indexOf(${JSON.stringify(text)}) + ${offset}
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+      let node
+      while (node = walker.nextNode()) {
+        if (at < node.length) {
+          const range = document.createRange(); range.setStart(node, at); range.setEnd(node, at + 1)
+          const box = range.getBoundingClientRect()
+          return {x:Math.round(box.left + 1), y:Math.round((box.top + box.bottom) / 2)}
+        }
+        at -= node.length
+      }
+      throw new Error('No text coordinate: ' + ${JSON.stringify(text)})
+    })()`)
+  }
+  const historyButton = async (label) => {
+    await run(`Array.from(document.querySelectorAll('.history-panel button')).find(button => button.textContent.trim() === ${JSON.stringify(label)}).click()`)
+    await wait(200)
+  }
+  await wait(1200)
+  await run('document.fonts.ready.then(() => true)')
+  await run(`window.__mdview.setSettings({ theme: 'dark', sidebarVisible: true, autoPair: false, autoSave: false })`)
+  await run(`window.__mdview.openWorkspace(${JSON.stringify(WORKSPACE)})`)
+  const docPath = path.join(WORKSPACE, '欢迎使用', '欢迎使用.md')
+  await run(`window.__mdview.openDocument(${JSON.stringify(docPath)})`)
+  await wait(800)
+  assert.equal(await run(`document.querySelectorAll('.ep__mode').length`), 0)
+  assert.equal(await run(`!!document.querySelector('.sidebar .assets') && !document.querySelector('.ep .assets')`), true)
+  assert.equal(await run(`document.querySelectorAll('.cm-editor').length`), 1)
+  assert.equal(await run(`document.querySelector('.cm-content').getAttribute('contenteditable')`), 'true')
+  await shot('01-live-dark')
+  await run(`(() => { const ctx = window.__mdview.editorContext(); const at = ctx.source.search(/^\\|/m); if (at >= 0) ctx.select(at, at) })()`)
+  await wait(300)
+  await run(`document.querySelector('.live-table')?.scrollIntoView({block:'center'})`)
+  await wait(150)
+  await shot('02-live-table')
+  await run(`document.querySelector('.cm-scroller').scrollTop = 0`)
+  await run(`window.__mdview.editorContext().select(0, 0)`)
+  await run(`window.__mdview.setSettings({ theme: 'light' })`)
+  await wait(300)
+  await shot('03-live-light')
+  await run(`window.__mdview.setSettings({ theme: 'dark' })`)
+  win.setSize(900, 800)
+  await run(`window.__mdview.setSettings({ sidebarVisible: false })`)
+  await wait(300)
+  await shot('04-live-narrow')
+  await run(`window.__mdview.setSettings({ sidebarVisible: true })`)
+  await wait(250)
+  await shot('05-sidebar-narrow')
+  win.setSize(1440, 900)
+  await wait(300)
+
+  const fixturePath = path.join(WORKSPACE, '编辑检查.md')
+  const fixture = '# 编辑检查\n\n普通正文和 **加粗**。\n\n| 名称 | 数量 |\n| --- | --- |\n| 苹果 | 2 |\n| 梨 | 3 |\n\n结束\n'
+  await fs.writeFile(fixturePath, fixture)
+  await run(`window.__mdview.openDocument(${JSON.stringify(fixturePath)})`)
+  await wait(350)
+  await run(`window.__mdview.editorContext().select(2, 2)`)
+  await win.webContents.insertText('新增')
+  await wait(200)
+  assert.match(await run(`window.__mdview.editorContext().source`), /^# 新增编辑检查/)
+  await press('z', ['control'])
+  assert.equal(await run(`window.__mdview.editorContext().source`), fixture)
+
+  await press('y', ['control'])
+  assert.match(await run(`window.__mdview.editorContext().source`), /^# 新增编辑检查/)
+  await press('z', ['control'])
+
+  await run(`window.__mdview.editorContext().select(${fixture.indexOf('普通')}, ${fixture.indexOf('普通') + 2})`)
+  await press('b', ['control'])
+  assert.match(await run(`window.__mdview.editorContext().source`), /\*\*普通\*\*/)
+  await press('z', ['control'])
+
+  await run(`document.querySelector('.live-table tbody tr td').click()`)
+  await wait(100)
+  assert.equal(await run(`document.activeElement.className`), 'live-cell-input')
+  await run(`(() => { const input = document.activeElement; input.setSelectionRange(0, 0); input.click() })()`)
+  assert.equal(await run(`document.activeElement.selectionStart`), 0)
+  await win.webContents.insertText('红')
+  await wait(200)
+  assert.match(await run(`window.__mdview.editorContext().source`), /红苹果/)
+  assert.equal(await run(`document.activeElement.className`), 'live-cell-input')
+  await press('s', ['control'])
+  await wait(300)
+  assert.match(await fs.readFile(fixturePath, 'utf8'), /红苹果/)
+  await run(`document.querySelector('.live-table tbody tr td:nth-child(2)').click()`)
+  await wait(100)
+  assert.equal(await run(`document.querySelectorAll('.live-cell-input').length`), 1)
+  await win.webContents.insertText('0')
+  await wait(100)
+  assert.match(await run(`window.__mdview.editorContext().source`), /红苹果 \| 20/)
+  await press('z', ['control'])
+  assert.match(await run(`window.__mdview.editorContext().source`), /红苹果 \| 2/)
+  await press('z', ['control'])
+  assert.equal(await run(`window.__mdview.editorContext().source`), fixture)
+
+  await run(`window.__mdview.editorContext().select(2, 2)`)
+  win.webContents.debugger.attach('1.3')
+  await win.webContents.debugger.sendCommand('Input.imeSetComposition', { text: 'zhong', selectionStart: 5, selectionEnd: 5 })
+  await win.webContents.debugger.sendCommand('Input.imeSetComposition', { text: '中文', selectionStart: 2, selectionEnd: 2 })
+  await win.webContents.debugger.sendCommand('Input.insertText', { text: '中文' })
+  win.webContents.debugger.detach()
+  await wait(200)
+  assert.match(await run(`window.__mdview.editorContext().source`), /^# 中文编辑检查/)
+  await press('z', ['control'])
+  assert.equal(await run(`window.__mdview.editorContext().source`), fixture)
+
+  await run(`window.__mdview.setSettings({ autoSave: true, autoSaveDelayMs: 100 })`)
+  const imagePath = path.join(ROOT, 'stock', '欢迎使用', '欢迎使用_img', '01-文档即文件夹.svg')
+  await run(`(async () => {
+    const [asset] = await window.mdview.asset.fromFiles(${JSON.stringify(fixturePath)}, [${JSON.stringify(imagePath)}])
+    const ctx = window.__mdview.editorContext()
+    ctx.select(ctx.source.length, ctx.source.length)
+    window.__mdview.editorContext().insertBlock('![图片检查](' + asset.relPath + ')\\n')
+  })()`)
+  await wait(500)
+  assert.match(await fs.readFile(fixturePath, 'utf8'), /!\[图片检查\]\(\.\//)
+  assert.equal(await run(`document.querySelector('.sidebar .assets__count').textContent`), '1')
+  assert.equal(await run(`!![...document.querySelectorAll('.live-rendered img')].find((img) => img.alt === '图片检查' && img.naturalWidth > 0)`), true)
+  const saved = await fs.readFile(fixturePath, 'utf8')
+
+
+  await run(`window.__mdview.setSettings({ readOnly: true })`)
+  await wait(150)
+  assert.equal(await run(`document.querySelector('.cm-content').getAttribute('contenteditable')`), 'false')
+  await run(`window.__mdview.editorContext().replace(0, 0, '不应写入')`)
+  assert.equal(await run(`window.__mdview.editorContext().source`), saved)
+  await run(`window.__mdview.setSettings({ readOnly: false })`)
+  await wait(200)
+  await shot('06-editing-verified')
+
+  await run(`window.__mdview.setSettings({autoSave:false, historyEnabled:false, sidebarVisible:true})`)
+  const mousePath = path.join(WORKSPACE, '鼠标与历史检查.md')
+  const imageMarkdown = saved.match(/!\[图片检查\]\([^\n]+\)/)[0]
+  const mouseSource = '# 标题点击定位检查\n\n正文零一二三四五六七八九。\n\n## 二级标题定位检查\n\n第二段普通正文定位。\n\n```js\nconst value = 123\nconsole.log(value)\n```\n\n代码之后普通正文定位。\n\n| 名称 | 数量 |\n| --- | --- |\n| 苹果测试单元格 | 2 |\n\n表格之后普通正文定位。\n\n' + imageMarkdown + '\n\n图片之后普通正文定位。\n\n' + '折行正文测试'.repeat(24) + '落点检查结束。\n'
+  await fs.writeFile(mousePath, mouseSource)
+  await run(`window.__mdview.openDocument(${JSON.stringify(mousePath)})`)
+  await wait(400)
+  assert.ok(await run(`document.querySelectorAll('.live-code-line .hljs-keyword').length`) > 0)
+  for (const width of [1440, 900]) {
+    win.setSize(width, 900)
+    await run(`window.__mdview.setSettings({sidebarVisible:${width === 1440},fontSize:${width === 1440 ? 17 : 22}})`)
+    await wait(200)
+    for (const [text, at] of [['标题点击定位检查', 4], ['正文零一二三四五六七八九。', 6], ['二级标题定位检查', 4], ['const value = 123', 6], ['console.log(value)', 8], ['代码之后普通正文定位。', 5], ['苹果测试单元格', 2], ['表格之后普通正文定位。', 5], ['图片之后普通正文定位。', 5], ['落点检查结束。', 3]]) {
+      await click(await textPoint(text, at))
+      assert.equal(await run(`window.__mdview.editorContext().cursor`), mouseSource.indexOf(text) + at, `mouse hit at ${width}px: ${text}`)
+    }
+    const from = await textPoint('正文零一二三四五六七八九。', 2)
+    const to = await textPoint('正文零一二三四五六七八九。', 8, false)
+    mouse('mouseDown', from)
+    for (let i = 1; i <= 5; i++) { mouse('mouseMove', {x:Math.round(from.x + (to.x - from.x) * i / 5), y:to.y}); await wait(20) }
+    mouse('mouseUp', to)
+    await wait(150)
+    assert.deepEqual(await run(`window.__mdview.editorContext().selection`), {start:mouseSource.indexOf('正文零') + 2, end:mouseSource.indexOf('正文零') + 8}, `drag ${width}: ${JSON.stringify({from,to})}`)
+  }
+  win.setSize(1440, 900)
+  await run(`window.__mdview.setSettings({fontSize:17, sidebarVisible:true, typewriterMode:true})`)
+  await wait(200)
+  const hit = await textPoint('正文零一二三四五六七八九。', 6)
+  await click(hit)
+  assert.deepEqual(await textPoint('正文零一二三四五六七八九。', 6, false), hit, 'typewriter must not move a mouse click')
+  await win.webContents.insertText('落点')
+  await wait(150)
+  assert.equal(await run(`window.__mdview.editorContext().source`), mouseSource.replace('正文零一二三四', '正文零一二三落点四'))
+  await press('z', ['control'])
+  assert.equal(await run(`window.__mdview.editorContext().source`), mouseSource)
+  await run(`window.__mdview.setSettings({typewriterMode:false, historyEnabled:true, historyIntervalMs:300})`)
+  await run(`document.querySelector('.history-dock__toggle').click()`)
+  await wait(400)
+  assert.equal(await run(`!!document.querySelector('.history-panel') && !document.querySelector('.panel__scrim')`), true)
+  assert.equal(await run(`document.querySelectorAll('.hist__row').length`), 1)
+  await run(`(() => {const c=window.__mdview.editorContext(); c.replace(c.source.length,c.source.length,'自动快照内容\\n')})()`)
+  await wait(650)
+  assert.equal(await run(`document.querySelectorAll('.hist__row').length`), 2, 'automatic history refresh with autosave disabled')
+  assert.equal(await fs.readFile(mousePath, 'utf8'), mouseSource)
+  await run(`window.__mdview.setSettings({historyEnabled:false})`)
+  await run(`(() => {const c=window.__mdview.editorContext(); c.replace(c.source.length,c.source.length,'未保存草稿\\n')})()`)
+  await wait(150)
+  const draft = await run(`window.__mdview.editorContext().source`)
+  await run(`document.querySelector('.hist__item:last-child .hist__row').click()`)
+  await historyButton('全文')
+  assert.equal(await run(`document.querySelector('.hist__source').textContent`), mouseSource)
+  await historyButton('恢复到此版本')
+  await historyButton('确认恢复')
+  assert.equal(await run(`window.__mdview.editorContext().source`), mouseSource)
+  assert.equal(await run(`!!document.querySelector('.history-panel')`), true)
+  assert.equal(await run(`document.querySelectorAll('.hist__row').length`), 3)
+  const historyDoc = await run(`window.mdview.doc.read(${JSON.stringify(mousePath)})`)
+  const revisions = await run(`window.mdview.history.list(${JSON.stringify(historyDoc.meta.id)})`)
+  assert.equal(await run(`window.mdview.history.read(${JSON.stringify(historyDoc.meta.id)},${JSON.stringify(revisions[0].id)})`), draft)
+  await run(`window.__mdview.editorContext().focus()`)
+  await press('z', ['control'])
+  assert.equal(await run(`window.__mdview.editorContext().source`), draft, 'restore can be undone as one edit')
+  await run(`(() => {const c=window.__mdview.editorContext(); c.replace(c.source.length,c.source.length,'手动保存记录\\n')})()`)
+  await press('s', ['control'])
+  await wait(250)
+  assert.equal(await run(`document.querySelectorAll('.hist__row').length`), 3, 'history disabled stops save snapshots')
+  await historyButton('立即记录')
+  assert.equal(await run(`document.querySelectorAll('.hist__row').length`), 4)
+  await historyButton('变更')
+  await run(`document.querySelector('.hist__row').click(); window.__mdview.editorContext().select(2,2)`)
+  await wait(200)
+  assert.equal(await run(`getComputedStyle(document.querySelector('.diff__text--same')).textDecorationLine`), 'none')
+  await click(await textPoint('代码之后普通正文定位。', 5))
+  assert.equal(await run(`window.__mdview.editorContext().cursor`), mouseSource.indexOf('代码之后普通正文定位。') + 5, 'hit mapping with the dock expanded')
+  await run(`document.querySelector('.cm-scroller').scrollTop = 0`)
+  await wait(100)
+  await shot('07-history-dock')
+  await run(`window.__mdview.setSettings({theme:'light'})`)
+  await wait(150)
+  await shot('08-history-light')
+  win.setSize(900, 800)
+  await run(`window.__mdview.setSettings({theme:'dark', sidebarVisible:false})`)
+  await wait(200)
+  await shot('09-history-narrow')
+  await press('h', ['control'])
+  assert.equal(await run(`document.querySelector('.history-dock__toggle').getAttribute('aria-expanded')`), 'false')
+  await press('h', ['control'])
+  assert.equal(await run(`document.querySelector('.history-dock__toggle').getAttribute('aria-expanded')`), 'true')
+  await run(`window.__mdview.openPanel('settings')`)
+  assert.equal(await run(`!!document.querySelector('.history-panel') && !!document.querySelector('.panel__scrim')`), true)
+  await run(`window.__mdview.closePanel()`)
+  await run(`window.__mdview.setSettings({readOnly:true})`)
+  await wait(100)
+  assert.equal(await run(`Array.from(document.querySelectorAll('.history-panel button')).find(button=>button.textContent.trim()==='恢复到此版本').disabled`), true)
+  await run(`window.__mdview.setSettings({readOnly:false})`)
+  await historyButton('删除此版本')
+  await historyButton('删除')
+  assert.equal(await run(`document.querySelectorAll('.hist__row').length`), 3)
+  await historyButton('清空历史')
+  await historyButton('确认清空')
+  assert.equal(await run(`document.querySelectorAll('.hist__row').length`), 0)
+  const emptyPath = path.join(WORKSPACE, '另一篇文档.md')
+  await fs.writeFile(emptyPath, '# 空历史文档\n')
+  await run(`window.__mdview.openDocument(${JSON.stringify(emptyPath)})`)
+  await wait(250)
+  assert.equal(await run(`document.querySelector('.history-panel .side-panel__subtitle').textContent`), '另一篇文档')
+  assert.equal(await run(`document.querySelectorAll('.hist__row').length`), 0)
+  win.setSize(1440, 900)
+  await run(`window.__mdview.setSettings({sidebarVisible:true, outlineVisible:true, sidebarWidth:260, historyWidth:360})`)
+  const outlinePath = path.join(WORKSPACE, '标题层级检查.md')
+  const outlineSource = '# 项目手册\n\n说明正文。\n\n## 安装\n\n安装步骤。\n\n### Windows\n\n平台说明。\n\n#### 下载\n\n下载文件。\n\n##### 校验\n\n检查文件。\n\n###### 完成\n\n完成安装。\n\n## 使用\n\n日常编辑。\n\n#### 快速开始\n\n跳级标题。\n\n## 重复\n\n第一处。\n\n## 重复\n\n第二处。\n\n```md\n# 代码里的标题\n```\n'
+  await fs.writeFile(outlinePath, outlineSource)
+  await run(`window.__mdview.openDocument(${JSON.stringify(outlinePath)})`)
+  await wait(350)
+  assert.equal(await run(`document.querySelectorAll('.outline__jump').length`), 10)
+  assert.equal(await run(`document.querySelector('.outline__level:last-child').textContent`), 'H1')
+  assert.equal(await run(`document.querySelector('.outline__list > li > ul > li > ul > li > ul > li > ul > li > ul .outline__level').textContent`), 'H6')
+  await run(`document.querySelector('.outline__toggle[aria-label="折叠 安装"]').click()`)
+  await wait(100)
+  assert.equal(await run(`document.querySelectorAll('.outline__jump').length`), 6)
+  await run(`document.querySelector('.outline__jump[title="使用"]').click()`)
+  await wait(100)
+  assert.equal(await run(`window.__mdview.editorContext().cursor`), outlineSource.indexOf('## 使用') + 3)
+  assert.equal(await run(`document.querySelector('.outline__jump[aria-current="location"]').title`), '使用')
+  await run(`Array.from(document.querySelectorAll('.outline__jump[title="重复"]'))[1].click()`)
+  await wait(100)
+  assert.equal(await run(`window.__mdview.editorContext().cursor`), outlineSource.lastIndexOf('## 重复') + 3)
+  await run(`window.__mdview.editorContext().select(${outlineSource.indexOf('###### 完成') + 7},${outlineSource.indexOf('###### 完成') + 7})`)
+  await wait(100)
+  assert.equal(await run(`document.querySelector('.outline__toggle[aria-label="折叠 安装"]').getAttribute('aria-expanded')`), 'true', 'caret navigation reveals ancestors')
+  await run(`(() => {const c=window.__mdview.editorContext(); const p=c.source.indexOf('## 使用'); c.replace(p+3,p+5,'日常使用')})()`)
+  await wait(100)
+  assert.equal(await run(`!!document.querySelector('.outline__jump[title="日常使用"]')`), true)
+  await run(`Array.from(document.querySelectorAll('.sidebar__tab')).find(button=>button.textContent==='文件').click()`)
+  await wait(100)
+  assert.equal(await run(`!!document.querySelector('.sidebar__tree') && !document.querySelector('.outline')`), true)
+  await run(`Array.from(document.querySelectorAll('.sidebar__tab')).find(button=>button.textContent==='大纲').click()`)
+  await wait(100)
+  const resize = async (selector, dx, setting, expected) => {
+    const point = await run(`(() => {const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return {x:Math.round(r.left+r.width/2),y:Math.round(r.top+180)}})()`)
+    const old = JSON.parse(await fs.readFile(path.join(OUT,'profile','settings.json'),'utf8'))[setting]
+    mouse('mouseDown', point)
+    await wait(50)
+    for(let i=1;i<=5;i++) {mouse('mouseMove',{x:Math.round(point.x+dx*i/5),y:point.y}); await wait(20)}
+    assert.equal(JSON.parse(await fs.readFile(path.join(OUT,'profile','settings.json'),'utf8'))[setting], old, 'dragging must not write settings per frame')
+    mouse('mouseUp',{x:point.x+dx,y:point.y})
+    await wait(150)
+    assert.equal(JSON.parse(await fs.readFile(path.join(OUT,'profile','settings.json'),'utf8'))[setting], expected)
+  }
+  await resize('.side-resizer--left',100,'sidebarWidth',360)
+  await resize('.side-resizer--right',-60,'historyWidth',420)
+  assert.equal(await run(`Math.round(document.querySelector('.sidebar').getBoundingClientRect().width)`),360)
+  assert.equal(await run(`Math.round(document.querySelector('.history-panel').getBoundingClientRect().width)`),420)
+  await run(`document.querySelector('.side-resizer--left').focus()`)
+  await press('Left')
+  assert.equal(await run(`Math.round(document.querySelector('.sidebar').getBoundingClientRect().width)`),344)
+  await run(`document.querySelector('.titlebar__btn--icon').click()`)
+  await wait(100)
+  await run(`document.querySelector('.titlebar__btn--icon').click()`)
+  await wait(100)
+  assert.equal(await run(`Math.round(document.querySelector('.sidebar').getBoundingClientRect().width)`),344)
+  assert.equal(await run(`getComputedStyle(document.querySelector('.titlebar__center')).getPropertyValue('-webkit-app-region')`),'drag')
+  assert.equal(await run(`getComputedStyle(document.querySelector('.titlebar__btn')).getPropertyValue('-webkit-app-region')`),'no-drag')
+  assert.ok(await run(`document.querySelector('.titlebar__center').getBoundingClientRect().width`) > 600)
+  assert.equal(await run(`Math.round(document.querySelector('.sidebar__head').getBoundingClientRect().height)`),await run(`Math.round(document.querySelector('.history-panel .side-panel__head').getBoundingClientRect().height)`))
+  await run(`window.__mdview.editorContext().save()`)
+  await wait(200)
+  win.webContents.reload()
+  await wait(1200)
+  assert.equal(await run(`Math.round(document.querySelector('.sidebar').getBoundingClientRect().width)`),344,'sidebar width survives reload')
+  await run(`window.__mdview.openPanel('history')`)
+  await wait(200)
+  assert.equal(await run(`Math.round(document.querySelector('.history-panel').getBoundingClientRect().width)`),420,'history width survives reload')
+  await run(`window.__mdview.editorContext().select(2,2); document.querySelector('.cm-scroller').scrollTop=0`)
+  await wait(150)
+  await shot('10-outline-resized-dark')
+  await run(`window.__mdview.setSettings({theme:'light'})`)
+  await wait(100)
+  await shot('11-outline-resized-light')
+  win.setSize(900,800)
+  await wait(150)
+  await run(`window.__mdview.setSettings({sidebarVisible:true,theme:'dark'})`)
+  await wait(200)
+  assert.ok(await run(`document.querySelector('.sidebar').getBoundingClientRect().width`)<=315)
+  await shot('12-outline-narrow')
+  assert.deepEqual(errors, [])
+  console.log('PASS: live editing, IME, relative images, native mouse hit/drag/scroll/wrap/font sizes, table hit, history dock, automatic/manual snapshots, restore backup/undo, deletion, document switching, read-only')
+  console.log('PASS: heading hierarchy/collapse/jump/live update, resize pointer/keyboard/persistence, drag regions and unified panel chrome')
+  if (process.argv.includes('--hold')) {
+    win.setSize(1280,840)
+    win.center()
+    await run(`window.__mdview.setSettings({sidebarVisible:true})`)
+    win.on('move',()=>console.log('WINDOW_POSITION',win.getPosition()))
+    console.log('READY_FOR_NATIVE_DRAG',win.getPosition())
+  } else app.quit()
+}
+app.whenReady().then(() => main().catch((error) => { console.error(error); app.exit(1) }))

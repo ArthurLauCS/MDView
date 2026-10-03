@@ -51,6 +51,8 @@ interface Block {
 const DELIM = /^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?$/
 const FENCE = /^\s*(?:```|~~~)/
 const BLOCK_START = /^\s{0,3}(?:#{1,6}\s|>|[-*+]\s|\d+[.)]\s)/
+/** The render-style marker a table may carry on the line after it. */
+export const STYLE_MARKER = /^\s*<!--\s*mdview:table\s+style=[^>]*?-->\s*$/
 
 function splitLines(src: string): Line[] {
   const lines: Line[] = []
@@ -185,6 +187,9 @@ function tryCollect(lines: Line[], i: number): Block | null {
     const t = lines[j].text
     if (t.trim() === '') break
     if (FENCE.test(t) || BLOCK_START.test(t)) break
+    // The style marker sits under the table but is not part of it; a
+    // one-column table would otherwise swallow it as a body row.
+    if (STYLE_MARKER.test(t)) break
     // A lone paragraph line under a one-column table is a body row.
     if (n !== 1 && !lineHasPipe(t)) break
     rows.push(lines[j])
@@ -226,7 +231,8 @@ export function findTableAt(src: string, offset: number): TableContext | null {
   const lines = splitLines(src)
   if (lines.length === 0) return null
   const li = lineAt(lines, offset)
-  for (let i = li; i >= Math.max(0, li - 3); i--) {
+  for (let i = li; i >= 0; i--) {
+    if (i < li && (lines[i].text.trim() === '' || FENCE.test(lines[i].text))) break
     const block = tryCollect(lines, i)
     if (!block) continue
     // A cursor on the newline just past the table is already outside it.
@@ -289,6 +295,19 @@ export function cellAt(ctx: TableContext, offset: number): CellPos | null {
 
   if (col < 0 || col >= ctx.cols) return null
   return { row, col }
+}
+
+/** Source range of a visible cell; shares the parser's escaped-pipe rules. */
+export function cellRange(ctx: TableContext, cell: CellPos): { from: number; to: number; missing: boolean } {
+  const lines = splitLines(ctx.raw)
+  const line = lines[cell.row === 0 ? 0 : cell.row + 1]
+  const span = splitRow(line.text)[cell.col]
+  const end = line.text.endsWith('|') ? line.text.length - 1 : line.text.length
+  return {
+    from: ctx.start + line.start + (span?.start ?? end),
+    to: ctx.start + line.start + (span?.end ?? end),
+    missing: !span
+  }
 }
 
 /** Display width: CJK and fullwidth forms occupy two columns. */

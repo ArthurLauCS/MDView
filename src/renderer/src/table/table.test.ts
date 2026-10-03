@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   displayWidth,
+  cellRange,
+  cellAt,
   escapePipes,
   findTableAt,
   parseTable,
@@ -9,6 +11,7 @@ import {
   suggestColumnWidths,
   type TableContext
 } from './model'
+
 import {
   appendStatsRow,
   deleteCol,
@@ -969,4 +972,22 @@ describe('normalizeRows', () => {
       ['b', 'c']
     ])
   })
+})
+
+it('maps visible cells back to exact source ranges, including escaped pipes and CRLF', () => {
+  const source = '正文\r\n\r\n| A | B |\r\n| --- | --- |\r\n| x\\|y | `a|b` |'
+  const ctx = findTableAt(source, source.indexOf('| A'))!
+  for (const [col, text] of ['x\\|y', '`a|b`'].entries()) {
+    const range = cellRange(ctx, { row: 1, col })
+    expect(source.slice(range.from, range.to)).toBe(text)
+    expect(cellAt(ctx, range.from)).toEqual({ row: 1, col })
+  }
+})
+
+it('keeps later rows and padded cells addressable in the live editor', () => {
+  const source = '| A | B |\n| --- | --- |\n| 1 | x |\n| 2 | y |\n| 3 | z |\n| 4 |'
+  const ctx = findTableAt(source, source.indexOf('4'))!
+  expect(ctx).not.toBeNull()
+  expect(cellRange(ctx, { row: 4, col: 1 }).missing).toBe(true)
+  expect(cellRange(ctx, { row: 4, col: 0 }).missing).toBe(false)
 })

@@ -7,6 +7,8 @@ export const IPC = {
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_TOGGLE_MAXIMIZE: 'window:toggle-maximize',
   WINDOW_CLOSE: 'window:close',
+  WINDOW_REQUEST_CLOSE: 'window:request-close',
+  WINDOW_CONFIRM_CLOSE: 'window:confirm-close',
   WINDOW_IS_MAXIMIZED: 'window:is-maximized',
   WINDOW_MAXIMIZE_CHANGED: 'window:maximize-changed',
 
@@ -57,8 +59,11 @@ export const IPC = {
   SHELL_OPEN_EXTERNAL: 'shell:open-external',
   SHELL_SHOW_ITEM: 'shell:show-item',
   CLIPBOARD_WRITE_TEXT: 'clipboard:write-text',
+  CLIPBOARD_READ_TABLE: 'clipboard:read-table',
   CLIPBOARD_WRITE_IMAGE: 'clipboard:write-image',
   DIALOG_OPEN_FILE: 'dialog:open-file',
+  DIALOG_OPEN_DOCUMENT: 'dialog:open-document',
+  DIALOG_CONFIRM_SAVE: 'dialog:confirm-save',
   DIALOG_SAVE_FILE: 'dialog:save-file',
   /** Write text beside the document without asking — used by table exports. */
   FILE_WRITE_SIBLING: 'file:write-sibling',

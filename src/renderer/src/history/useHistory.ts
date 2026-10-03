@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DiffSummary, Revision } from '@shared/types'
 import { liveText } from './live-text'
+import { recordRevision, subscribeHistory } from './revisions'
+import { currentDocument } from '../state/documents'
 
 export interface HistoryState {
   revisions: Revision[]
   loading: boolean
+  error: string | null
   refresh: () => Promise<void>
   snapshot: (text: string, kind: Revision['kind']) => Promise<void>
   contentsOf: (revId: string) => Promise<string | null>
@@ -24,6 +27,7 @@ export interface HistoryState {
 export function useHistory(docId: string | null): HistoryState {
   const [revisions, setRevisions] = useState<Revision[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Opening a document and awaiting its list is a round trip, so a slow reply
   // for the previous document must not land on the current one's panel.
@@ -36,26 +40,28 @@ export function useHistory(docId: string | null): HistoryState {
       setLoading(false)
       return
     }
-    setLoading(true)
     try {
       const list = await window.mdview.history.list(docId)
-      if (currentDoc.current === docId) setRevisions(list)
+      if (currentDoc.current === docId) { setRevisions(list); setError(null) }
+    } catch (error) {
+      if (currentDoc.current === docId) setError(String(error))
     } finally {
       if (currentDoc.current === docId) setLoading(false)
     }
   }, [docId])
 
   useEffect(() => {
+    setLoading(true)
     void refresh()
-  }, [refresh])
+    return subscribeHistory((changed) => { if (changed === docId) void refresh() })
+  }, [docId, refresh])
 
   const snapshot = useCallback(
     async (text: string, kind: Revision['kind']): Promise<void> => {
       if (!docId) return
-      await window.mdview.history.record(docId, text, kind)
-      await refresh()
+      await recordRevision(docId, text, kind)
     },
-    [docId, refresh]
+    [docId]
   )
 
   const contentsOf = useCallback(
@@ -89,17 +95,21 @@ export function useHistory(docId: string | null): HistoryState {
     async (revId: string): Promise<string | null> => {
       if (!docId) return null
       const text = await window.mdview.history.read(docId, revId)
-      if (text === null) return null
+      if (text === null) throw new Error('这个还原点的内容已不存在')
+      if (currentDocument()?.meta.id !== docId) return null
       // Restoring is a change like any other, so the text being replaced is
       // snapshotted first — otherwise one mis-click on an old version would be
       // the one edit history could not undo. With no editor mounted there is
       // nothing to preserve, so the restore is skipped rather than failing.
       const current = liveText()
-      if (current !== null) await snapshot(current, 'restore')
+      if (current === null) return null
+      await snapshot(current, 'restore')
+      if (currentDocument()?.meta.id !== docId) return null
+      if (liveText() !== current) throw new Error('恢复期间文档又有修改，请重新选择恢复；当前内容已保留')
       return text
     },
     [docId, snapshot]
   )
 
-  return { revisions, loading, refresh, snapshot, contentsOf, diffAgainst, forget, clear, jumpTo }
+  return { revisions, loading, error, refresh, snapshot, contentsOf, diffAgainst, forget, clear, jumpTo }
 }

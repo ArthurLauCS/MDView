@@ -21,31 +21,32 @@ function lineBounds(src: string, start: number, end: number): [number, number] {
 }
 
 export function toggleInline(src: string, start: number, end: number, wrap: string): EditResult {
+  const close = wrap === '<u>' ? '</u>' : wrap
   if (start === end) {
     // Nothing selected: insert the pair and put the cursor between them so
     // the next typed character lands inside the emphasis.
-    const text = src.slice(0, start) + wrap + wrap + src.slice(end)
+    const text = src.slice(0, start) + wrap + close + src.slice(end)
     return { text, cursor: start + wrap.length }
   }
   const selected = src.slice(start, end)
   const before = src.slice(start - wrap.length, start)
-  const after = src.slice(end, end + wrap.length)
+  const after = src.slice(end, end + close.length)
 
   // Already wrapped — unwrap.
-  if (before === wrap && after === wrap) {
+  if (before === wrap && after === close) {
     return {
-      text: src.slice(0, start - wrap.length) + selected + src.slice(end + wrap.length),
+      text: src.slice(0, start - wrap.length) + selected + src.slice(end + close.length),
       cursor: start - wrap.length,
       selection: [start - wrap.length, end - wrap.length]
     }
   }
   // Selection itself contains the markers.
-  if (selected.startsWith(wrap) && selected.endsWith(wrap) && selected.length > wrap.length * 2) {
-    const inner = selected.slice(wrap.length, -wrap.length)
+  if (selected.startsWith(wrap) && selected.endsWith(close) && selected.length > wrap.length + close.length) {
+    const inner = selected.slice(wrap.length, -close.length)
     return { text: src.slice(0, start) + inner + src.slice(end), cursor: start, selection: [start, start + inner.length] }
   }
   return {
-    text: src.slice(0, start) + wrap + selected + wrap + src.slice(end),
+    text: src.slice(0, start) + wrap + selected + close + src.slice(end),
     cursor: start + wrap.length,
     selection: [start + wrap.length, end + wrap.length]
   }

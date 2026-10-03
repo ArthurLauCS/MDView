@@ -1,31 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Editor, type EditorHandle } from '../editor/Editor'
 import { ContextMenu, type MenuAnchor } from './ContextMenu'
-import { renderMarkdown } from '../markdown/render'
-import { resolveDocumentAssets } from '../markdown/resolve-assets'
 import { publishEditorContext } from '../state/editor-context'
 import { clearLiveText, publishLiveText } from '../history/live-text'
-import { closePanel, togglePanel, usePanel } from '../state/ui'
+import { recordRevision } from '../history/revisions'
 import { TableToolbar } from '../tableui/TableToolbar'
 import { useTableEdit } from '../tableui/useTableEdit'
-import { AssetPanel } from '../assets/AssetPanel'
 import { insertFromClipboard, insertFromPaths } from '../assets/insert'
 import { installDropTarget } from '../assets/drop'
-import { resolveBinding } from '../actions/keymap'
 import { codeAt } from '../actions/registry'
-import { useDocuments } from '../state/documents'
-import { settingsSnapshot, useSettings } from '../state/settings'
+import { findTableAt } from '../table/model'
+import { documentBuffer, saveDocument, updateDocumentBuffer, useDocuments } from '../state/documents'
+import { useSettings } from '../state/settings'
 import type { ActionContext, ActionScope } from '../actions/types'
-import type { Revision } from '@shared/types'
 import './editorpane.css'
 
-type ViewMode = 'source' | 'render' | 'split'
-
 export function EditorPane(): JSX.Element {
-  const { active } = useDocuments()
+  const { active, dirty, confirming, transitioning } = useDocuments()
   const settings = useSettings()
-  const [mode, setMode] = useState<ViewMode>('source')
-  const [source, setSource] = useState(active?.body ?? '')
+  const [source, setSource] = useState(documentBuffer)
   /**
    * The live buffer, readable and writable from outside this component.
    *
@@ -36,22 +29,13 @@ export function EditorPane(): JSX.Element {
    */
   const sourceRef = useRef(source)
   sourceRef.current = source
-  const [dirty, setDirty] = useState(false)
   const [menu, setMenu] = useState<MenuAnchor | null>(null)
-  const panel = usePanel()
   const [toast, setToast] = useState<string | null>(null)
-  const [cursor, setCursor] = useState(0)
+  const [caret, setCaret] = useState({ cursor: 0 })
+  const cursor = caret.cursor
   const editorRef = useRef<EditorHandle>(null)
   const paneRef = useRef<HTMLDivElement>(null)
-  const saveTimer = useRef<number | null>(null)
-
-  // A different document replaces the buffer outright.
-  useEffect(() => {
-    setSource(active?.body ?? '')
-    setDirty(false)
-  }, [active?.meta.id])
-
-  const docPath = active?.meta.path ?? null
+  const docPath = active?.meta.path || null
   const tableEdit = useTableEdit(source, cursor)
 
   const ctx: ActionContext = useMemo(() => {
@@ -65,24 +49,30 @@ export function EditorPane(): JSX.Element {
       inCodeBlock: codeAt(source, cursor) !== null,
       inTable: tableEdit.context !== null,
       tableColumn: tableEdit.cell?.col ?? null,
-      replace: (start, end, text, caret) => handle?.replace(start, end, text, caret),
+      replace: (start, end, text, caret) => editorRef.current?.replace(start, end, text, caret),
+      save: async () => { await saveDocument() },
+      undo: () => editorRef.current?.undo(),
+      redo: () => editorRef.current?.redo(),
       toggleLinePrefix: () => undefined,
       toggleInline: () => undefined,
       insertBlock: (block) => {
+        const handle = editorRef.current
         const at = handle?.getCursor() ?? 0
-        const before = source.slice(0, at)
-        const after = source.slice(at)
+        const text = handle?.getSource() ?? sourceRef.current
+        const before = text.slice(0, at)
+        const after = text.slice(at)
         const pad = before && !before.endsWith('\n\n') ? (before.endsWith('\n') ? '\n' : '\n\n') : ''
-        handle?.replace(0, source.length, before + pad + block + after, at + pad.length + block.length)
+        handle?.replace(0, text.length, before + pad + block + after, at + pad.length + block.length)
       },
-      select: (start, end) => handle?.select(start, end),
-      focus: () => handle?.focus(),
+      select: (start, end) => editorRef.current?.select(start, end),
+      jump: (offset) => editorRef.current?.jump(offset),
+      focus: () => editorRef.current?.focus(),
       toast: (message) => {
         setToast(message)
         window.setTimeout(() => setToast(null), 2200)
       }
     }
-  }, [source, cursor, docPath, tableEdit.context, tableEdit.cell])
+  }, [source, caret, docPath, tableEdit.context, tableEdit.cell])
 
   const availableScopes = useMemo<Set<string>>(() => {
     const scopes = new Set<string>(['global', 'app', 'document', 'insert', 'clipboard'])
@@ -99,67 +89,51 @@ export function EditorPane(): JSX.Element {
 
   // Hand the live editing context up to the overlays mounted above this pane.
   useEffect(() => {
-    publishEditorContext(ctx, availableScopes)
+    // Native selection may move before React publishes its next render.
+    publishEditorContext(() => {
+      const handle = editorRef.current
+      if (!handle) return ctx
+      const source = handle.getSource()
+      const cursor = handle.getCursor()
+      return { ...ctx, source, cursor, selection: handle.getSelection(),
+        inCodeBlock: codeAt(source, cursor) !== null, inTable: findTableAt(source, cursor) !== null }
+    }, availableScopes)
     return () => publishEditorContext(null, new Set(['app', 'global']))
   }, [ctx, availableScopes])
 
-  const persist = useCallback(
-    (text: string, kind: Revision['kind'] = 'auto') => {
-      if (!docPath) return
-      if (saveTimer.current) window.clearTimeout(saveTimer.current)
+  useEffect(() => {
+    if (!docPath || !dirty || confirming || transitioning || !settings.autoSave) return
+    const timer = window.setTimeout(() => { void saveDocument(false) }, settings.autoSaveDelayMs)
+    return () => window.clearTimeout(timer)
+  }, [source, docPath, active, dirty, confirming, transitioning, settings.autoSave, settings.autoSaveDelayMs])
 
-      // A snapshot is still worth taking with autosave off: the user turned
-      // off writing to their file, not the safety net.
-      const snapshot = (): void => {
-        const s = settingsSnapshot()
-        if (!s.historyEnabled || !active) return
-        void window.mdview.history
-          .record(active.meta.id, text, kind)
-          .then(() => undefined)
-      }
-
-      const s = settingsSnapshot()
-      if (!s.autoSave) {
-        // No disk write, but the history tick still runs on its own cadence.
-        if (kind !== 'auto') snapshot()
-        else saveTimer.current = window.setTimeout(snapshot, s.historyIntervalMs)
-        return
-      }
-
-      // Debounced autosave: fast enough to survive a crash, slow enough that
-      // a burst of typing is one write rather than two hundred.
-      saveTimer.current = window.setTimeout(() => {
-        void window.mdview.doc.write(docPath, text).then(() => setDirty(false))
-        snapshot()
-      }, s.autoSaveDelayMs)
-    },
-    [docPath, active]
-  )
-
-  /** Ctrl+S writes immediately and records a named point in the history. */
-  const saveNow = useCallback(() => {
-    if (!docPath) return
-    if (saveTimer.current) window.clearTimeout(saveTimer.current)
-    void window.mdview.doc.write(docPath, sourceRef.current).then(() => setDirty(false))
-    if (settingsSnapshot().historyEnabled && active) {
-      void window.mdview.history.record(active.meta.id, sourceRef.current, 'manual')
+  // Snapshot independently of disk autosave and typing pauses, so continuous
+  // input and disabled autosave still leave restore points at the set interval.
+  useEffect(() => {
+    if (!docPath || !active || !settings.historyEnabled) return
+    const snapshot = (): void => {
+      void recordRevision(active.meta.id, sourceRef.current, 'auto')
+        .catch((error) => setToast(`历史记录失败：${error.message}`))
     }
-  }, [docPath, active])
+    snapshot()
+    const timer = window.setInterval(snapshot, settings.historyIntervalMs)
+    return () => window.clearInterval(timer)
+  }, [docPath, active?.meta.id, settings.historyEnabled, settings.historyIntervalMs])
 
   const update = useCallback(
     (next: string) => {
+      sourceRef.current = next
       setSource(next)
-      setDirty(true)
-      persist(next)
+      updateDocumentBuffer(next)
     },
-    [persist]
+    []
   )
 
   // Publish the buffer so the history panel can read it and write back over it.
   useEffect(() => {
     publishLiveText(
       () => sourceRef.current,
-      (text) => update(text)
+      (text) => editorRef.current?.setSource(text)
     )
     return () => clearLiveText()
   }, [update])
@@ -172,15 +146,16 @@ export function EditorPane(): JSX.Element {
   /**
    * Accept images dropped anywhere on the pane. Text drags pass through
    * untouched — only an image payload is intercepted, which is what keeps
-   * ordinary drag-and-drop inside the textarea working.
+   * ordinary text drag-and-drop inside the editor working.
    */
   useEffect(() => {
     const el = paneRef.current
-    if (!el || !docPath) return
+    if (!el || settings.readOnly) return
     return installDropTarget(
       el,
       () => docPath,
       (files) => {
+        if (!docPath) { ctx.toast('请先保存文档，再插入图片；图片会放在文档旁边。'); return }
         const paths = files
           .map((f) => window.mdview.asset.pathForFile(f))
           .filter((p): p is string => p !== null)
@@ -191,167 +166,70 @@ export function EditorPane(): JSX.Element {
         }
         void insertFromPaths(docPath, source, editorRef.current?.getCursor() ?? 0, null, paths).then(
           (res) => {
-            setSource(res.markdown)
-            setDirty(true)
-            persist(res.markdown)
-            editorRef.current?.focus()
+            editorRef.current?.replace(0, editorRef.current.getSource().length, res.markdown, res.cursor)
           }
         )
       }
     )
-  }, [docPath, source, persist])
+  }, [docPath, source, settings.readOnly])
 
   const onPaste = useCallback(
-    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-      if (!docPath) return
+    (e: ClipboardEvent) => {
+      if (settings.readOnly || !e.clipboardData) return
       const hasImage = [...e.clipboardData.items].some((i) => i.type.startsWith('image/'))
       if (!hasImage) return
       e.preventDefault()
-      const ta = e.currentTarget
-      const selection =
-        ta.selectionStart === ta.selectionEnd ? null : ta.value.slice(ta.selectionStart, ta.selectionEnd)
-      void insertFromClipboard(docPath, source, ta.selectionStart, selection ?? undefined).then(
+      if (!docPath) { ctx.toast('请先保存文档，再粘贴图片；图片会放在文档旁边。'); return }
+      const handle = editorRef.current!
+      const range = handle.getSelection()
+      const text = handle.getSource()
+      const selection = range ? text.slice(range.start, range.end) : undefined
+      void insertFromClipboard(docPath, text, handle.getCursor(), selection).then(
         (res) => {
           if (!res) return
-          setSource(res.markdown)
-          setDirty(true)
-          persist(res.markdown)
-          editorRef.current?.select(res.cursor, res.cursor)
+          editorRef.current?.replace(0, editorRef.current.getSource().length, res.markdown, res.cursor)
         }
       )
     },
-    [docPath, source, persist]
+    [docPath, source, settings.readOnly]
   )
-
-  const globalKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      const combo = e.ctrlKey || e.metaKey ? e : null
-
-      if (e.key === 'F1') {
-        e.preventDefault()
-        togglePanel('shortcuts')
-        return
-      }
-      if (e.key === 'Escape' && panel) {
-        e.preventDefault()
-        closePanel()
-        return
-      }
-      if (!combo) return
-
-      if (e.ctrlKey && e.key.toLowerCase() === 'p') {
-        e.preventDefault()
-        togglePanel('palette')
-        return
-      }
-      if (e.ctrlKey && e.key === ',') {
-        e.preventDefault()
-        togglePanel('settings')
-        return
-      }
-      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'e') {
-        e.preventDefault()
-        togglePanel('export')
-        return
-      }
-      // An overlay owns the keyboard while it is up; letting document
-      // shortcuts through would edit the text behind a modal.
-      if (panel) return
-      if (e.ctrlKey && e.key.toLowerCase() === 's') {
-        e.preventDefault()
-        saveNow()
-        return
-      }
-      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'm') {
-        e.preventDefault()
-        setMode((m) => (m === 'source' ? 'render' : m === 'render' ? 'split' : 'source'))
-        return
-      }
-
-      const action = resolveBinding(e)
-      if (!action) return
-      if (!availableScopes.has(action.scope)) return
-      e.preventDefault()
-      void action.run(ctx)
-    },
-    [ctx, docPath, source, availableScopes, saveNow]
-  )
-
-  useEffect(() => {
-    window.addEventListener('keydown', globalKeyDown)
-    return () => window.removeEventListener('keydown', globalKeyDown)
-  }, [globalKeyDown])
 
   if (!active) return <></>
-
-  // Local images must be rewritten before they reach the DOM: a relative
-  // `src` resolves against the app bundle, not against the document folder.
-  const html = resolveDocumentAssets(
-    renderMarkdown(source),
-    docPath ? docPath.replace(/[\\/][^\\/]+$/, '') : null
-  )
 
   return (
     <div className="ep">
       <div className="ep__toolbar">
-        <div className="ep__modes">
-          {(['source', 'split', 'render'] as ViewMode[]).map((m) => (
-            <button
-              key={m}
-              className={`ep__mode ${mode === m ? 'is-active' : ''}`}
-              onClick={() => setMode(m)}
-            >
-              {m === 'source' ? '源码' : m === 'split' ? '分栏' : '阅读'}
-            </button>
-          ))}
-        </div>
         <div className="ep__meta">
           {dirty && <span className="ep__dirty" title="有未保存的改动" />}
           <span className="ep__path" title={active.meta.path}>
-            {active.meta.parentDir.replace(/.*[\\/]/, '')} / {active.meta.stem}
+            {docPath ? `${active.meta.parentDir.replace(/.*[\\/]/, '')} / ${active.meta.stem}` : '未命名 · 首次保存时选择位置'}
           </span>
+          <span className="ep__save-state">{!docPath ? '尚未保存' : dirty ? '有未保存修改' : '已保存'}</span>
         </div>
       </div>
 
-      <div className={`ep__body ep__body--${mode}`} ref={paneRef}>
-        {mode !== 'render' && (
-          <Editor
-            ref={editorRef}
-            source={source}
-            onChange={update}
-            onCursorChange={setCursor}
-            onPaste={onPaste}
-            onContextMenu={(x, y) => setMenu({ x, y, target: { scope: menuScope(ctx) } })}
-            readOnly={settings.readOnly}
-            typewriter={settings.typewriterMode}
-            highlightLine={settings.highlightCurrentLine}
-            spellCheck={settings.spellCheck}
-            autoPair={settings.autoPair}
-            smartLists={settings.smartLists}
-          />
-        )}
-        {mode !== 'source' && (
-          <div className="ep__preview">
-            <article className="md" dangerouslySetInnerHTML={{ __html: html }} />
-          </div>
-        )}
-
-        {/* The toolbar floats over the editor and only appears with a table
-            under the caret, so it never competes with the text itself. */}
-        {mode !== 'render' && (
-          <TableToolbar
-            edit={tableEdit}
-            onApply={(text, at) => {
-              update(text)
-              editorRef.current?.select(at, at)
-            }}
-          />
-        )}
+      <div className="ep__body" ref={paneRef}>
+        <Editor
+          ref={editorRef}
+          docPath={active.meta.path}
+          source={source}
+          onChange={update}
+          onCursorChange={(cursor) => setCaret({ cursor })}
+          onPaste={onPaste}
+          onContextMenu={(x, y) => setMenu({ x, y, target: { scope: menuScope(ctx) } })}
+          readOnly={settings.readOnly || confirming || transitioning}
+          typewriter={settings.typewriterMode}
+          highlightLine={settings.highlightCurrentLine}
+          spellCheck={settings.spellCheck}
+          autoPair={settings.autoPair}
+          smartLists={settings.smartLists}
+          tabSize={settings.tabSize}
+        />
+        {!settings.readOnly && <TableToolbar
+          edit={tableEdit}
+          onApply={(text, at) => editorRef.current?.replace(0, source.length, text, at)}
+        />}
       </div>
-
-      {settings.outlineVisible && docPath && (
-        <AssetPanel docPath={docPath} source={source} />
-      )}
 
       <ContextMenu anchor={menu} ctx={ctx} onClose={() => setMenu(null)} />
       {toast && <div className="ep__toast">{toast}</div>}
@@ -365,5 +243,3 @@ function menuScope(ctx: ActionContext): ActionScope {
   if (ctx.selection) return 'selection'
   return 'document'
 }
-
-export { settingsSnapshot }

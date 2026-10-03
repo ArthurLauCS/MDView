@@ -1,36 +1,32 @@
-/* =========================================================================
-   Typographic tiering.
-
-   Different levels of heading deliberately use different families. The goal
-   is that a reader can identify a level from silhouette alone — before
-   reading a word — which is what separates a designed document from a
-   markdown-to-HTML default.
-
-     H1  serif, large, wide-tracked, with a tinted plate behind it
-     H2  serif, medium — carries a baseline rule that fades out
-     H3  sans, semibold — the workhorse
-     H4  sans, semibold, small-caps feel via letterspacing
-     H5  sans, uppercase micro-label with a left accent bar
-     H6  mono, uppercase, muted — a system annotation, not a heading
-   ========================================================================= */
-
+/* Bundled CJK faces keep typography consistent on clean installations. */
+@font-face {
+  font-family: 'MDView Rounded';
+  src: url('./fonts/GenSenRounded2TC-R.otf') format('opentype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'MDView Display';
+  src: url('./fonts/ZCOOLXiaoWei-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'MDView Latin';
+  src: local('Consolas'), local('Cascadia Code'), local('Liberation Mono'), local('Courier New');
+  unicode-range: U+0000-024F;
+}
 :root {
-  /* Latin first, then the CJK fallback that matches each family's weight. */
-  --font-ui:
-    -apple-system, 'Segoe UI Variable Text', 'Segoe UI', Inter, 'PingFang SC',
-    'Microsoft YaHei UI', 'Noto Sans SC', sans-serif;
-  --font-read:
-    'Newsreader', 'Source Serif 4', 'Iowan Old Style', Georgia, 'Songti SC',
-    'Noto Serif SC', 'SimSun', serif;
-  --font-display:
-    'Newsreader', 'Source Serif 4', 'Playfair Display', Georgia, 'Songti SC',
-    serif;
-  --font-code:
-    'Berkeley Mono', 'JetBrains Mono', 'Cascadia Code', 'Sarasa Mono SC',
-    Consolas, 'Courier New', monospace;
-
-  /* Optical sizing knobs the user can override in settings. */
+  --font-rounded: 'MDView Rounded', 'YouYuan', 'Microsoft YaHei', sans-serif;
+  --font-ui-default: 'MDView Latin', var(--font-rounded);
+  --font-read-default: 'MDView Latin', var(--font-rounded);
+  --font-display-default: 'MDView Latin', 'MDView Display', 'KaiTi', serif;
+  --font-code-default: 'Consolas', 'Cascadia Code', 'Liberation Mono', 'Courier New', monospace;
+  --font-ui: var(--font-ui-default);
+  --font-read: var(--font-read-default);
+  --font-display: var(--font-display-default);
+  --font-code: var(--font-code-default);
   --tracking-display: -0.018em;
-  --tracking-body: 0.008em;
+  --tracking-body: 0;
   --tracking-label: 0.09em;
 }

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { createHash } from 'node:crypto'
 import { diffLines, HistoryService, summarise } from './history'
 
 let root: string
@@ -17,6 +18,18 @@ afterEach(async () => {
 const svc = (): HistoryService => new HistoryService(root)
 
 describe('HistoryService', () => {
+  it('reads legacy hash-only snapshots and removes ambiguous duplicate identities', async () => {
+    const h = svc()
+    const id = createHash('sha256').update('legacy').digest('hex').slice(0, 20)
+    const dir = join(root, 'history', 'doc1')
+    await fs.mkdir(dir, { recursive: true })
+    await fs.writeFile(join(dir, `${id}.md`), 'legacy')
+    const revision = { id, at: 1, bytes: 6, kind: 'manual' }
+    await fs.writeFile(join(dir, 'index.json'), JSON.stringify({ revs: [revision, revision] }))
+    expect(await h.read('doc1', id)).toBe('legacy')
+    expect(await h.list('doc1')).toEqual([revision])
+    expect(await h.record('doc1', 'legacy', 'manual')).toBeNull()
+  })
   it('records a revision and reads it back', async () => {
     const h = svc()
     const rev = await h.record('doc1', 'hello', 'manual')
@@ -43,14 +56,28 @@ describe('HistoryService', () => {
     expect((await h.list('doc1')).length).toBe(1)
   })
 
-  it('stores identical content once across documents', async () => {
+  it('keeps revisions independent across documents with identical content', async () => {
     const h = svc()
     const a = await h.record('doc1', 'shared text', 'manual')
     const b = await h.record('doc2', 'shared text', 'manual')
-    // Same blob name, but each document has its own index.
-    expect(a!.id).toBe(b!.id)
+    expect(a!.id).not.toBe(b!.id)
     expect(await h.read('doc1', a!.id)).toBe('shared text')
     expect(await h.read('doc2', b!.id)).toBe('shared text')
+  })
+
+  it('keeps recurring content as separate restore points and serializes simultaneous writes', async () => {
+    const h = svc()
+    const [first, second, repeated] = await Promise.all([
+      h.record('doc1', 'A', 'manual'),
+      h.record('doc1', 'B', 'manual'),
+      h.record('doc1', 'A', 'restore')
+    ])
+    expect((await h.list('doc1')).map((r) => r.id)).toEqual([repeated!.id, second!.id, first!.id])
+    expect(repeated!.id).not.toBe(first!.id)
+    await h.forget('doc1', repeated!.id)
+    expect(await h.read('doc1', first!.id)).toBe('A')
+    await Promise.all([h.clear('doc1'), h.record('doc1', 'after clear', 'manual')])
+    expect((await h.list('doc1')).length).toBe(1)
   })
 
   it('throttles consecutive autosave snapshots', async () => {
@@ -156,6 +183,14 @@ describe('diffLines', () => {
 })
 
 describe('summarise', () => {
+  it('keeps context in order without duplicating or dropping distant changes', () => {
+    const before = Array.from({ length: 30 }, (_, i) => `line ${i}`).join('\n')
+    const after = before.replace('line 1\n', 'changed 1\n').replace('line 25\n', 'changed 25\n')
+    const result = summarise(diffLines(before, after), 2)
+    expect(result.hunks).toHaveLength(2)
+    expect(result.hunks[0].filter((line) => line.kind === 'same').map((line) => line.text)).toEqual(['line 0', 'line 2', 'line 3'])
+    expect(result.hunks.flat().filter((line) => line.kind === 'add').map((line) => line.text)).toEqual(['changed 1', 'changed 25'])
+  })
   it('counts additions and deletions', () => {
     const s = summarise(diffLines('a\nb', 'a\nc\nd'))
     expect(s.added).toBe(2)

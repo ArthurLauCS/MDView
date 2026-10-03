@@ -1,4 +1,7 @@
 import { patchSettings, settingsSnapshot } from '../state/settings'
+import { togglePanel } from '../state/ui'
+import { newDocument, openDocumentDialog, saveDocument } from '../state/documents'
+import { openWorkspaceDialog } from '../state/workspace'
 import type { ActionContext, ActionDef } from './types'
 import {
   autoPair,
@@ -141,10 +144,10 @@ const tableAction = (
   group,
   enabled: (ctx) => ctx.inTable,
   disabledReason: (ctx) => (ctx.inTable ? undefined : '光标不在表格内'),
-  run: (ctx) => {
-    void import('../tableui/run-spec').then(({ runTableAction }) => {
-      if (!runTableAction(id, ctx)) ctx.toast('这个操作在当前单元格不可用')
-    })
+  run: async (ctx) => {
+    const { runTableAction, needsClipboard } = await import('../tableui/run-spec')
+    const text = needsClipboard(id) ? await window.mdview.clipboard.readTable() : ''
+    if (!runTableAction(id, ctx, text)) ctx.toast('这个操作在当前单元格不可用')
   }
 })
 
@@ -172,6 +175,31 @@ const tableStub = (
 })
 
 export const ACTIONS: ActionDef[] = [
+  { id: 'document.new', title: '新建文档', key: 'Ctrl+N', scope: 'app', group: 'file', keywords: ['new', 'blank', '草稿'], run: () => newDocument() },
+  { id: 'document.open', title: '打开文档', key: 'Ctrl+O', scope: 'app', group: 'file', keywords: ['open'], run: () => openDocumentDialog() },
+  { id: 'workspace.open', title: '打开目录', key: 'Ctrl+Shift+O', scope: 'app', group: 'file', run: () => openWorkspaceDialog() },
+  { id: 'view.settings', title: '设置', key: 'Ctrl+,', scope: 'app', group: 'view', run: () => togglePanel('settings') },
+  { id: 'view.shortcuts', title: '快捷键', key: 'F1', scope: 'app', group: 'view', run: () => togglePanel('shortcuts') },
+  { id: 'view.help', title: '使用说明', scope: 'app', group: 'view', run: () => togglePanel('help') },
+  { id: 'view.palette', title: '命令面板', key: 'Ctrl+P', scope: 'app', group: 'view', run: () => togglePanel('palette') },
+  { id: 'document.export', title: '导出文档', key: 'Ctrl+Shift+E', scope: 'app', group: 'file', run: () => togglePanel('export') },
+  {
+    id: 'view.history', title: '历史版本', key: 'Ctrl+H',
+    scope: 'app', group: 'view', keywords: ['history', '快照', '还原'],
+    run: () => togglePanel('history')
+  },
+  {
+    id: 'document.save', title: '保存文档', key: 'Ctrl+S', scope: 'document', group: 'file',
+    run: async () => { await saveDocument() }
+  },
+  {
+    id: 'document.undo', title: '撤销', key: 'Ctrl+Z', scope: 'document', group: 'file',
+    run: (ctx) => ctx.undo?.()
+  },
+  {
+    id: 'document.redo', title: '重做', key: 'Ctrl+Shift+Z', altKeys: ['Ctrl+Y'], scope: 'document', group: 'file',
+    run: (ctx) => ctx.redo?.()
+  },
   // ---- inline formatting --------------------------------------------------
   inline('format.bold', '加粗', 'Ctrl+B', INLINE_WRAPPERS.bold, ['bold', 'strong']),
   inline('format.italic', '斜体', 'Ctrl+I', INLINE_WRAPPERS.italic, ['italic', 'em']),
@@ -219,7 +247,7 @@ export const ACTIONS: ActionDef[] = [
     run: (ctx) => {
       void (async () => {
         if (!ctx.docPath) {
-          ctx.toast('先打开一个文档', 'error')
+          ctx.toast('请先保存文档，再插入图片；图片会放在文档旁边。', 'error')
           return
         }
         const paths = await window.mdview.dialog.openImages()
@@ -357,7 +385,15 @@ export const ACTIONS: ActionDef[] = [
     scope: 'find',
     key: 'Ctrl+Shift+F',
     group: 'find',
-    run: () => undefined // wired by the search panel once it lands
+    run: (ctx) => {
+      if (!ctx.selection) return
+      const { start, end } = ctx.selection
+      const text = ctx.source.slice(start, end)
+      const next = ctx.source.indexOf(text, end)
+      const at = next >= 0 ? next : ctx.source.indexOf(text)
+      ctx.select(at, at + text.length)
+      if (at === start) ctx.toast('没有其他匹配内容')
+    }
   },
   {
     id: 'view.toggleTheme',
@@ -382,6 +418,16 @@ export const ACTIONS: ActionDef[] = [
     run: () => {
       void patchSettings({ sidebarVisible: !settingsSnapshot().sidebarVisible })
     }
+  },
+  {
+    id: 'view.showOutline', title: '大纲', keywords: ['outline', 'heading', '标题层级'],
+    scope: 'app', group: 'view',
+    run: () => patchSettings({ sidebarVisible: true, outlineVisible: true })
+  },
+  {
+    id: 'view.showFiles', title: '文件', keywords: ['files', 'tree', '文件导航'],
+    scope: 'app', group: 'view',
+    run: () => patchSettings({ sidebarVisible: true, outlineVisible: false })
   },
 
   // ---- document hygiene ---------------------------------------------------
@@ -408,8 +454,8 @@ export const ACTIONS: ActionDef[] = [
   tableAction('table.row.delete', '删除本行', 'Ctrl+Shift+Backspace', 'table-row', ['delete', 'row']),
   tableAction('table.row.moveUp', '上移本行', 'Alt+ArrowUp', 'table-row'),
   tableAction('table.row.moveDown', '下移本行', 'Alt+ArrowDown', 'table-row'),
-  tableStub('table.row.copy', '复制本行', 'Ctrl+Shift+D', 'table-row'),
-  tableStub('table.row.cut', '剪切本行', 'Ctrl+Shift+X', 'table-row'),
+  tableAction('table.row.copy', '复制本行', 'Ctrl+Shift+D', 'table-row'),
+  tableAction('table.row.cut', '剪切本行', 'Ctrl+Shift+X', 'table-row'),
 
   // ---- table: columns -----------------------------------------------------
   tableAction('table.col.insertLeft', '左侧插入列', 'Ctrl+Shift+Enter', 'table-col'),
@@ -424,19 +470,19 @@ export const ACTIONS: ActionDef[] = [
   // ---- table: cells -------------------------------------------------------
   tableAction('table.cell.merge', '合并单元格', 'Ctrl+M', 'table-cell'),
   tableAction('table.cell.split', '拆分单元格', 'Ctrl+Shift+M', 'table-cell'),
-  tableStub('table.cell.clear', '清空单元格', 'Delete', 'table-cell'),
-  tableStub('table.cell.newline', '单元格内换行', 'Alt+Enter', 'table-cell'),
+  tableAction('table.cell.clear', '清空单元格', 'Ctrl+Delete', 'table-cell'),
+  tableAction('table.cell.newline', '单元格内换行', 'Alt+Enter', 'table-cell'),
 
   // ---- table: data --------------------------------------------------------
   tableAction('table.sort.asc', '按本列升序', 'Ctrl+Alt+ArrowUp', 'table-data', ['sort']),
   tableAction('table.sort.desc', '按本列降序', 'Ctrl+Alt+ArrowDown', 'table-data'),
-  tableStub('table.select.all', '选中整张表', 'Ctrl+Shift+Space', 'table-data'),
+  tableAction('table.select.all', '选中整张表', 'Ctrl+Shift+Space', 'table-data'),
   tableAction('table.stats.sum', '本列求和', '', 'table-data'),
   tableAction('table.stats.avg', '本列均值', '', 'table-data'),
   tableAction('table.stats.count', '本列计数', '', 'table-data'),
   tableStub('table.stats.min', '本列最小值', '', 'table-data'),
   tableStub('table.stats.max', '本列最大值', '', 'table-data'),
-  tableStub('table.paste.fromClipboard', '从剪贴板建表', 'Ctrl+Alt+V', 'table-data'),
+  tableAction('table.paste.fromClipboard', '从剪贴板建表', 'Ctrl+Alt+V', 'table-data'),
   tableStub('table.paste.fromExcel', '从 Excel 粘贴', '', 'table-data'),
 
   // ---- table: styling -----------------------------------------------------
@@ -526,7 +572,7 @@ export const ACTIONS: ActionDef[] = [
     scope: 'image',
     key: 'Z',
     group: 'image',
-    run: () => undefined
+    run: (ctx) => ctx.fullscreenImage?.()
   },
   {
     id: 'image.copyPath',

@@ -1,47 +1,118 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { DocumentContent } from '@shared/types'
+import { settingsSnapshot } from './settings'
+import { recordRevision } from '../history/revisions'
 
-type Listener = (d: DocumentContent | null) => void
+let state: { active: DocumentContent | null; dirty: boolean; confirming: boolean; transitioning: boolean; key: number; error: string | null } = {
+  active: null, dirty: false, confirming: false, transitioning: false, key: 0, error: null
+}
+let buffer = ''
+let saved = ''
+let saving: Promise<boolean> | null = null
+let changing: Promise<void> | null = null
+const listeners = new Set<() => void>()
 
-let current: DocumentContent | null = null
-const listeners = new Set<Listener>()
-
-function emit(): void {
-  for (const l of listeners) l(current)
+function publish(patch: Partial<typeof state>): void {
+  state = { ...state, ...patch }
+  for (const listener of listeners) listener()
 }
 
-export async function openDocument(path: string): Promise<void> {
-  current = await window.mdview.doc.read(path)
-  emit()
+export function documentError(error: unknown): void {
+  publish({ error: error instanceof Error ? error.message : String(error) })
 }
 
-export function closeDocument(): void {
-  current = null
-  emit()
+export function updateDocumentBuffer(text: string): void {
+  buffer = text
+  if (state.dirty !== (buffer !== saved)) publish({ dirty: buffer !== saved })
 }
 
-export function currentDocument(): DocumentContent | null {
-  return current
+export function documentBuffer(): string { return buffer }
+export function currentDocument(): DocumentContent | null { return state.active }
+export function hasUnsavedChanges(): boolean { return state.dirty || saving !== null }
+
+function activate(document: DocumentContent): void {
+  buffer = saved = document.text
+  publish({ active: document, dirty: false, key: state.key + 1, error: null })
 }
 
-export function useDocuments(): {
-  active: DocumentContent | null
-  open: (path: string) => Promise<void>
-  close: () => void
-} {
-  const [active, setActive] = useState<DocumentContent | null>(current)
-
-  useEffect(() => {
-    const l: Listener = (d) => setActive(d)
-    listeners.add(l)
-    setActive(current)
-    return () => {
-      listeners.delete(l)
+export function saveDocument(manual = true): Promise<boolean> {
+  if (saving) return saving
+  const document = state.active
+  if (!document) return Promise.resolve(false)
+  saving = (async () => {
+    try {
+      const path = document.meta.path || await window.mdview.dialog.saveFile('未命名.md', [
+        { name: 'Markdown 文档', extensions: ['md', 'markdown'] }
+      ])
+      if (!path) return false
+      const text = buffer
+      const meta = await window.mdview.doc.write(path, text)
+      saved = text
+      // Keep the editor instance and newer keystrokes when a draft gains a path.
+      publish({ active: { ...document, meta, text: buffer, body: buffer }, dirty: buffer !== saved, error: null })
+      if (manual && settingsSnapshot().historyEnabled) {
+        await recordRevision(meta.id, text, 'manual').catch((error) => documentError(`文件已保存，历史记录失败：${error}`))
+      }
+      return true
+    } catch (error) {
+      documentError(`保存失败：${error instanceof Error ? error.message : error}`)
+      return false
     }
+  })().finally(() => { saving = null })
+  return saving
+}
+
+export async function confirmDocumentChange(): Promise<boolean> {
+  if (saving) await saving
+  if (!state.dirty) return true
+  publish({ confirming: true })
+  try {
+    const choice = await window.mdview.dialog.confirmSave(state.active!.meta.stem)
+    if (choice === 'cancel') return false
+    if (choice === 'discard') return true
+    return await saveDocument() && !state.dirty
+  } finally { publish({ confirming: false }) }
+}
+
+function change(action: () => Promise<void>): Promise<void> {
+  if (changing) return changing
+  publish({ transitioning: true })
+  changing = action().catch(documentError).finally(() => { changing = null; publish({ transitioning: false }) })
+  return changing
+}
+
+export function newDocument(): Promise<void> {
+  return change(async () => {
+    if (!await confirmDocumentChange()) return
+    activate({
+      meta: { id: crypto.randomUUID(), path: '', parentDir: '', stem: '未命名', assetDir: '', layout: settingsSnapshot().docLayout },
+      text: '', body: '', frontmatter: null, conflictWithDisk: false
+    })
+  })
+}
+
+export function openDocument(path: string): Promise<void> {
+  return change(async () => {
+    if (state.active?.meta.path === path) return
+    if (!await confirmDocumentChange()) return
+    activate(await window.mdview.doc.read(path))
+  })
+}
+
+export async function openDocumentDialog(): Promise<void> {
+  const path = await window.mdview.dialog.openDocument()
+  if (path) await openDocument(path)
+}
+
+export function closeDocument(): Promise<void> { return newDocument() }
+
+export function useDocuments() {
+  const [value, setValue] = useState(state)
+  useEffect(() => {
+    const listener = (): void => setValue(state)
+    listeners.add(listener)
+    listener()
+    return () => { listeners.delete(listener) }
   }, [])
-
-  const open = useCallback((path: string) => openDocument(path), [])
-  const close = useCallback(() => closeDocument(), [])
-
-  return { active, open, close }
+  return { ...value, open: openDocument, close: closeDocument }
 }

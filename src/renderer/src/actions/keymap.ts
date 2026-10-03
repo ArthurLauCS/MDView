@@ -32,6 +32,8 @@ export function parseBinding(binding: string): ParsedKey {
 
 /** `Digit1` and `1` are the same physical key; `ArrowUp` and `up` likewise. */
 function normaliseKey(key: string): string {
+  const aliases: Record<string, string> = { ' ': 'space', '\\': 'backslash', ',': 'comma' }
+  if (aliases[key]) return aliases[key]
   return key
     .replace(/^Digit/, '')
     .replace(/^Key/, '')
@@ -45,7 +47,8 @@ export function eventToKey(e: KeyboardEvent): ParsedKey {
     shift: e.shiftKey,
     alt: e.altKey,
     meta: e.metaKey,
-    key: normaliseKey(e.key)
+    // Shift changes `key` to !/@/...; `code` still identifies Digit1/Digit2.
+    key: normaliseKey(e.code || e.key)
   }
 }
 
@@ -62,14 +65,16 @@ function serialise(k: ParsedKey): string {
 const index = new Map<string, ActionDef>()
 
 for (const action of ACTIONS) {
-  if (!action.key) continue
-  const combo = serialise(parseBinding(action.key))
-  // First registration wins; a duplicate is a bug worth seeing in the console.
-  if (index.has(combo)) {
-    console.warn(`duplicate binding ${combo}: ${action.id} vs ${index.get(combo)?.id}`)
-    continue
+  for (const binding of [action.key, ...(action.altKeys ?? [])]) {
+    if (!binding) continue
+    const combo = serialise(parseBinding(binding))
+    // First registration wins; a duplicate is a bug worth seeing in the console.
+    if (index.has(combo)) {
+      console.warn(`duplicate binding ${combo}: ${action.id} vs ${index.get(combo)?.id}`)
+      continue
+    }
+    index.set(combo, action)
   }
-  index.set(combo, action)
 }
 
 export function resolveBinding(e: KeyboardEvent): ActionDef | null {
@@ -86,9 +91,11 @@ export function lookup(binding: string): ActionDef | null {
 export function conflicts(): { combo: string; ids: string[] }[] {
   const seen = new Map<string, string[]>()
   for (const a of ACTIONS) {
-    if (!a.key) continue
-    const combo = serialise(parseBinding(a.key))
-    seen.set(combo, [...(seen.get(combo) ?? []), a.id])
+    for (const binding of [a.key, ...(a.altKeys ?? [])]) {
+      if (!binding) continue
+      const combo = serialise(parseBinding(binding))
+      seen.set(combo, [...(seen.get(combo) ?? []), a.id])
+    }
   }
   return [...seen.entries()]
     .filter(([, ids]) => ids.length > 1)
@@ -107,6 +114,7 @@ export function prettyKey(binding: string): string {
     .replace(/Enter/g, '↵')
     .replace(/Space/g, '空格')
     .replace(/Escape/g, 'Esc')
+    .replace(/Backslash/g, '\\')
     .replace(/Ctrl/g, 'Ctrl')
     .replace(/Meta/g, 'Cmd')
     .replace(/\+/g, ' + ')

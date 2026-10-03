@@ -1,11 +1,12 @@
 .assets {
-  width: var(--outline-w);
-  flex: 0 0 var(--outline-w);
+  width: 100%;
+  flex: 0 1 40%;
+  min-height: 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
   background: var(--bg-raised);
-  border-left: 1px solid var(--border-soft);
+  border-top: 1px solid var(--border-soft);
   overflow: hidden;
 }
 
@@ -143,17 +144,4 @@
   outline: 2px dashed var(--accent-line);
   outline-offset: -6px;
   background: var(--accent-soft);
-}
-
-@media (max-width: 900px) {
-  .assets {
-    position: fixed;
-    top: var(--titlebar-h);
-    bottom: 0;
-    right: 0;
-    z-index: 30;
-    width: 232px;
-    flex-basis: 232px;
-    box-shadow: var(--shadow-lg);
-  }
 }

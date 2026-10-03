@@ -84,9 +84,16 @@
 
   --reading-size: 17px;
   --measure: 72ch;
+  --page-margin-left: 5%;
+  --page-margin-right: 5%;
   --sidebar-w: 260px;
+  --history-w: 360px;
   --outline-w: 240px;
-  --titlebar-h: 40px;
+  --titlebar-h: 44px;
+  --side-panel-min-w: 200px;
+  --side-panel-max-w: 480px;
+  --nav-row-h: 32px;
+  --side-panel-head-h: 90px;
 }
 
 [data-theme='light'] {

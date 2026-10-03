@@ -1,10 +1,12 @@
+import { useState } from 'react'
 import { DEFAULT_SETTINGS, type AppSettings, type CursorStyle, type DocLayout, type ImageNaming, type MotionLevel, type PlainMdImagePolicy, type ThemeMode } from '@shared/types'
 import { usePatchSettings, useSettings } from '../state/settings'
-import { openPanel } from '../state/ui'
+import { ShortcutsSettings } from './ShortcutsPanel'
+import './settings.css'
 
 interface Props {
   onClose: () => void
-  onOpenWelcome?: () => void
+  initialSection?: string
 }
 
 const THEMES: { value: ThemeMode; label: string }[] = [
@@ -21,7 +23,7 @@ const MOTIONS: { value: MotionLevel; label: string; hint: string }[] = [
 
 const LAYOUTS: { value: DocLayout; label: string; hint: string }[] = [
   { value: 'flat', label: '平铺', hint: '文档与资源文件夹同级，目录树更扁' },
-  { value: 'nested', label: '嵌套', hint: '文档装进同名文件夹，一篇一层目录' }
+  { value: 'nested', label: '嵌套', hint: '保存到与文档同名的文件夹时，图片使用其中的 img 目录' }
 ]
 
 const IMAGE_POLICIES: { value: PlainMdImagePolicy; label: string; hint: string }[] = [
@@ -43,13 +45,13 @@ const IMAGE_NAMINGS: { value: ImageNaming; label: string; hint: string }[] = [
 ]
 
 
-/**
- * `__APP_VERSION__` is a build-time define, so it does not exist when the
- * panel is evaluated outside a Vite build (vitest, a bare tsc run).
- */
-const VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev'
+const SECTIONS = [
+  ['appearance', '外观与字体'], ['document', '文档与保存'], ['editor', '编辑器'],
+  ['images', '图片'], ['shortcuts', '快捷键']
+]
 
-export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
+export function SettingsPanel({ onClose, initialSection = 'appearance' }: Props): JSX.Element {
+  const [section, setSection] = useState(initialSection)
   const settings = useSettings()
   const patch = usePatchSettings()
 
@@ -65,7 +67,7 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
   return (
     <div className="panel__scrim" onMouseDown={onClose}>
       <div
-        className="panel"
+        className="panel settings"
         role="dialog"
         aria-label="设置"
         onMouseDown={(e) => e.stopPropagation()}
@@ -77,8 +79,13 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
           </button>
         </header>
 
-        <div className="panel__body">
-          <section className="section">
+        <div className="settings__layout">
+          <nav className="settings__nav" aria-label="设置分类">
+            {SECTIONS.map(([id, label]) => <button key={id} className={`settings__tab ${section === id ? 'is-active' : ''}`}
+              aria-current={section === id ? 'page' : undefined} onClick={() => setSection(id)}>{label}</button>)}
+          </nav>
+        <div className="panel__body settings__content" key={section}>
+          {section === 'appearance' && <section className="section">
             <div className="section__head">
               <h3 className="section__title">外观</h3>
               <button
@@ -88,10 +95,10 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
                     'theme',
                     'motion',
                     'fontSize',
-                    'measure',
                     'fontUi',
                     'fontRead',
                     'fontCode',
+                    'fontDisplay',
                     'codeFontSize',
                     'lineHeight',
                     'cursorStyle',
@@ -134,18 +141,6 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
               <span className="row__hint">px</span>
             </Row>
 
-            <Row name="行长上限" hint="正文一行最多容纳的字符宽度，窗口再宽也不突破">
-              <input
-                className="field field--num"
-                type="number"
-                min={48}
-                max={110}
-                value={settings.measure}
-                onChange={(e) => patch({ measure: clamp(Number(e.target.value), 48, 110) })}
-              />
-              <span className="row__hint">ch</span>
-            </Row>
-
             <FontRow
               name="界面字体"
               value={settings.fontUi}
@@ -160,6 +155,8 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
               sample="正文阅读效果 Aa 汉字排版"
               onChange={(fontRead) => patch({ fontRead })}
             />
+            <FontRow name="装饰标题字体" value={settings.fontDisplay} cssVar="--font-display"
+              sample="章节标题 · 写作与阅读" onChange={(fontDisplay) => patch({ fontDisplay })} />
             <FontRow
               name="代码字体"
               value={settings.fontCode}
@@ -168,7 +165,7 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
               onChange={(fontCode) => patch({ fontCode })}
             />
 
-            <Row name="代码字号" hint="代码块、行号槽与编辑器正文共用">
+            <Row name="代码字号" hint="只影响代码块，正文保持自己的字号">
               <input
                 className="field field--num"
                 type="number"
@@ -198,7 +195,7 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
               <span className="row__hint">倍</span>
             </Row>
 
-            <Row name="光标样式" hint="源码视图里插入符的形状">
+            <Row name="光标样式" hint="编辑时插入符的形状">
               <Segmented
                 items={CURSORS}
                 value={settings.cursorStyle}
@@ -215,19 +212,62 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
                 onChange={(e) => setAccent(e.target.value, patch)}
               />
             </Row>
-          </section>
+          </section>}
 
-          <section className="section">
+          {section === 'document' && <section className="section">
             <div className="section__head">
               <h3 className="section__title">文档</h3>
               <button
                 className="section__reset"
-                onClick={() => reset(['docLayout', 'plainMdImagePolicy'])}
+                onClick={() => reset(['docLayout', 'plainMdImagePolicy', 'autoSave', 'autoSaveDelayMs', 'historyEnabled', 'historyIntervalMs'])}
               >
                 恢复默认
               </button>
             </div>
 
+            <p className="panel__note">新文档先在内存中编辑；首次保存才选择位置。取消保存会保留草稿。</p>
+            <Toggle
+              name="自动保存"
+              hint={`首次保存并选择位置后，停止输入时自动写盘`}
+              value={settings.autoSave}
+              onChange={(autoSave) => patch({ autoSave })}
+            />
+            <Row name="自动保存延迟" hint="最后一次输入到写盘的等待时间">
+              <input
+                className="field field--num"
+                type="number"
+                min={200}
+                max={5000}
+                step={100}
+                disabled={!settings.autoSave}
+                value={settings.autoSaveDelayMs}
+                onChange={(e) =>
+                  patch({ autoSaveDelayMs: clamp(Number(e.target.value), 200, 5000) })
+                }
+              />
+              <span className="row__hint">ms</span>
+            </Row>
+            <Toggle
+              name="版本历史"
+              hint="首次保存后按间隔留下快照，未命名草稿不记录"
+              value={settings.historyEnabled}
+              onChange={(historyEnabled) => patch({ historyEnabled })}
+            />
+            <Row name="快照间隔" hint={`两次自动快照之间的最短间隔`}>
+              <input
+                className="field field--num"
+                type="number"
+                min={5}
+                max={300}
+                step={5}
+                disabled={!settings.historyEnabled}
+                value={Math.round(settings.historyIntervalMs / 1000)}
+                onChange={(e) =>
+                  patch({ historyIntervalMs: clamp(Number(e.target.value), 5, 300) * 1000 })
+                }
+              />
+              <span className="row__hint">秒</span>
+            </Row>
             <Row
               name="目录结构"
               hint={LAYOUTS.find((l) => l.value === settings.docLayout)?.hint}
@@ -262,9 +302,9 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
                 onChange={(plainMdImagePolicy) => patch({ plainMdImagePolicy })}
               />
             </Row>
-          </section>
+          </section>}
 
-          <section className="section">
+          {section === 'editor' && <section className="section">
             <div className="section__head">
               <h3 className="section__title">编辑器</h3>
               <button
@@ -276,10 +316,6 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
                     'readOnly',
                     'sidebarVisible',
                     'outlineVisible',
-                    'autoSave',
-                    'autoSaveDelayMs',
-                    'historyEnabled',
-                    'historyIntervalMs',
                     'spellCheck',
                     'autoPair',
                     'smartLists',
@@ -305,7 +341,7 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
             />
             <Toggle
               name="只读模式"
-              hint="源码视图拒绝编辑，文档仅用于阅读"
+              hint="禁止修改文档内容，仅用于阅读"
               value={settings.readOnly}
               onChange={(readOnly) => patch({ readOnly })}
             />
@@ -317,52 +353,10 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
             />
             <Toggle
               name="显示大纲"
-              hint="右侧的标题结构面板"
+              hint="左侧按 H1–H6 组织标题，支持折叠与跳转"
               value={settings.outlineVisible}
               onChange={(outlineVisible) => patch({ outlineVisible })}
             />
-            <Toggle
-              name="自动保存"
-              hint={`停止输入后自动写盘`}
-              value={settings.autoSave}
-              onChange={(autoSave) => patch({ autoSave })}
-            />
-            <Row name="自动保存延迟" hint="最后一次输入到写盘的等待时间">
-              <input
-                className="field field--num"
-                type="number"
-                min={200}
-                max={5000}
-                step={100}
-                disabled={!settings.autoSave}
-                value={settings.autoSaveDelayMs}
-                onChange={(e) =>
-                  patch({ autoSaveDelayMs: clamp(Number(e.target.value), 200, 5000) })
-                }
-              />
-              <span className="row__hint">ms</span>
-            </Row>
-            <Toggle
-              name="版本历史"
-              hint="按间隔留下快照，可以随时回看和还原"
-              value={settings.historyEnabled}
-              onChange={(historyEnabled) => patch({ historyEnabled })}
-            />
-            <Row name="快照间隔" hint={`两次自动快照之间的最短间隔`}>
-              <input
-                className="field field--num"
-                type="number"
-                min={5}
-                max={300}
-                step={5}
-                disabled={!settings.historyEnabled}
-                value={Math.round(settings.historyIntervalMs / 1000)}
-                onChange={(e) =>
-                  patch({ historyIntervalMs: clamp(Number(e.target.value), 5, 300) * 1000 })
-                }
-              />
-              <span className="row__hint">秒</span>
-            </Row>
             <Toggle
               name="拼写检查"
               hint={`浏览器的拼写波浪线`}
@@ -392,9 +386,9 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
               />
               <span className="row__hint">空格</span>
             </Row>
-          </section>
+          </section>}
 
-          <section className="section">
+          {section === 'images' && <section className="section">
             <div className="section__head">
               <h3 className="section__title">图片</h3>
               <button
@@ -443,49 +437,14 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
               />
               <span className="row__hint">px，0 = 不限制</span>
             </Row>
-          </section>
-
-          <section className="section">
-            <div className="section__head">
-              <h3 className="section__title">帮助</h3>
-            </div>
-
-            <Row name="欢迎文档" hint="用本应用写成的说明文档，同时演示文档即文件夹">
-              <button
-                className="btn btn--primary"
-                disabled={!onOpenWelcome}
-                onClick={onOpenWelcome}
-              >
-                打开
-              </button>
-            </Row>
-            {!onOpenWelcome && (
-              <p className="panel__note">当前入口没有接入欢迎文档</p>
-            )}
-
-            <Row name="快捷键速查表" hint="按分组列出全部命令，可以搜索">
-              <button className="btn" onClick={() => openPanel('shortcuts')}>
-                打开 F1
-              </button>
-            </Row>
-
-            <Row name="给 AI 的协作规则" hint="随安装包一起分发，内容与说明见帮助面板">
-              <button className="btn" onClick={() => openPanel('help')}>
-                打开帮助
-              </button>
-            </Row>
-
-            <p className="panel__note">
-              设置存在 %APPDATA%/mdview/settings.json，版本历史存在
-              %APPDATA%/mdview/history/。修改即时写入，没有保存按钮。
-            </p>
-            <p className="panel__note">MDView {VERSION}</p>
-          </section>
+          </section>}
+          {section === 'shortcuts' && <ShortcutsSettings />}
+        </div>
         </div>
 
         <footer className="panel__foot">
-          <span>设置即时生效并存盘，没有保存按钮</span>
-          <span>%APPDATA%/mdview/settings.json</span>
+          <span>设置即时生效并保存</span>
+          <span>快捷键按功能分类，可搜索</span>
         </footer>
       </div>
     </div>
@@ -586,7 +545,6 @@ function FontRow({
 }): JSX.Element {
   const apply = (raw: string): void => {
     const next = raw.trim()
-    document.documentElement.style.setProperty(cssVar, next ? `"${next}", ${fallbackFor(cssVar)}` : '')
     onChange(next === '' ? null : next)
   }
 
@@ -600,22 +558,17 @@ function FontRow({
         <input
           className="field field--grow"
           value={value ?? ''}
-          placeholder="例如：Source Han Serif SC"
+          aria-label={name}
+          placeholder="输入本机字体名称；留空使用默认"
           spellCheck={false}
           onChange={(e) => apply(e.target.value)}
         />
       </span>
-      <span className="sample" style={{ fontFamily: value ? `"${value}"` : undefined }}>
+      <span className="sample" style={{ fontFamily: `var(${cssVar})` }}>
         {sample}
       </span>
     </div>
   )
-}
-
-function fallbackFor(cssVar: string): string {
-  if (cssVar === '--font-code') return 'monospace'
-  if (cssVar === '--font-read') return 'serif'
-  return 'sans-serif'
 }
 
 /**

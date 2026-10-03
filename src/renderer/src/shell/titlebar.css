@@ -1,8 +1,8 @@
 .titlebar {
-  height: calc(var(--titlebar-h) + 4px);
+  height: var(--titlebar-h);
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: 1fr minmax(0, auto) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: stretch;
   background: var(--bg-base);
   border-bottom: 1px solid var(--border-soft);
@@ -18,11 +18,11 @@
   align-items: center;
   gap: var(--space-1);
   padding-left: var(--space-3);
-  -webkit-app-region: no-drag;
   min-width: 0;
 }
 
 .titlebar__btn {
+  -webkit-app-region: no-drag;
   font-size: var(--text-sm);
   color: var(--text-secondary);
   padding: var(--space-1) var(--space-3);
@@ -75,6 +75,7 @@
 /* ---- centre: which document -------------------------------------------- */
 
 .titlebar__center {
+  -webkit-app-region: drag;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -164,7 +165,7 @@
 }
 
 @media (max-width: 900px) {
-  .titlebar__lead .titlebar__btn:not(.titlebar__btn--icon) {
+  .titlebar__lead .titlebar__btn:not(.titlebar__btn--icon):not(.titlebar__btn--new):not(.titlebar__btn--save):not(.titlebar__btn--settings) {
     display: none;
   }
   .titlebar__doc-dir {

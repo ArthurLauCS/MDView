@@ -13,6 +13,23 @@ type Listener = (id: PanelId) => void
 
 let current: PanelId = null
 const listeners = new Set<Listener>()
+let historyOpen = false
+const historyListeners = new Set<(open: boolean) => void>()
+
+function showHistory(open: boolean): void {
+  historyOpen = open
+  for (const listener of historyListeners) listener(open)
+}
+
+export function useHistoryOpen(): boolean {
+  const [open, setOpen] = useState(historyOpen)
+  useEffect(() => {
+    historyListeners.add(setOpen)
+    setOpen(historyOpen)
+    return () => { historyListeners.delete(setOpen) }
+  }, [])
+  return open
+}
 
 function emit(): void {
   for (const l of listeners) l(current)
@@ -24,6 +41,7 @@ function emit(): void {
  * are all one level deep by nature.
  */
 export function openPanel(id: Exclude<PanelId, null>): void {
+  if (id === 'history') { showHistory(true); return }
   current = id
   emit()
 }
@@ -34,6 +52,7 @@ export function closePanel(): void {
 }
 
 export function togglePanel(id: Exclude<PanelId, null>): void {
+  if (id === 'history') { showHistory(!historyOpen); return }
   current = current === id ? null : id
   emit()
 }

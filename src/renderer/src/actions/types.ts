@@ -72,6 +72,8 @@ export interface ActionDef {
 }
 
 export interface ActionContext {
+  /** Available only while a rendered image has keyboard focus. */
+  fullscreenImage?: () => void
   /** Raw source of the open document, or '' when none. */
   source: string
   /** Current selection start, as a character offset. */
@@ -93,8 +95,12 @@ export interface ActionContext {
   insertBlock: (text: string) => void
   /** Select the given range — used by table actions after a structural edit. */
   select: (start: number, end: number) => void
+  jump?: (offset: number) => void
   /** Set focus back into the editor. */
   focus: () => void
+  save?: () => void | Promise<void>
+  undo?: () => void
+  redo?: () => void
   /** Push a transient message. */
   toast: (message: string, tone?: 'info' | 'success' | 'error') => void
 }

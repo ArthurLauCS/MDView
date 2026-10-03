@@ -19,6 +19,11 @@ const api = {
     minimize: () => ipcRenderer.send(IPC.WINDOW_MINIMIZE),
     toggleMaximize: () => ipcRenderer.send(IPC.WINDOW_TOGGLE_MAXIMIZE),
     close: () => ipcRenderer.send(IPC.WINDOW_CLOSE),
+    confirmClose: () => ipcRenderer.send(IPC.WINDOW_CONFIRM_CLOSE),
+    onCloseRequested: (callback: () => void): (() => void) => {
+      ipcRenderer.on(IPC.WINDOW_REQUEST_CLOSE, callback)
+      return () => { ipcRenderer.removeListener(IPC.WINDOW_REQUEST_CLOSE, callback) }
+    },
     isMaximized: (): Promise<boolean> => ipcRenderer.invoke(IPC.WINDOW_IS_MAXIMIZED)
   },
   workspace: {
@@ -29,7 +34,7 @@ const api = {
   },
   doc: {
     read: (path: string): Promise<DocumentContent> => ipcRenderer.invoke(IPC.DOC_READ, path),
-    write: (path: string, text: string): Promise<boolean> =>
+    write: (path: string, text: string): Promise<DocumentMeta> =>
       ipcRenderer.invoke(IPC.DOC_WRITE, path, text),
     create: (dir: string, stem: string, withAssetFolder: boolean): Promise<DocumentMeta> =>
       ipcRenderer.invoke(IPC.DOC_CREATE, dir, stem, withAssetFolder),
@@ -116,12 +121,15 @@ const api = {
       ipcRenderer.invoke(IPC.FILE_WRITE_SIBLING, targetPath, text)
   },
   clipboard: {
+    readTable: (): Promise<string> => ipcRenderer.invoke(IPC.CLIPBOARD_READ_TABLE),
     writeText: (text: string): Promise<boolean> =>
       ipcRenderer.invoke(IPC.CLIPBOARD_WRITE_TEXT, text),
     writeImage: (path: string): Promise<boolean> =>
       ipcRenderer.invoke(IPC.CLIPBOARD_WRITE_IMAGE, path)
   },
   dialog: {
+    openDocument: (): Promise<string | null> => ipcRenderer.invoke(IPC.DIALOG_OPEN_DOCUMENT),
+    confirmSave: (name: string): Promise<'save' | 'discard' | 'cancel'> => ipcRenderer.invoke(IPC.DIALOG_CONFIRM_SAVE, name),
     openImages: (): Promise<string[] | null> => ipcRenderer.invoke(IPC.DIALOG_OPEN_FILE),
     /** Save-as dialog. Returns null when the user cancels. */
     saveFile: (

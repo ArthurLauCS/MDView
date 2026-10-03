@@ -83,10 +83,13 @@
 
 .panel__title {
   margin: 0;
+  font-family: var(--font-display);
   font-size: var(--text-base);
   font-weight: 620;
   letter-spacing: -0.004em;
 }
+.help__steps { padding-left: var(--space-6); color: var(--text-secondary); line-height: 1.9; }
+.help__steps li + li { margin-top: var(--space-3); }
 
 .panel__close {
   font-family: var(--font-code);

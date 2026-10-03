@@ -80,9 +80,9 @@ export function AssetPanel({ docPath, source }: { docPath: string; source: strin
     refs === null ? null : filter === 'missing' ? findMissing(refs) : filter === 'outside' ? findOutsideFolder(refs) : refs
 
   return (
-    <aside className="assets">
+    <section className="assets" aria-label="本文图片">
       <div className="assets__head">
-        <span className="assets__title">图片</span>
+        <span className="assets__title">本文图片</span>
         {refs !== null && <span className="assets__count">{refs.length}</span>}
       </div>
 
@@ -122,6 +122,6 @@ export function AssetPanel({ docPath, source }: { docPath: string; source: strin
           ))
         )}
       </div>
-    </aside>
+    </section>
   )
 }

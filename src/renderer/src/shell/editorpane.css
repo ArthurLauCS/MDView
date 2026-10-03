@@ -20,41 +20,14 @@
   border-bottom: 1px solid var(--border-soft);
 }
 
-.ep__modes {
-  display: flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: var(--radius-md);
-  background: var(--bg-inset);
-}
-
-.ep__mode {
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
-  letter-spacing: 0.02em;
-  color: var(--text-tertiary);
-  transition:
-    color var(--dur-fast) var(--ease-out),
-    background-color var(--dur-fast) var(--ease-out);
-}
-
-.ep__mode:hover {
-  color: var(--text-secondary);
-}
-
-.ep__mode.is-active {
-  color: var(--text-primary);
-  background: var(--bg-raised);
-  box-shadow: var(--shadow-sm);
-}
-
 .ep__meta {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
+  width: 100%;
 }
+.ep__save-state { margin-left: auto; flex: 0 0 auto; font-size: var(--text-xs); color: var(--text-tertiary); }
 
 .ep__path {
   font-size: var(--text-xs);
@@ -94,32 +67,6 @@
   overflow: hidden;
   /* Anchors the floating table toolbar, which must not join the flow. */
   position: relative;
-}
-
-.ep__body--split .editor,
-.ep__body--split .ep__preview {
-  flex: 1 1 50%;
-  min-width: 0;
-}
-
-.ep__body--split .ep__preview {
-  border-left: 1px solid var(--border-soft);
-}
-
-.ep__preview {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow-y: auto;
-  animation: preview-in var(--dur-base) var(--ease-out) both;
-}
-
-@keyframes preview-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 /* ---- toast -------------------------------------------------------------- */

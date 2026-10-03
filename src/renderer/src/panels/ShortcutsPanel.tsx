@@ -2,10 +2,7 @@ import { useMemo, useState } from 'react'
 import { ACTIONS, GROUP_LABELS, GROUPS } from '../actions/registry'
 import { prettyKey } from '../actions/keymap'
 import type { ActionDef, ActionScope } from '../actions/types'
-
-interface Props {
-  onClose: () => void
-}
+import { useEditorContext } from '../state/editor-context'
 
 const SCOPE_LABELS: Record<ActionScope, string> = {
   global: '全局',
@@ -30,12 +27,15 @@ interface Row {
   group: string
 }
 
-export function ShortcutsPanel({ onClose }: Props): JSX.Element {
+export function ShortcutsSettings(): JSX.Element {
   const [query, setQuery] = useState('')
+  const [category, setCategory] = useState('all')
+  const { ctx } = useEditorContext()
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase()
     const matched = ACTIONS.filter((a) => {
+      if (category !== 'all' && a.group !== category) return false
       if (!q) return true
       return (
         a.title.toLowerCase().includes(q) ||
@@ -64,31 +64,24 @@ export function ShortcutsPanel({ onClose }: Props): JSX.Element {
       ordered.push({ id: g, label: g, rows: byGroup.get(g) as Row[] })
     }
     return ordered
-  }, [query])
+  }, [query, category])
 
   const total = groups.reduce((n, g) => n + g.rows.length, 0)
 
   return (
-    <div className="panel__scrim" onMouseDown={onClose}>
-      <div
-        className="panel panel--wide"
-        role="dialog"
-        aria-label="快捷键"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <header className="panel__head">
-          <h2 className="panel__title">快捷键</h2>
-          <button className="panel__close" onClick={onClose}>
-            Esc
-          </button>
-        </header>
-
-        <div className="panel__body">
+    <div className="shortcuts-settings">
+          <div className="section__head"><h3 className="section__title">快捷键</h3>
+            <select className="field" aria-label="快捷键功能分类" value={category} onChange={(e) => setCategory(e.target.value)}>
+              <option value="all">全部功能</option>
+              {GROUPS.map((id) => <option key={id} value={id}>{GROUP_LABELS[id]}</option>)}
+            </select>
+          </div>
           <input
             className="field field--grow"
             style={{ width: '100%', marginBottom: 'var(--space-6)' }}
             value={query}
             placeholder="搜索命令或按键…"
+            aria-label="搜索快捷键"
             spellCheck={false}
             autoFocus
             onChange={(e) => setQuery(e.target.value)}
@@ -106,11 +99,13 @@ export function ShortcutsPanel({ onClose }: Props): JSX.Element {
                 <tbody>
                   {group.rows.map(({ action }) => (
                     <tr key={action.id} className="keys__row">
-                      <td className="keys__title">{action.title}</td>
+                      <td className="keys__title">{action.title}
+                        {action.enabled?.(ctx) === false && <span className="row__hint"> · {action.disabledReason?.(ctx)}</span>}
+                      </td>
                       <td className="keys__scope">{SCOPE_LABELS[action.scope]}</td>
                       <td className="keys__key">
                         {action.key ? (
-                          <kbd className="keys__kbd">{prettyKey(action.key)}</kbd>
+                          [action.key, ...(action.altKeys ?? [])].map(key => <kbd className="keys__kbd" key={key}>{prettyKey(key)}</kbd>)
                         ) : (
                           <span className="keys__none">命令面板</span>
                         )}
@@ -121,13 +116,10 @@ export function ShortcutsPanel({ onClose }: Props): JSX.Element {
               </table>
             </section>
           ))}
-        </div>
-
-        <footer className="panel__foot">
+        <footer className="panel__note">
           <span>共 {total} 条</span>
-          <span>没有按键的命令在 Ctrl+P 里搜索执行</span>
+          <span>表格、代码和图片快捷键需先聚焦对应内容；没有按键的可用命令在 Ctrl+P 中执行</span>
         </footer>
-      </div>
     </div>
   )
 }

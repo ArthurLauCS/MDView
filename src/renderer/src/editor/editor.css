@@ -1,234 +1,179 @@
-/* =========================================================================
-   Source editor.
-
-   The textarea is transparent and the highlight mirror sits underneath it.
-   Both share this metric block verbatim — any divergence shows up as text
-   drifting out of alignment while typing, so these values must not be
-   duplicated anywhere else.
-   ========================================================================= */
-
-.editor,
-.editor__mirror code,
-.editor__input {
-  font-family: var(--font-code);
-  /* Both panes and the gutter read from these; keeping them in one block is
-     what holds the mirror aligned with the textarea. */
-  font-size: var(--editor-font-size, 14px);
-  line-height: var(--editor-line-height, 1.7);
-  letter-spacing: 0;
-  tab-size: var(--editor-tab-size, 2);
-}
-
 .editor {
-  position: relative;
   flex: 1 1 auto;
   min-width: 0;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-rows: 1fr auto;
-  gap: 0 var(--space-3);
-  padding: var(--space-6) var(--space-6) 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   background: var(--bg-base);
-  overflow: hidden;
 }
 
-/* ---- gutter ------------------------------------------------------------- */
-
-.editor__gutter {
-  grid-row: 1;
-  overflow: hidden;
-  padding-top: 0;
-  text-align: right;
-  user-select: none;
-  color: var(--text-disabled);
-  font-variant-numeric: tabular-nums;
-}
-
-.editor__lineno {
-  display: block;
-  font-family: var(--font-code);
-  /* Must match the editor metric block above, or the numbers drift from the
-     lines they label as soon as the user changes either value. */
-  font-size: var(--editor-font-size, 14px);
-  line-height: var(--editor-line-height, 1.7);
-  transition: color var(--dur-fast) var(--ease-out);
-}
-.editor__lineno.is-current {
-  color: var(--accent);
-}
-
-/* ---- panes -------------------------------------------------------------- */
-
-.editor__pane {
-  grid-row: 1;
+.editor__surface {
+  --writing-inset-left: clamp(var(--space-4), var(--page-margin-left), 35%);
+  --writing-inset-right: clamp(var(--space-4), var(--page-margin-right), 35%);
   position: relative;
-  min-width: 0;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: hidden;
 }
+.editor__mount { height: 100%; }
 
-.editor__mirror,
-.editor__input {
+.page-margin {
   position: absolute;
-  inset: 0;
-  margin: 0;
-  padding: 0 0 var(--space-16);
-  border: none;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  word-break: normal;
-  overflow: auto;
+  top: 0;
+  bottom: 0;
+  width: var(--space-2);
+  z-index: 2;
+  cursor: col-resize;
+  touch-action: none;
+  -webkit-app-region: no-drag;
 }
+.page-margin--left { left: calc(var(--writing-inset-left) - var(--space-2)); }
+.page-margin--right { right: calc(var(--writing-inset-right) - var(--space-2)); }
+.page-margin::before {
+  content: '';
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-1);
+  height: var(--space-6);
+  border-left: 2px solid var(--border-strong);
+}
+.page-margin:hover,
+.page-margin:focus-visible { background: var(--accent-soft); outline: 1px solid var(--accent-line); }
 
-.editor__mirror {
-  pointer-events: none;
+.editor__surface .cm-editor {
+  height: 100%;
   color: var(--text-primary);
-  background: transparent;
-  overflow: hidden;
+  background: var(--bg-base);
 }
 
-.editor__input {
-  color: transparent;
-  background: transparent;
+.editor__surface .cm-editor.cm-focused { outline: none; }
+.editor__surface .cm-placeholder { color: var(--text-disabled); }
+.editor__surface .cm-scroller {
+  overflow: auto;
+  font-family: var(--font-read);
+  font-size: var(--text-read);
+  line-height: var(--editor-line-height);
+}
+
+.editor__surface .cm-content.md {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding: var(--space-12) var(--writing-inset-right) 40vh var(--writing-inset-left);
+  min-height: 100%;
+  box-sizing: border-box;
   caret-color: var(--accent);
-  /* `caret-shape` is real in Chromium; an unknown value falls back to `auto`
-     rather than invalidating the declaration. */
   caret-shape: var(--editor-caret-shape, bar);
-  resize: none;
   outline: none;
-  /* Selection must be visible through a transparent text fill. */
-  z-index: 1;
+  box-shadow: none;
+}
+/* CodeMirror measures border boxes; vertical margins are outside its height map. */
+.editor__surface .cm-content .cm-line { padding-inline: 0; margin-block: 0; }
+.editor__surface .cm-line.live-h1 { padding: var(--space-6); }
+.editor__surface .cm-widgetBuffer {
+  display: inline;
+  width: 0;
+  height: 1em;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+  vertical-align: text-top;
+}
+.editor__surface .cm-cursor { border-left-color: var(--accent); }
+.editor__surface .cm-activeLine { background: var(--bg-hover); }
+.editor__surface .cm-editor:not(.cm-focused) .cm-activeLine { background: transparent; }
+.editor__surface .cm-selectionBackground { background: var(--accent-soft); }
+.editor__surface ::selection { background: var(--accent-soft); }
+
+.live-strong { font-weight: 650; }
+.live-em { font-style: italic; }
+.live-mark { background: var(--accent-soft); border-radius: var(--radius-sm); }
+.live-underline { text-decoration: underline; }
+.live-sup { font-size: 0.75em; vertical-align: super; }
+.live-sub { font-size: 0.75em; vertical-align: sub; }
+.live-strike { text-decoration: line-through; color: var(--text-tertiary); }
+.live-link { color: var(--link); text-decoration: underline; text-underline-offset: var(--space-1); }
+.live-code {
+  font-family: var(--font-code);
+  font-size: 0.88em;
+  background: var(--bg-inset);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
 }
 
-.editor__input::selection {
-  background: var(--accent-soft);
-  color: transparent;
+.editor__surface .live-code-line {
+  font-family: var(--font-code);
+  font-size: var(--editor-font-size);
+  background: var(--bg-inset);
+  padding-inline: var(--space-4);
+  color: var(--text-secondary);
+}
+.live-code-info { color: var(--text-tertiary); font-size: var(--text-xs); }
+
+.editor__surface .live-quote {
+  border-left: 2px solid var(--accent-line);
+  padding-left: var(--space-4);
+  color: var(--text-secondary);
+}
+.live-bullet { color: var(--accent); }
+.live-rendered { display: inline-block; max-width: 100%; white-space: normal; }
+.live-rendered p { display: inline; margin: 0; }
+.live-rendered img {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  vertical-align: middle;
+  border-radius: var(--radius-md);
+}
+.live-rendered img:focus-visible { outline: 2px solid var(--accent-line); }
+.live-rendered img:fullscreen {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--bg-base);
+  object-fit: contain;
 }
 
-/* The band is anchored to the line box, not to the em box, so it has to
-   account for the element's own padding-bottom and the 1.7 line-height. */
-.editor__input.is-line-highlight {
-  background-image: linear-gradient(var(--bg-hover), var(--bg-hover));
-  background-repeat: no-repeat;
-  background-size: 100% 1.7em;
-  background-position: 0 calc(var(--caret-line, 0) * 1.7em);
-  background-attachment: local;
+.live-table {
+  overflow-x: auto;
+  padding-block: var(--space-4);
 }
-
-/* ---- status bar --------------------------------------------------------- */
+.editor__surface .live-table table { margin: 0; width: 100%; }
+.live-table :is(th, td) { cursor: text; min-width: var(--space-16); }
+.live-table :is(th, td):focus-within { outline: 1px solid var(--accent-line); outline-offset: -1px; }
+.live-cell-input {
+  display: block;
+  width: 100%;
+  min-width: var(--space-16);
+  padding: 0;
+  border: 0;
+  outline: none;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  background: transparent;
+}
 
 .editor__status {
-  grid-column: 1 / -1;
-  grid-row: 2;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  height: 26px;
+  gap: var(--space-4);
+  padding: var(--space-1) var(--space-4);
   font-size: var(--text-xs);
   color: var(--text-tertiary);
   border-top: 1px solid var(--border-soft);
-  margin: 0 calc(-1 * var(--space-6));
-  padding: 0 var(--space-4);
   font-variant-numeric: tabular-nums;
 }
+.editor__status > :last-child { margin-left: auto; }
 
-.editor__status-sep {
-  width: 1px;
-  height: 10px;
-  background: var(--border-soft);
-}
-
-/* =========================================================================
-   Source tokens. Deliberately quieter than the rendered view — this is a
-   working surface, and loud syntax colouring makes prose hard to scan.
-   ========================================================================= */
-
-.md-tok-heading-marker {
-  color: var(--accent);
-  opacity: 0.8;
-}
-.md-tok-heading-1 {
-  font-weight: 700;
-  color: var(--text-primary);
-}
-.md-tok-heading-2 {
-  font-weight: 700;
-  color: var(--text-primary);
-}
-.md-tok-heading-3,
-.md-tok-heading-4,
-.md-tok-heading-5,
-.md-tok-heading-6 {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.md-tok-strong {
-  font-weight: 700;
-  color: var(--text-primary);
-}
-.md-tok-emphasis {
-  font-style: italic;
-  color: var(--text-primary);
-}
-.md-tok-strike {
-  text-decoration: line-through;
-  color: var(--text-tertiary);
-}
-.md-tok-mark {
-  background: var(--accent-soft);
-  border-radius: 3px;
-}
-.md-tok-code-inline {
-  color: color-mix(in srgb, var(--accent) 60%, var(--text-primary));
-  background: var(--bg-inset);
-  border-radius: 3px;
-}
-.md-tok-code {
-  color: var(--hl-string);
-}
-.md-tok-fence {
-  color: var(--accent);
-  opacity: 0.75;
-}
-.md-tok-lang {
-  color: var(--hl-type);
-  font-style: italic;
-}
-.md-tok-quote-marker {
-  color: var(--accent);
-  opacity: 0.7;
-}
-.md-tok-list-marker {
-  color: var(--accent);
-  opacity: 0.85;
-}
-.md-tok-task {
-  color: var(--hl-func);
-}
-.md-tok-hr {
-  color: var(--text-disabled);
-}
-.md-tok-bracket {
-  color: var(--text-tertiary);
-}
-.md-tok-link-text {
-  color: var(--text-primary);
-}
-.md-tok-link-url {
-  color: var(--hl-func);
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--hl-func) 40%, transparent);
-  text-underline-offset: 2px;
-}
-.md-tok-image-marker {
-  color: var(--accent);
-}
-.md-tok-math {
-  color: var(--hl-type);
-}
-.md-tok-footnote {
-  color: var(--hl-number);
-}
-.md-tok-link {
-  color: var(--hl-func);
+@media (max-width: 900px) {
+  .editor__surface .cm-content.md { padding-block: var(--space-8) 30vh; }
+  .editor__surface .cm-line.live-h1 { padding: var(--space-4); }
 }

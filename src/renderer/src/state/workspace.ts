@@ -21,6 +21,11 @@ export async function openWorkspacePath(path: string): Promise<void> {
   emit()
 }
 
+export async function openWorkspaceDialog(): Promise<void> {
+  const opened = await window.mdview.workspace.openDialog()
+  if (opened) { current = opened; emit() }
+}
+
 export function useWorkspace(): {
   info: WorkspaceInfo | null
   openDialog: () => Promise<void>
@@ -42,13 +47,7 @@ export function useWorkspace(): {
     }
   }, [])
 
-  const openDialog = useCallback(async () => {
-    const opened = await window.mdview.workspace.openDialog()
-    if (opened) {
-      current = opened
-      emit()
-    }
-  }, [])
+  const openDialog = useCallback(openWorkspaceDialog, [])
 
   const openPath = useCallback((path: string) => openWorkspacePath(path), [])
 

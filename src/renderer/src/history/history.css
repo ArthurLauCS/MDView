@@ -1,12 +1,30 @@
-/* =========================================================================
-   History panel. This reuses the `.panel` chrome from panels.css and the
-   `.diff` / `.summary` vocabulary from export.css — only the two-column list
-   and the revision tags are new, so the app keeps one modal language.
-   ========================================================================= */
+.history-dock { display: flex; flex: 0 0 auto; min-height: 0; }
+.history-dock__rail { width: var(--space-12); border-left: 1px solid var(--border-soft); background: var(--bg-raised); }
+.history-dock__toggle { width: 100%; display: grid; justify-items: center; gap: var(--space-1); padding: var(--space-3) var(--space-1); font-size: var(--text-xs); color: var(--text-tertiary); }
+.history-dock__toggle:hover { background: var(--bg-hover); color: var(--text-primary); }
+.history-dock__toggle[aria-expanded='true'] { color: var(--accent); background: var(--accent-soft); }
+.history-dock__toggle svg { width: var(--space-6); height: var(--space-6); fill: none; stroke: currentColor; stroke-width: 1.5; }
+.history-panel { position: relative; width: clamp(var(--side-panel-min-w), var(--history-w), min(var(--side-panel-max-w), 35vw)); display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--border-soft); background: var(--bg-raised); }
+.history-panel .panel__body { min-height: 0; padding: var(--space-4); }
+.history-panel .panel__foot { flex-direction: column; align-items: stretch; gap: var(--space-2); padding: var(--space-3) var(--space-4); }
+.hist__error { color: var(--danger); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.hist__detail-head { display: flex; gap: var(--space-2); }
+.hist__detail-head .btn:last-child { margin-left: auto; }
+.hist__detail-head [aria-pressed='true'] { color: var(--accent); border-color: var(--accent-line); }
+.hist__caption { color: var(--text-tertiary); font-size: var(--text-xs); margin-block: var(--space-2); }
+.hist__source { white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; font: var(--text-sm)/1.6 var(--font-code); padding: var(--space-3); border-radius: var(--radius-sm); background: var(--bg-inset); }
+.history-panel .diff { overflow-x: auto; }
+.history-panel .diff__text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.history-panel .hist__actions { flex-wrap: wrap; border: 0; padding: 0; margin: 0; min-width: 0; }
+.history-panel .hist__actions .btn { flex: 1 0 auto; }
+
+@media (max-width: 1100px) {
+  .history-panel { position: absolute; right: var(--space-12); top: var(--titlebar-h); bottom: 0; z-index: 30; box-shadow: var(--shadow-md); }
+}
 
 .hist {
   display: grid;
-  grid-template-columns: minmax(220px, 320px) 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-6);
   align-items: start;
 }
@@ -26,7 +44,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  max-height: 52vh;
+  max-height: 30vh;
   overflow-y: auto;
 }
 
@@ -194,7 +212,7 @@
 /* Deletion keeps the strike-through from export.css, which already reads as
    "this text is gone". */
 
-.diff__text--same {
+.hist__detail .diff__text--same {
   color: var(--text-tertiary);
   text-decoration: none;
 }

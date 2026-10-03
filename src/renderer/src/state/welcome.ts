@@ -1,5 +1,5 @@
 import { WELCOME_DOC_REL } from '@shared/skills'
-import { openDocument } from './documents'
+import { currentDocument, openDocument } from './documents'
 import { openWorkspacePath } from './workspace'
 
 /**
@@ -15,7 +15,8 @@ import { openWorkspacePath } from './workspace'
 export async function resolveWelcome(): Promise<boolean> {
   const docPath = await window.mdview.app.resolveStock(WELCOME_DOC_REL)
   if (!docPath) return false
-  await openWorkspacePath(docPath.replace(/[\\/][^\\/]+$/, ''))
   await openDocument(docPath)
+  if (currentDocument()?.meta.path !== docPath) return false
+  await openWorkspacePath(docPath.replace(/[\\/][^\\/]+$/, ''))
   return true
 }

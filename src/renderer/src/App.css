@@ -9,6 +9,7 @@
   display: flex;
   min-height: 0;
 }
+.app-error { padding: var(--space-2) var(--space-4); color: var(--danger); background: var(--bg-raised); font-size: var(--text-sm); }
 
 /* Error state for a workspace that failed to open. */
 .doc {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { SessionState } from '@shared/types'
 import { openWorkspacePath } from './workspace'
-import { openDocument } from './documents'
+import { confirmDocumentChange, currentDocument, documentError, hasUnsavedChanges, newDocument, openDocument } from './documents'
 
 /**
  * Restores the window's previous state on launch and keeps it up to date.
@@ -62,12 +62,6 @@ export async function restoreSession(): Promise<boolean> {
   const state = await window.mdview.session.load()
   current = state
 
-  // A fresh install opens the welcome document rather than an empty window.
-  if (state.firstRun && !state.workspaceRoot) {
-    const { resolveWelcome } = await import('./welcome')
-    if (await resolveWelcome()) return true
-  }
-
   if (state.workspaceRoot) {
     try {
       await openWorkspacePath(state.workspaceRoot)
@@ -82,7 +76,7 @@ export async function restoreSession(): Promise<boolean> {
   if (state.activeDoc) {
     try {
       await openDocument(state.activeDoc)
-      return true
+      return currentDocument()?.meta.path === state.activeDoc
     } catch {
       return false
     }
@@ -95,10 +89,12 @@ export function recentWorkspaces(): Promise<string[]> {
 }
 
 /** Flush any pending write immediately, for window close. */
-export function flushSession(): void {
+export async function flushSession(): Promise<void> {
   if (timer) window.clearTimeout(timer)
-  if (current) void window.mdview.session.save(current)
+  if (current) await window.mdview.session.save(current)
 }
+
+let bootPromise: Promise<boolean> | null = null
 
 /**
  * Runs the restore once and reports whether it found anything.
@@ -115,14 +111,36 @@ export function useSessionBoot(): { booted: boolean; restored: boolean } {
 
   useEffect(() => {
     let live = true
-    void restoreSession().then((restored) => {
+    bootPromise ??= restoreSession().then(async (restored) => {
+      if (!restored) await newDocument()
+      return restored
+    })
+    void bootPromise.then((restored) => {
       if (live) setState({ booted: true, restored })
     })
-    const flush = (): void => flushSession()
-    window.addEventListener('beforeunload', flush)
+    let closing = false
+    let approved = false
+    const stop = window.mdview.window.onCloseRequested(() => {
+      if (closing) return
+      closing = true
+      void (async () => {
+        if (!await confirmDocumentChange()) return
+        await flushSession()
+        approved = true
+        window.mdview.window.confirmClose()
+      })().catch(documentError).finally(() => { closing = false })
+    })
+    const beforeReload = (event: BeforeUnloadEvent): void => {
+      if (hasUnsavedChanges() && !approved) {
+        event.preventDefault()
+        event.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', beforeReload)
     return () => {
       live = false
-      window.removeEventListener('beforeunload', flush)
+      stop()
+      window.removeEventListener('beforeunload', beforeReload)
     }
   }, [])
 

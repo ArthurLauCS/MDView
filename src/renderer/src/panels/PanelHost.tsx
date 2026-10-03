@@ -1,11 +1,8 @@
-import { useCallback, useEffect } from 'react'
+import { useEffect } from 'react'
 import { SettingsPanel } from './SettingsPanel'
 import { ExportPanel } from './ExportPanel'
-import { ShortcutsPanel } from './ShortcutsPanel'
 import { HelpPanel } from './HelpPanel'
-import { HistoryPanel } from '../history/HistoryPanel'
 import { closePanel, usePanel } from '../state/ui'
-import { resolveWelcome } from '../state/welcome'
 import './panels.css'
 import './shortcuts.css'
 import './export.css'
@@ -17,15 +14,6 @@ import './export.css'
  */
 export function PanelHost(): JSX.Element | null {
   const active = usePanel()
-
-  /**
-   * Open the bundled welcome document, unpacking it on first use. Shared by
-   * the 帮助 panel and the settings 帮助 section so there is one place that
-   * knows how the document is stored.
-   */
-  const openWelcome = useCallback((): void => {
-    void resolveWelcome().then(() => closePanel())
-  }, [])
 
   useEffect(() => {
     if (!active || active === 'palette') return
@@ -39,13 +27,11 @@ export function PanelHost(): JSX.Element | null {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [active])
 
-  if (active === 'settings') {
-    return <SettingsPanel onClose={closePanel} onOpenWelcome={openWelcome} />
+  if (active === 'settings' || active === 'shortcuts') {
+    return <SettingsPanel key={active} onClose={closePanel} initialSection={active === 'shortcuts' ? 'shortcuts' : undefined} />
   }
   if (active === 'export') return <ExportPanel onClose={closePanel} />
-  if (active === 'shortcuts') return <ShortcutsPanel onClose={closePanel} />
   if (active === 'help') return <HelpPanel onClose={closePanel} />
-  if (active === 'history') return <HistoryPanel onClose={closePanel} />
   return null
 }
 

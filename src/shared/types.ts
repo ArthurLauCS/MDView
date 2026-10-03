@@ -46,6 +46,7 @@ export interface WorkspaceInfo {
 export interface DocumentMeta {
   /** Stable id: sha1 of the absolute path, lowercased. */
   id: string
+  /** Empty only for an in-memory, untitled document. */
   path: string
   /** Directory that holds the document folder. */
   parentDir: string
@@ -61,7 +62,7 @@ export interface DocumentContent {
   text: string
   /** Frontmatter parsed off the top, if any. */
   frontmatter: Record<string, unknown> | null
-  /** Body with frontmatter removed — what the editor actually edits. */
+  /** Body with frontmatter removed; the editor preserves the complete `text`. */
   body: string
   /** Set when the file changed on disk while we held unsaved edits. */
   conflictWithDisk: boolean
@@ -150,12 +151,16 @@ export interface AppSettings {
   plainMdImagePolicy: PlainMdImagePolicy
   /** Base reading font size in px. */
   fontSize: number
-  /** Max measure in `ch` units — readability guard. */
-  measure: number
+  /** Left/right writing margins as a percentage of the editor width. */
+  pageMarginLeft: number
+  pageMarginRight: number
   fontUi: string | null
   fontRead: string | null
   fontCode: string | null
+  fontDisplay: string | null
   sidebarVisible: boolean
+  sidebarWidth: number
+  historyWidth: number
   outlineVisible: boolean
   typewriterMode: boolean
   highlightCurrentLine: boolean
@@ -189,11 +194,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
   docLayout: 'flat',
   plainMdImagePolicy: 'alt-placeholder',
   fontSize: 17,
-  measure: 72,
+  pageMarginLeft: 5,
+  pageMarginRight: 5,
   fontUi: null,
   fontRead: null,
   fontCode: null,
+  fontDisplay: null,
   sidebarVisible: true,
+  sidebarWidth: 260,
+  historyWidth: 360,
   outlineVisible: true,
   typewriterMode: false,
   highlightCurrentLine: true,

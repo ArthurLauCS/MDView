@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ExportMode, ExportPreview } from '@shared/types'
-import { useDocuments } from '../state/documents'
+import { documentBuffer, useDocuments } from '../state/documents'
 
 interface Props {
   onClose: () => void
@@ -48,7 +48,7 @@ export function ExportPanel({ onClose }: Props): JSX.Element {
   const [result, setResult] = useState<string | null>(null)
 
   const docPath = active?.meta.path ?? null
-  const source = active?.body ?? ''
+  const source = documentBuffer()
 
   const runPreview = useCallback(async (): Promise<void> => {
     if (!docPath) return
