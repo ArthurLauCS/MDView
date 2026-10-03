@@ -20,6 +20,9 @@
     "directories": { "output": "release" },
     "files": ["out/**/*", "package.json"],
     "extraResources": [{ "from": "stock", "to": "stock" }],
+    "fileAssociations": [
+      { "ext": ["md", "markdown"], "name": "Markdown", "description": "Markdown 文档", "role": "Editor" }
+    ],
     "win": {
       "target": ["nsis"],
       "artifactName": "MDView-${version}-setup.${ext}"

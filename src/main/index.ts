@@ -1,7 +1,9 @@
-import { app, BrowserWindow, net, protocol, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, net, protocol, shell } from 'electron'
 import { join, normalize, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { IPC } from '@shared/ipc'
 import { registerAllHandlers } from './ipc/registry'
+import { documentArg } from './services/launch'
 import { WorkspaceService } from './services/workspace'
 import { DocumentService } from './services/documents'
 import { AssetService } from './services/assets'
@@ -12,6 +14,20 @@ import { SessionService } from './services/session'
 const isDev = !app.isPackaged
 
 let mainWindow: BrowserWindow | null = null
+
+// A second double-clicked file must open in the window that may be holding
+// unsaved work, not in a rival process writing the same session and history.
+const primary = app.requestSingleInstanceLock()
+if (!primary) app.quit()
+
+app.on('second-instance', (_event, argv, cwd) => {
+  if (!mainWindow) return
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.focus()
+  const path = documentArg(argv, cwd)
+  if (path) mainWindow.webContents.send(IPC.APP_OPEN_DOCUMENT, path)
+})
+ipcMain.handle(IPC.APP_LAUNCH_DOCUMENT, () => documentArg(process.argv, process.cwd()))
 
 /**
  * A scheme for serving documents' own images.
@@ -92,6 +108,7 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
+  if (!primary) return
   registerAssetProtocol()
 
   const userData = app.getPath('userData')

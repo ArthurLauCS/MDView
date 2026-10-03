@@ -99,7 +99,13 @@ const api = {
      * needs somewhere writable for the images it will gain.
      */
     resolveStock: (name: string): Promise<string | null> =>
-      ipcRenderer.invoke(IPC.APP_RESOLVE_STOCK, name)
+      ipcRenderer.invoke(IPC.APP_RESOLVE_STOCK, name),
+    launchDocument: (): Promise<string | null> => ipcRenderer.invoke(IPC.APP_LAUNCH_DOCUMENT),
+    onOpenDocument: (callback: (path: string) => void): (() => void) => {
+      const listener = (_event: unknown, path: string): void => callback(path)
+      ipcRenderer.on(IPC.APP_OPEN_DOCUMENT, listener)
+      return () => { ipcRenderer.removeListener(IPC.APP_OPEN_DOCUMENT, listener) }
+    }
   },
   export: {
     preview: (mode: ExportMode, docPath: string, text: string): Promise<ExportPreview> =>

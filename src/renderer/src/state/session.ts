@@ -61,6 +61,9 @@ export function cursorFor(docPath: string): number {
 export async function restoreSession(): Promise<boolean> {
   const state = await window.mdview.session.load()
   current = state
+  // A double-clicked file is what the user asked for; it outranks last time's.
+  const launch = await window.mdview.app.launchDocument()
+  const target = launch ?? state.activeDoc
 
   if (state.workspaceRoot) {
     try {
@@ -69,14 +72,14 @@ export async function restoreSession(): Promise<boolean> {
       // The folder went away between sessions; start clean rather than
       // leaving the window in a broken half-open state.
       current = null
-      return false
+      if (!launch) return false
     }
   }
 
-  if (state.activeDoc) {
+  if (target) {
     try {
-      await openDocument(state.activeDoc)
-      return currentDocument()?.meta.path === state.activeDoc
+      await openDocument(target)
+      return currentDocument()?.meta.path === target
     } catch {
       return false
     }
@@ -118,6 +121,7 @@ export function useSessionBoot(): { booted: boolean; restored: boolean } {
     void bootPromise.then((restored) => {
       if (live) setState({ booted: true, restored })
     })
+    const stopOpen = window.mdview.app.onOpenDocument((path) => void openDocument(path))
     let closing = false
     let approved = false
     const stop = window.mdview.window.onCloseRequested(() => {
@@ -140,6 +144,7 @@ export function useSessionBoot(): { booted: boolean; restored: boolean } {
     return () => {
       live = false
       stop()
+      stopOpen()
       window.removeEventListener('beforeunload', beforeReload)
     }
   }, [])

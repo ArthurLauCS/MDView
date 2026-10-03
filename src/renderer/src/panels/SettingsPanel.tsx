@@ -268,6 +268,11 @@ export function SettingsPanel({ onClose, initialSection = 'appearance' }: Props)
               />
               <span className="row__hint">秒</span>
             </Row>
+            <Row name="默认打开方式" hint="Windows 不允许应用自行接管文件类型：在系统设置里搜索 .md，选择 MDView">
+              <button className="btn" onClick={() => void window.mdview.shell.openExternal('ms-settings:defaultapps')}>
+                打开系统设置
+              </button>
+            </Row>
             <Row
               name="目录结构"
               hint={LAYOUTS.find((l) => l.value === settings.docLayout)?.hint}
