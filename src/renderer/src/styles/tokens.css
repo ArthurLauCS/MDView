@@ -1,0 +1,151 @@
+/* =========================================================================
+   Design tokens — the single source of every colour, space, motion value.
+   Dark is authored first and treated as the primary theme; light is derived
+   by lifting lightness in the same hue, never by inverting.
+   ========================================================================= */
+
+:root {
+  /* ---- surfaces (warm neutrals: this is paper, not glass) --------------- */
+  --bg-base: #1f1e1d;
+  --bg-raised: #262624;
+  --bg-overlay: #30302e;
+  --bg-inset: #191918;
+  --bg-hover: rgba(245, 244, 239, 0.045);
+  --bg-active: rgba(245, 244, 239, 0.075);
+
+  --border-soft: #33322f;
+  --border-strong: #45443f;
+
+  /* ---- text ------------------------------------------------------------- */
+  --text-primary: #f5f4ef;
+  --text-secondary: #b8b5ad;
+  --text-tertiary: #8a877e;
+  --text-disabled: #5c5a54;
+
+  /* ---- the one accent. Never more than two accents on screen. ----------- */
+  --accent: #d97757;
+  --accent-hover: #e08263;
+  --accent-press: #c96a4c;
+  --accent-soft: rgba(217, 119, 87, 0.14);
+  --accent-line: rgba(217, 119, 87, 0.35);
+
+  --success: #7ba88a;
+  --warning: #d9a95c;
+  --danger: #c9645c;
+  --link: #8ab4c4;
+
+  /* ---- code highlight (desaturated to sit on a warm ground) ------------- */
+  --hl-keyword: #c98a6b;
+  --hl-string: #9cb380;
+  --hl-number: #d9a95c;
+  --hl-comment: #6e6b64;
+  --hl-func: #7fb3c8;
+  --hl-type: #b79bd1;
+  --hl-punct: #8a877e;
+  --hl-attr: #d9a95c;
+
+  /* ---- type scale ------------------------------------------------------- */
+  --text-xs: 11.5px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-read: var(--reading-size, 17px);
+  --text-lg: 19px;
+  --text-xl: 24px;
+  --text-2xl: 30px;
+
+  /* ---- space: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 ---------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.34);
+  --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.46);
+  --shadow-pop: 0 24px 64px rgba(0, 0, 0, 0.55);
+
+  /* ---- motion ----------------------------------------------------------- */
+  --dur-instant: 90ms;
+  --dur-fast: 160ms;
+  --dur-base: 240ms;
+  --dur-slow: 420ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --reading-size: 17px;
+  --measure: 72ch;
+  --sidebar-w: 260px;
+  --outline-w: 240px;
+  --titlebar-h: 40px;
+}
+
+[data-theme='light'] {
+  --bg-base: #faf9f5;
+  --bg-raised: #ffffff;
+  --bg-overlay: #ffffff;
+  --bg-inset: #f2f0ea;
+  --bg-hover: rgba(31, 30, 29, 0.04);
+  --bg-active: rgba(31, 30, 29, 0.07);
+
+  --border-soft: #e6e3da;
+  --border-strong: #d3cfc4;
+
+  --text-primary: #1f1e1d;
+  --text-secondary: #5c5a54;
+  --text-tertiary: #8a877e;
+  --text-disabled: #b8b5ad;
+
+  --accent: #c2603f;
+  --accent-hover: #d97757;
+  --accent-press: #a94f33;
+  --accent-soft: rgba(194, 96, 63, 0.12);
+  --accent-line: rgba(194, 96, 63, 0.32);
+
+  --link: #3f6f85;
+
+  --hl-keyword: #a8502c;
+  --hl-string: #4f7a3a;
+  --hl-number: #95681c;
+  --hl-comment: #9a968c;
+  --hl-func: #2f6d8c;
+  --hl-type: #7a53a8;
+  --hl-punct: #6e6b64;
+  --hl-attr: #95681c;
+
+  --shadow-sm: 0 1px 2px rgba(31, 30, 29, 0.06);
+  --shadow-md: 0 4px 14px rgba(31, 30, 29, 0.09);
+  --shadow-lg: 0 18px 48px rgba(31, 30, 29, 0.13);
+  --shadow-pop: 0 24px 64px rgba(31, 30, 29, 0.18);
+}
+
+/* Motion tiers: `off` collapses durations but keeps state changes visible so
+   nothing ever becomes ambiguous, it just stops moving. */
+[data-motion='reduced'] {
+  --dur-slow: 200ms;
+  --dur-base: 140ms;
+}
+[data-motion='off'] {
+  --dur-instant: 1ms;
+  --dur-fast: 1ms;
+  --dur-base: 1ms;
+  --dur-slow: 1ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-instant: 1ms;
+    --dur-fast: 1ms;
+    --dur-base: 1ms;
+    --dur-slow: 1ms;
+  }
+}

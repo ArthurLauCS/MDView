@@ -1,0 +1,67 @@
+.doc {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--bg-base);
+  scroll-behavior: auto;
+}
+
+.doc--center {
+  display: grid;
+  place-items: center;
+}
+
+.doc__welcome {
+  max-width: 44ch;
+  text-align: center;
+  padding: var(--space-8);
+  animation: enter-fade var(--dur-slow) var(--ease-out) both;
+}
+
+.doc__welcome-title {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 500;
+  letter-spacing: var(--tracking-display);
+  margin: 0 0 var(--space-4);
+}
+
+.doc__welcome-body {
+  font-family: var(--font-read);
+  font-size: var(--text-read);
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-8);
+}
+
+.doc__welcome-btn {
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  box-shadow: var(--shadow-sm);
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+.doc__welcome-btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+.doc__welcome-btn:active {
+  transform: translateY(0) scale(0.985);
+  background: var(--accent-press);
+}
+
+.doc__notice {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.doc__notice--error {
+  color: var(--danger);
+}
