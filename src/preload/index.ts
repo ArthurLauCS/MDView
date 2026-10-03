@@ -110,6 +110,11 @@ const api = {
   shell: {
     openExternal: (url: string): Promise<void> => ipcRenderer.invoke(IPC.SHELL_OPEN_EXTERNAL, url)
   },
+  files: {
+    /** Write a text file at a path the user has already chosen. */
+    write: (targetPath: string, text: string): Promise<string> =>
+      ipcRenderer.invoke(IPC.FILE_WRITE_SIBLING, targetPath, text)
+  },
   clipboard: {
     writeText: (text: string): Promise<boolean> =>
       ipcRenderer.invoke(IPC.CLIPBOARD_WRITE_TEXT, text),
@@ -117,7 +122,12 @@ const api = {
       ipcRenderer.invoke(IPC.CLIPBOARD_WRITE_IMAGE, path)
   },
   dialog: {
-    openImages: (): Promise<string[] | null> => ipcRenderer.invoke(IPC.DIALOG_OPEN_FILE)
+    openImages: (): Promise<string[] | null> => ipcRenderer.invoke(IPC.DIALOG_OPEN_FILE),
+    /** Save-as dialog. Returns null when the user cancels. */
+    saveFile: (
+      defaultName: string,
+      filters?: { name: string; extensions: string[] }[]
+    ): Promise<string | null> => ipcRenderer.invoke(IPC.DIALOG_SAVE_FILE, defaultName, filters)
   }
 }
 

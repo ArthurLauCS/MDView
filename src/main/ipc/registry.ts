@@ -140,6 +140,24 @@ export function registerAllHandlers(ctx: HandlerContext): void {
     return true
   })
 
+  ipcMain.handle(
+    IPC.DIALOG_SAVE_FILE,
+    async (_e, defaultName: string, filters?: Electron.FileFilter[]) => {
+      const win = getWindow()
+      if (!win) return null
+      const res = await dialog.showSaveDialog(win, {
+        defaultPath: defaultName,
+        filters: filters ?? [{ name: '所有文件', extensions: ['*'] }]
+      })
+      return res.canceled || !res.filePath ? null : res.filePath
+    }
+  )
+
+  ipcMain.handle(IPC.FILE_WRITE_SIBLING, async (_e, targetPath: string, text: string) => {
+    await fs.writeFile(targetPath, text, 'utf8')
+    return targetPath
+  })
+
   ipcMain.handle(IPC.DIALOG_OPEN_FILE, async () => {
     const win = getWindow()
     if (!win) return null

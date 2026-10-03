@@ -60,6 +60,8 @@ export const IPC = {
   CLIPBOARD_WRITE_IMAGE: 'clipboard:write-image',
   DIALOG_OPEN_FILE: 'dialog:open-file',
   DIALOG_SAVE_FILE: 'dialog:save-file',
+  /** Write text beside the document without asking — used by table exports. */
+  FILE_WRITE_SIBLING: 'file:write-sibling',
   /** Reveal a bundle that shipped with the app, e.g. the welcome document. */
   APP_REVEAL_STOCK: 'app:reveal-stock',
   /** Resolve a bundled file, copying it into the user's documents on first use. */
