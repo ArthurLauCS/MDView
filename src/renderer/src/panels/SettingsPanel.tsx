@@ -42,7 +42,6 @@ const IMAGE_NAMINGS: { value: ImageNaming; label: string; hint: string }[] = [
   { value: 'hash', label: '仅哈希', hint: '名字最短，但看不出图片是什么' }
 ]
 
-const NOT_READ = '暂未接入，改动会被保存但编辑器还没读它'
 
 /**
  * `__APP_VERSION__` is a build-time define, so it does not exist when the
@@ -324,7 +323,7 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
             />
             <Toggle
               name="自动保存"
-              hint={`停止输入后自动写盘。${NOT_READ}`}
+              hint={`停止输入后自动写盘`}
               value={settings.autoSave}
               onChange={(autoSave) => patch({ autoSave })}
             />
@@ -349,7 +348,7 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
               value={settings.historyEnabled}
               onChange={(historyEnabled) => patch({ historyEnabled })}
             />
-            <Row name="快照间隔" hint={`两次自动快照之间的最短间隔。${NOT_READ}`}>
+            <Row name="快照间隔" hint={`两次自动快照之间的最短间隔`}>
               <input
                 className="field field--num"
                 type="number"
@@ -366,23 +365,23 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
             </Row>
             <Toggle
               name="拼写检查"
-              hint={`浏览器的拼写波浪线。${NOT_READ}`}
+              hint={`浏览器的拼写波浪线`}
               value={settings.spellCheck}
               onChange={(spellCheck) => patch({ spellCheck })}
             />
             <Toggle
               name="自动配对"
-              hint={`输入括号引号时补上另一半。${NOT_READ}`}
+              hint={`输入括号引号时补上另一半`}
               value={settings.autoPair}
               onChange={(autoPair) => patch({ autoPair })}
             />
             <Toggle
               name="智能列表"
-              hint={`回车自动延续列表与引用前缀。${NOT_READ}`}
+              hint={`回车自动延续列表与引用前缀`}
               value={settings.smartLists}
               onChange={(smartLists) => patch({ smartLists })}
             />
-            <Row name="Tab 宽度" hint={NOT_READ}>
+            <Row name="Tab 宽度">
               <input
                 className="field field--num"
                 type="number"
@@ -414,7 +413,7 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
 
             <Row
               name="文件命名"
-              hint={`${IMAGE_NAMINGS.find((n) => n.value === settings.imageNaming)?.hint}。${NOT_READ}`}
+              hint={`${IMAGE_NAMINGS.find((n) => n.value === settings.imageNaming)?.hint}`}
             >
               <Segmented
                 items={IMAGE_NAMINGS}
@@ -425,12 +424,12 @@ export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
 
             <Toggle
               name="重复图片去重"
-              hint={`内容相同的图片只存一份，复用已有文件。${NOT_READ}`}
+              hint={`内容相同的图片只存一份，复用已有文件`}
               value={settings.imageDedupe}
               onChange={(imageDedupe) => patch({ imageDedupe })}
             />
 
-            <Row name="最大宽度" hint={`超过这个宽度会缩放后写入。${NOT_READ}`}>
+            <Row name="最大宽度" hint={`超过这个宽度会缩放后写入`}>
               <input
                 className="field field--num"
                 type="number"

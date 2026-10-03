@@ -325,6 +325,9 @@ export function EditorPane(): JSX.Element {
             readOnly={settings.readOnly}
             typewriter={settings.typewriterMode}
             highlightLine={settings.highlightCurrentLine}
+            spellCheck={settings.spellCheck}
+            autoPair={settings.autoPair}
+            smartLists={settings.smartLists}
           />
         )}
         {mode !== 'source' && (

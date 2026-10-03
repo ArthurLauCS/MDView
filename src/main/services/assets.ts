@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs'
 import { basename, dirname, extname, join } from 'node:path'
 import { createHash } from 'node:crypto'
+import { nativeImage } from 'electron'
 import { toLink } from './paths'
 import type { AssetRef, InsertedAsset } from '@shared/types'
 import type { WorkspaceService } from './workspace'
@@ -40,6 +41,36 @@ export class AssetService {
     return createHash('sha256').update(buf).digest('hex')
   }
 
+  /**
+   * Scale a too-wide image down on the way in.
+   *
+   * A screenshot pasted from a 4K display is otherwise stored at full size
+   * and swamps the document; capping it at insert time is the only moment
+   * the original is still available to do it losslessly.
+   *
+   * SVG is skipped — it is resolution independent and nativeImage would
+   * rasterize it, which is strictly worse.
+   */
+  private capWidth(buf: Buffer, ext: string): Buffer {
+    const max = this.settings.get().imageMaxWidth
+    if (max <= 0 || ext === '.svg' || ext === '.gif') return buf
+
+    try {
+      const img = nativeImage.createFromBuffer(buf)
+      if (img.isEmpty()) return buf
+      const { width } = img.getSize()
+      if (width <= max) return buf
+      const ratio = max / width
+      return nativeImage
+        .createFromBuffer(buf)
+        .resize({ width: max, height: Math.round(img.getSize().height * ratio), quality: 'good' })
+        .toPNG()
+    } catch {
+      // An image we cannot decode is not a reason to refuse the insert.
+      return buf
+    }
+  }
+
   /** Existing files in the asset dir, keyed by content hash, for dedupe. */
   private async hashIndex(assetDir: string): Promise<Map<string, string>> {
     const index = new Map<string, string>()
@@ -69,6 +100,14 @@ export class AssetService {
   ): Promise<InsertedAsset> {
     const meta = this.documents.metaFor(docAbsPath)
     await fs.mkdir(meta.assetDir, { recursive: true })
+
+    // Downscale before hashing: the stored file is what the document points
+    // at, so dedupe must key on the bytes that are actually written.
+    const capped = this.capWidth(data, ext)
+    if (capped !== data) {
+      data = capped
+      ext = '.png'
+    }
 
     const hash = await this.sha256(data)
     const index = await this.hashIndex(meta.assetDir)

@@ -27,6 +27,10 @@ interface Props {
   readOnly?: boolean
   typewriter?: boolean
   highlightLine?: boolean
+  /** Editor behaviours the user can turn off individually. */
+  spellCheck?: boolean
+  autoPair?: boolean
+  smartLists?: boolean
 }
 
 const LINE_HEIGHT = 1.7
@@ -42,7 +46,20 @@ const LINE_HEIGHT = 1.7
  * more here than bespoke key handling.
  */
 export const Editor = forwardRef<EditorHandle, Props>(function Editor(
-  { source, onChange, onContextMenu, onCursorChange, onPaste, onKeyDown, readOnly, typewriter, highlightLine },
+  {
+    source,
+    onChange,
+    onContextMenu,
+    onCursorChange,
+    onPaste,
+    onKeyDown,
+    readOnly,
+    typewriter,
+    highlightLine,
+    spellCheck,
+    autoPair: pairingEnabled = true,
+    smartLists = true
+  },
   ref
 ) {
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -125,7 +142,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
 
     // Smart list continuation. Done here rather than in the action registry
     // because it depends on browser-native Enter handling.
-    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey) {
+    if (smartLists && e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey) {
       const lineStart = ta.value.lastIndexOf('\n', ta.selectionStart - 1) + 1
       const current = ta.value.slice(lineStart, ta.selectionStart)
       const prefix = continuationPrefix(current)
@@ -157,7 +174,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
 
     // Auto-pairing, but never inside a code fence — there the user wants the
     // literal character, and the closing-bracket skip would fight them.
-    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && !readOnly) {
+    if (pairingEnabled && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && !readOnly) {
       const inFence = isInsideFence(ta.value, ta.selectionStart)
       if (!inFence) {
         const sel =
@@ -234,7 +251,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
           style={highlightLine ? ({ '--caret-line': line } as React.CSSProperties) : undefined}
           value={source}
           readOnly={readOnly}
-          spellCheck={false}
+          spellCheck={spellCheck ?? false}
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="off"
