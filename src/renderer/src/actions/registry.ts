@@ -1,3 +1,4 @@
+import { patchSettings, settingsSnapshot } from '../state/settings'
 import type { ActionContext, ActionDef } from './types'
 import {
   autoPair,
@@ -332,11 +333,9 @@ export const ACTIONS: ActionDef[] = [
     key: 'Ctrl+Shift+T',
     group: 'view',
     run: (ctx) => {
-      void import('../state/settings').then(({ settingsSnapshot, patchSettings }) => {
-        const next = settingsSnapshot().theme === 'light' ? 'dark' : 'light'
-        void patchSettings({ theme: next })
-        ctx.toast(next === 'dark' ? '已切换到深色' : '已切换到浅色')
-      })
+      const next = settingsSnapshot().theme === 'light' ? 'dark' : 'light'
+      void patchSettings({ theme: next })
+      ctx.toast(next === 'dark' ? '已切换到深色' : '已切换到浅色')
     }
   },
   {
@@ -347,9 +346,7 @@ export const ACTIONS: ActionDef[] = [
     key: 'Ctrl+Backslash',
     group: 'view',
     run: () => {
-      void import('../state/settings').then(({ settingsSnapshot, patchSettings }) =>
-        patchSettings({ sidebarVisible: !settingsSnapshot().sidebarVisible })
-      )
+      void patchSettings({ sidebarVisible: !settingsSnapshot().sidebarVisible })
     }
   },
 

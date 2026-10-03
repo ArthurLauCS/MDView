@@ -89,6 +89,24 @@ export function CommandPalette({ open, onClose, ctx, availableScopes }: Props): 
     setActive(0)
   }, [query])
 
+  /**
+   * Escape must close the palette wherever focus happens to be. Relying on
+   * the input's own handler means a stray focus change leaves a modal the
+   * user cannot dismiss from the keyboard.
+   */
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [open, onClose])
+
   useEffect(() => {
     listRef.current
       ?.querySelector('.palette__row.is-active')

@@ -15,6 +15,12 @@ async function sync(): Promise<void> {
   emit()
 }
 
+/** Open a known path. The dialog variant lives in the hook, not here. */
+export async function openWorkspacePath(path: string): Promise<void> {
+  current = await window.mdview.workspace.openPath(path)
+  emit()
+}
+
 export function useWorkspace(): {
   info: WorkspaceInfo | null
   openDialog: () => Promise<void>
@@ -26,7 +32,11 @@ export function useWorkspace(): {
   useEffect(() => {
     const l: Listener = (w) => setInfo(w)
     listeners.add(l)
-    void sync()
+    setInfo(current)
+    // Only ask the main process when nothing has been opened yet. An
+    // unconditional sync would race a concurrent openPath and clobber it
+    // with the stale null it read a moment earlier.
+    if (current === null) void sync()
     return () => {
       listeners.delete(l)
     }
@@ -40,10 +50,7 @@ export function useWorkspace(): {
     }
   }, [])
 
-  const openPath = useCallback(async (path: string) => {
-    current = await window.mdview.workspace.openPath(path)
-    emit()
-  }, [])
+  const openPath = useCallback((path: string) => openWorkspacePath(path), [])
 
   const refresh = useCallback(async () => {
     if (!current) return

@@ -97,11 +97,14 @@
   color: transparent;
 }
 
+/* The band is anchored to the line box, not to the em box, so it has to
+   account for the element's own padding-bottom and the 1.7 line-height. */
 .editor__input.is-line-highlight {
   background-image: linear-gradient(var(--bg-hover), var(--bg-hover));
   background-repeat: no-repeat;
   background-size: 100% 1.7em;
   background-position: 0 calc(var(--caret-line, 0) * 1.7em);
+  background-attachment: local;
 }
 
 /* ---- status bar --------------------------------------------------------- */

@@ -70,32 +70,42 @@ export function deleteCol(cells: Cells, at: number): Cells {
 }
 
 export function moveRow(cells: Cells, from: number, to: number): Cells {
-  if (cells.length === 0) return []
-  const f = clamp(from, 0, cells.length - 1)
-  const t = clamp(to, 0, cells.length - 1)
-  if (f === t) return cells.map((r) => r.slice())
+  // Out-of-range indices are caller mistakes — leave the table alone rather
+  // than snapping the row to an edge. `moveCol` follows the same rule.
+  if (from < 0 || from >= cells.length || to < 0 || to >= cells.length) {
+    return cells.map((r) => r.slice())
+  }
+  if (from === to) return cells.map((r) => r.slice())
   const out = cells.slice()
-  const [row] = out.splice(f, 1)
-  out.splice(t, 0, row)
+  const [row] = out.splice(from, 1)
+  out.splice(to, 0, row)
   return out
 }
 
 export function moveCol(cells: Cells, from: number, to: number): Cells {
   const cols = colCount(cells)
   if (cols === 0) return []
-  const f = clamp(from, 0, cols - 1)
-  const t = clamp(to, 0, cols - 1)
+  // An out-of-range target is a caller mistake, not "move it to the edge":
+  // dragging a column past the last one should leave the table alone.
+  if (from < 0 || from >= cols || to < 0 || to >= cols) {
+    return cells.map((row) => {
+      const r = row.slice()
+      while (r.length < cols) r.push('')
+      r.length = cols
+      return r
+    })
+  }
   const padded = cells.map((row) => {
     const r = row.slice()
     while (r.length < cols) r.push('')
     r.length = cols
     return r
   })
-  if (f === t) return padded
+  if (from === to) return padded
   return padded.map((row) => {
     const out = row.slice()
-    const [v] = out.splice(f, 1)
-    out.splice(t, 0, v)
+    const [v] = out.splice(from, 1)
+    out.splice(to, 0, v)
     return out
   })
 }
@@ -359,11 +369,12 @@ function fromHtmlTables(html: string): string[][] | null {
     let td: RegExpExecArray | null
     cellRe.lastIndex = 0
     while ((td = cellRe.exec(tr[0]))) {
+      // `<br>` is the only tag that carries meaning into a cell — it is how a
+      // line break survives. Park it out of reach of the tag stripper.
       const text = decodeEntities(
-        td[1]
-          .replace(/<br\s*\/?>/gi, '<br>')
-          .replace(/<[^>]+>/g, '')
+        td[1].replace(/<br\s*\/?>/gi, '\u0000').replace(/<[^>]+>/g, '')
       )
+        .replace(/\u0000/g, '<br>')
         .replace(/ /g, ' ')
         .trim()
       cells.push(text)
@@ -479,14 +490,16 @@ export function fromList(lines: string, headers?: string[]): Cells {
     for (const [key] of entries) if (key !== '' && !cols.includes(key)) cols.push(key)
   }
   if (cols.length === 0) return []
+
+  // A repeated first field starts a new record — `- 名称：…` twice over.
+  const first = cols[0]
   const rows: string[][] = [cols]
   let current: string[] | null = null
   for (const [key, value] of entries) {
-    if (!headers && key !== '' && key === cols[0]) {
+    if (first !== '' && key === first) {
       current = EMPTY_ROW(cols.length)
       rows.push(current)
-    }
-    if (!current) {
+    } else if (!current) {
       current = EMPTY_ROW(cols.length)
       rows.push(current)
     }
@@ -506,27 +519,43 @@ const STAT_LABEL: Record<StatsKind, string> = {
   max: '最大'
 }
 
-/** Append a computed summary row for one column. */
+/**
+ * Append a summary row for one column.
+ *
+ * Every row is scanned — the header row is included, so a table with no header
+ * still works; its text just never parses as a number. `count` counts the
+ * values that also feed `sum`/`avg` (numeric cells), not non-empty cells, so
+ * the five kinds agree on what a value is.
+ */
 export function appendStatsRow(cells: Cells, col: number, kind: StatsKind): Cells {
   const cols = colCount(cells)
   if (cols === 0) return cells.slice()
   const values: number[] = []
-  for (let r = 1; r < cells.length; r++) {
-    const v = toNumber(cells[r][col] ?? '')
-    if (v !== null) values.push(v)
+  for (const row of cells) {
+    const n = toNumber(row[col] ?? '')
+    if (n !== null) values.push(n)
   }
-  let result: string
-  if (kind === 'count') result = String(values.length)
-  else if (values.length === 0) result = ''
-  else if (kind === 'sum') result = String(values.reduce((a, b) => a + b, 0))
-  else if (kind === 'avg') result = String(values.reduce((a, b) => a + b, 0) / values.length)
-  else if (kind === 'min') result = String(Math.min(...values))
-  else result = String(Math.max(...values))
+  const sum = values.reduce((a, b) => a + b, 0)
+  const result =
+    kind === 'count'
+      ? String(values.length)
+      : values.length === 0
+        ? ''
+        : kind === 'sum'
+          ? String(sum)
+          : kind === 'avg'
+            ? String(sum / values.length)
+            : kind === 'min'
+              ? String(Math.min(...values))
+              : String(Math.max(...values))
 
   const row = EMPTY_ROW(cols)
-  if (col === 0 && cols > 1) row[1] = result
-  else row[col] = result
-  if (cols > 1 && row[0] === '') row[0] = STAT_LABEL[kind]
+  if (cols > 1) {
+    row[0] = STAT_LABEL[kind]
+    row[1] = result
+  } else {
+    row[0] = result
+  }
   return [...cells, row]
 }
 

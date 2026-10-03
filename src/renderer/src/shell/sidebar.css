@@ -1,6 +1,7 @@
 .sidebar {
   width: var(--sidebar-w);
   flex: 0 0 var(--sidebar-w);
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: var(--bg-raised);
@@ -102,4 +103,34 @@
 }
 .tree__chevron.is-open {
   transform: rotate(45deg) translate(-1px, -1px);
+}
+
+/* The dismiss layer only exists in overlay mode. */
+.sidebar__scrim {
+  display: none;
+}
+
+/* Below this width the file tree costs more than it gives — the editor is
+   the point, so the sidebar becomes an overlay over it. */
+@media (max-width: 900px) {
+  .sidebar__scrim {
+    display: block;
+    position: fixed;
+    inset: var(--titlebar-h) 0 0 0;
+    z-index: 29;
+    background: color-mix(in srgb, var(--bg-base) 50%, transparent);
+    backdrop-filter: blur(3px);
+    animation: scrim-in var(--dur-fast) var(--ease-out) both;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: var(--titlebar-h);
+    bottom: 0;
+    left: 0;
+    z-index: 30;
+    width: 232px;
+    flex-basis: 232px;
+    box-shadow: var(--shadow-lg);
+  }
 }

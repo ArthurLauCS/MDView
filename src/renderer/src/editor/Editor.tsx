@@ -227,6 +227,9 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
         <textarea
           ref={taRef}
           className={`editor__input ${highlightLine ? 'is-line-highlight' : ''}`}
+          // The current-line band is painted by CSS at this offset, which keeps
+          // it in the textarea's own scroll space instead of a separate layer.
+          style={highlightLine ? ({ '--caret-line': line } as React.CSSProperties) : undefined}
           value={source}
           readOnly={readOnly}
           spellCheck={false}

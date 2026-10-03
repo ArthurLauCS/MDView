@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useWorkspace } from '../state/workspace'
+import { usePatchSettings } from '../state/settings'
 import { openDocument, useDocuments } from '../state/documents'
 import type { TreeNode } from '@shared/types'
 import './sidebar.css'
@@ -41,9 +42,15 @@ function TreeRow({ node, depth }: { node: TreeNode; depth: number }): JSX.Elemen
 
 export function Sidebar(): JSX.Element {
   const { info } = useWorkspace()
+  const patch = usePatchSettings()
+  const close = (): void => patch({ sidebarVisible: false })
 
   return (
-    <aside className="sidebar">
+    <>
+      {/* Only reachable under the narrow breakpoint; a click anywhere off the
+          panel dismisses it, which is what an overlay implies. */}
+      <button className="sidebar__scrim" onClick={close} aria-label="关闭侧栏" />
+      <aside className="sidebar">
       <div className="sidebar__head">
         <span className="sidebar__title">{info?.name ?? '未打开目录'}</span>
       </div>
@@ -58,6 +65,7 @@ export function Sidebar(): JSX.Element {
           </p>
         )}
       </nav>
-    </aside>
+      </aside>
+    </>
   )
 }

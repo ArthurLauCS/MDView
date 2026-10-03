@@ -9,3 +9,25 @@
   display: flex;
   min-height: 0;
 }
+
+/* Error state for a workspace that failed to open. */
+.doc {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.doc--center {
+  display: grid;
+  place-items: center;
+}
+
+.doc__notice {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.doc__notice--error {
+  max-width: 60ch;
+  color: var(--danger);
+}

@@ -113,7 +113,6 @@ describe('parseTable', () => {
     const src = 'a | b\n--- | ---\n1 | 2'
     expect(parseTable(ctxOf(src))).toEqual([
       ['a', 'b'],
-      ['---', '---'],
       ['1', '2']
     ])
   })
@@ -122,9 +121,20 @@ describe('parseTable', () => {
     const src = '| a | b |\n| --- | --- |\n| 1 | 2 |'
     expect(parseTable(ctxOf(src))).toEqual([
       ['a', 'b'],
-      ['---', '---'],
       ['1', '2']
     ])
+  })
+
+  it('omits the delimiter row, which is derived from aligns on serialize', () => {
+    const src = '| a | b |\n| :-- | --: |\n| 1 | 2 |'
+    expect(parseTable(ctxOf(src))).toEqual([
+      ['a', 'b'],
+      ['1', '2']
+    ])
+  })
+
+  it('parses a header-only table as a single row', () => {
+    expect(parseTable(ctxOf('| a | b |\n| --- | --- |'))).toEqual([['a', 'b']])
   })
 
   it('trims cells to content without touching inner spacing', () => {
@@ -153,14 +163,20 @@ describe('parseTable', () => {
     expect(parseTable(ctxOf(src))[0]).toEqual(['``a|`b``', 'c'])
   })
 
-  it('pads ragged rows with empty strings', () => {
-    const src = '| a | b | c |\n| --- | --- | --- |\n| 1 |'
-    expect(parseTable(ctxOf(src))[2]).toEqual(['1', '', ''])
+  it('treats an unclosed backtick as literal, so its pipe still splits', () => {
+    const src = '| `a | b |\n| --- | --- |\n| 1 | 2 |'
+    const row = parseTable(ctxOf(src))[0]
+    expect(row).toEqual(['`a | b |'])
   })
 
-  it('describes a lone pipe as one empty cell, not two', () => {
+  it('pads ragged rows with empty strings', () => {
+    const src = '| a | b | c |\n| --- | --- | --- |\n| 1 |'
+    expect(parseTable(ctxOf(src))[1]).toEqual(['1', '', ''])
+  })
+
+  it('describes a lone pipe as empty cells, not one', () => {
     const src = '| a | b |\n| --- | --- |\n| |'
-    expect(parseTable(ctxOf(src))[2]).toEqual(['', ''])
+    expect(parseTable(ctxOf(src))[1]).toEqual(['', ''])
   })
 
   it('normalizes CRLF without leaving carriage returns in cells', () => {
@@ -168,7 +184,6 @@ describe('parseTable', () => {
     const cells = parseTable(ctxOf(src))
     expect(cells).toEqual([
       ['a', 'b'],
-      ['---', '---'],
       ['1', '2']
     ])
     expect(cells.flat().some((c) => c.includes('\r'))).toBe(false)
@@ -182,22 +197,27 @@ describe('parseTable', () => {
 })
 
 describe('serializeTable', () => {
-  it('writes padded pipes', () => {
+  it('writes padded pipes and generates the delimiter row', () => {
     const cells = [
       ['a', 'b'],
-      ['---', '---'],
       ['1', '2']
     ]
     expect(serializeTable(cells, ['none', 'none'])).toBe('| a | b |\n| --- | --- |\n| 1 | 2 |')
   })
 
-  it('emits alignment markers', () => {
+  it('emits alignment markers sized to the column', () => {
     const cells = [
-      ['a', 'b', 'c'],
+      ['aaaa', 'bbbb', 'cccc'],
       ['1', '2', '3']
     ]
-    const out = serializeTable(cells, ['left', 'center', 'right'])
+    const out = serializeTable(cells, ['left', 'center', 'right'], { pad: true })
     expect(out.split('\n')[1]).toBe('| :--- | :--: | ---: |')
+  })
+
+  it('keeps every delimiter at least three dashes wide', () => {
+    expect(serializeTable([['a']], ['none']).split('\n')[1]).toBe('| --- |')
+    expect(serializeTable([['a'], ['1']], ['center']).split('\n')[1]).toBe('| :-: |')
+    expect(serializeTable([['a'], ['1']], ['right']).split('\n')[1]).toBe('| --: |')
   })
 
   it('truncates rows wider than the header', () => {
@@ -208,15 +228,13 @@ describe('serializeTable', () => {
     expect(serializeTable(cells, ['none', 'none']).split('\n')[2]).toBe('| 1 | 2 |')
   })
 
-  it('drops a hand-written delimiter row left in the body', () => {
+  it('never writes a delimiter row twice', () => {
     const cells = [
       ['a', 'b'],
-      ['---', '---'],
       ['1', '2']
     ]
     const out = serializeTable(cells, ['none', 'none'])
-    expect(out.split('\n').length).toBe(3)
-    expect(out.split('\n')[2]).toBe('| 1 | 2 |')
+    expect(out.split('\n').filter((l) => l.includes('---')).length).toBe(1)
   })
 
   it('turns embedded newlines into <br>', () => {
@@ -237,7 +255,7 @@ describe('serializeTable', () => {
     const lines = out.split('\n')
     // Column 0 is 14 wide, column 1 is 3 wide (the delimiter floor).
     expect(lines[0]).toBe('| name          | n   |')
-    expect(lines[1]).toBe('| ------------- | --- |')
+    expect(lines[1]).toBe('| ------------- | --: |')
     expect(lines[2]).toBe('| a-longer-cell | 1   |')
   })
 
@@ -284,7 +302,7 @@ describe('replaceTable', () => {
 
   it('replaces only the table block', () => {
     const ctx = ctxOf(src, src.indexOf('1 | 2'))
-    const cells = setCell(parseTable(ctx), { row: 2, col: 0 }, '9')
+    const cells = setCell(parseTable(ctx), { row: 1, col: 0 }, '9')
     const { text } = replaceTable(src, ctx, cells, ctx.aligns)
     expect(text).toBe('before\n\n| a | b |\n| --- | --- |\n| 9 | 2 |\n\nafter')
   })
@@ -298,10 +316,22 @@ describe('replaceTable', () => {
   it('places the cursor inside the edited cell', () => {
     const ctx = ctxOf(src, src.indexOf('1 | 2'))
     const cells = setCell(parseTable(ctx), { row: 2, col: 0 }, '12345')
+    // Cursor on the `1`; it stays on the first character of the new value.
     const { text, cursor } = replaceTable(src, ctx, cells, ctx.aligns, {
-      cursor: src.indexOf('1 | 2') + 1
+      cursor: src.indexOf('1 | 2')
     })
-    expect(text.slice(cursor - 1, cursor + 1)).toBe('23')
+    expect(text.slice(cursor - 2, cursor + 1)).toBe('| 1')
+  })
+
+  it('keeps the cursor on the same cell when a column is appended after it', () => {
+    const ctx = ctxOf(src, src.indexOf('1 | 2'))
+    const cells = insertCol(parseTable(ctx), 1)
+    // The cursor tracks the cell index, so appending column 2 leaves `2` in
+    // column 1 where the cursor still points.
+    const { text, cursor } = replaceTable(src, ctx, cells, ctx.aligns, {
+      cursor: src.lastIndexOf('| 2 |') + 2
+    })
+    expect(text.slice(cursor, cursor + 2)).toBe('2 ')
   })
 
   it('keeps the cursor sane after a row insert', () => {
@@ -378,8 +408,9 @@ describe('structural ops', () => {
     expect(moveRow(base, 2, 1)[1]).toEqual(['c', 'd'])
   })
 
-  it('moveRow clamps beyond bounds and is identity when equal', () => {
-    expect(moveRow(base, 1, 99)[2]).toEqual(['a', 'b'])
+  it('moveRow treats an out-of-bounds target as a no-op, and identity when equal', () => {
+    expect(moveRow(base, 1, 99)).toEqual(base)
+    expect(moveRow(base, 99, 0)).toEqual(base)
     expect(moveRow(base, 1, 1)).toEqual(base)
   })
 
@@ -391,13 +422,14 @@ describe('structural ops', () => {
     ])
   })
 
-  it('moveCol clamps out-of-bounds indices', () => {
-    expect(moveCol(base, 0, 99)).toEqual([
+  it('moveCol treats an out-of-bounds target as a no-op', () => {
+    expect(moveCol(base, 0, 99)).toEqual(base)
+    expect(moveCol(base, 5, 0)).toEqual(base)
+    expect(moveCol(base, 0, 1)).toEqual([
       ['h2', 'h1'],
       ['b', 'a'],
       ['d', 'c']
     ])
-    expect(moveCol(base, 5, 0)).toEqual(base)
   })
 
   it('transpose flips rows and columns', () => {
@@ -860,7 +892,6 @@ describe('formatting', () => {
     const src = padded + '\n'
     expect(parseTable(ctxOf(src))).toEqual([
       ['名称', 'qty'],
-      ['---', '---:'],
       ['苹果', '3']
     ])
   })
@@ -906,12 +937,23 @@ describe('formatting', () => {
     expect(appendStatsRow(cells, 1, 'sum').at(-1)?.[1]).toBe('2')
   })
 
-  it('appendStatsRow writes into the column itself when it is not column 0', () => {
+  it('appendStatsRow counts rows it can read a number from', () => {
     const cells = [
       ['name', 'n'],
       ['a', '2']
     ]
-    expect(appendStatsRow(cells, 0, 'count').at(-1)).toEqual(['计数', '1'])
+    expect(appendStatsRow(cells, 1, 'count').at(-1)).toEqual(['计数', '1'])
+  })
+
+  it('appendStatsRow counts numeric cells, not non-empty ones', () => {
+    const cells = [
+      ['name', 'n'],
+      ['a', '2'],
+      ['b', 'oops'],
+      ['c', '']
+    ]
+    expect(appendStatsRow(cells, 1, 'count').at(-1)?.[1]).toBe('1')
+    expect(appendStatsRow(cells, 1, 'sum').at(-1)?.[1]).toBe('2')
   })
 
   it('appendStatsRow leaves a blank label for a single-column table', () => {

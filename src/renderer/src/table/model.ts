@@ -194,12 +194,17 @@ function tryCollect(lines: Line[], i: number): Block | null {
   return { lines: rows, aligns, start: rows[0].start, end: last.start + last.text.length }
 }
 
-/** Index of the line containing `offset`, clamped to the last line. */
+/**
+ * Index of the line containing `offset`. The line end is exclusive so that an
+ * offset sitting on a newline belongs to the line it terminates, not the next
+ * one — the cursor lands there whenever a row is edited at its edge.
+ */
 function lineAt(lines: Line[], offset: number): number {
-  for (let i = 0; i < lines.length; i++) {
-    if (offset <= lines[i].start + lines[i].text.length) return i
+  const last = lines.length - 1
+  for (let i = 0; i < last; i++) {
+    if (offset < lines[i].start + lines[i].text.length) return i
   }
-  return lines.length - 1
+  return last
 }
 
 function toContext(block: Block, src: string): TableContext {
@@ -230,13 +235,23 @@ export function findTableAt(src: string, offset: number): TableContext | null {
   return null
 }
 
+/**
+ * Rows of the table with the delimiter row removed, row 0 = header.
+ *
+ * The matrix is the logical table, not the source: the delimiter row carries
+ * no data and is regenerated from `aligns` on serialize. Including it here
+ * would corrupt every row operation, since a sort or a move would drag it out
+ * of position 1.
+ */
 export function parseTable(ctx: TableContext): string[][] {
   const lines = splitLines(ctx.raw)
-  const out = lines.map((line) =>
-    // `splitRow` returns offsets within the line, so they must be rebased onto
-    // the raw slice or every row after the first reads the header's cells.
-    splitRow(line.text).map((s) => ctx.raw.slice(line.start + s.start, line.start + s.end))
-  )
+  const out = lines
+    .filter((_, i) => i !== 1)
+    .map((line) =>
+      // `splitRow` returns offsets within the line, so they must be rebased
+      // onto the raw slice or every row after the first reads the header's.
+      splitRow(line.text).map((s) => ctx.raw.slice(line.start + s.start, line.start + s.end))
+    )
   for (const row of out) {
     while (row.length < ctx.cols) row.push('')
     row.length = ctx.cols
@@ -269,10 +284,6 @@ function inlineCell(s: string): string {
   return s.replace(/\r\n|\r|\n/g, '<br>')
 }
 
-function isDelimRow(cells: string[]): boolean {
-  return cells.length > 0 && cells.every((c) => /^:?-+:?$/.test(c))
-}
-
 /**
  * The delimiter row sets the column width, so it is a run of dashes padded to
  * the same display width as the cells. Column widths are floored per alignment
@@ -285,10 +296,9 @@ function alignDelim(width: number, align: Align): string {
   return '-'.repeat(width)
 }
 
-function alignFloor(align: Align): number {
-  if (align === 'center') return 3
-  if (align === 'right' || align === 'left') return 2
-  return 1
+/** Widest of the alignment markers, so every column gets the same floor. */
+function alignFloor(_align: Align): number {
+  return 3
 }
 
 /** Width of a column in display columns, honouring alignment floors. */
@@ -320,43 +330,51 @@ export function serializeTable(
   opts?: { pad?: boolean }
 ): string {
   if (cells.length === 0) return ''
-  const cols = cells.reduce((m, r) => Math.max(m, r.length), 0)
+  // The header row fixes the width: a row with more cells than the header is
+  // truncated, one with fewer is padded.
+  const cols = cells[0].length
   if (cols === 0) return ''
-  const widths = opts?.pad === true ? suggestColumnWidths(cells) : null
+  const widths = opts?.pad === true ? columnWidths(cells, aligns) : null
 
   const norm = (row: string[]): string[] => {
     const out = row.slice(0, cols)
     while (out.length < cols) out.push('')
     return out
   }
-  const render = (row: string[], cell: (text: string, c: number) => string): string =>
-    '| ' + norm(row).map((v, c) => cell(inlineCell(v), c)).join(' | ') + ' |'
-
-  const padWidth = (text: string, c: number): number => {
-    const extra = displayWidth(text) - text.length
-    return Math.max(1, (widths as number[])[c] - extra)
-  }
+  const render = (row: string[]): string =>
+    '| ' +
+    norm(row)
+      .map((v, c) => {
+        const text = inlineCell(v)
+        if (!widths) return text
+        // Widths are terminal columns, not code units: a CJK cell is two
+        // columns per character, so pad to the difference.
+        const extra = displayWidth(text) - text.length
+        return text.padEnd(Math.max(1, widths[c] - extra))
+      })
+      .join(' | ') +
+    ' |'
 
   const lines = [
-    render(cells[0], (t, c) => (widths ? t.padEnd(padWidth(t, c)) : t)),
+    render(cells[0]),
     '| ' +
       Array.from({ length: cols }, (_, c) =>
         alignDelim(widths ? widths[c] : 3, aligns[c] ?? 'none')
       ).join(' | ') +
       ' |'
   ]
-  for (let r = 1; r < cells.length; r++) {
-    const row = norm(cells[r])
-    // A hand-written delimiter row inside the body is stale markup, not data.
-    if (r === 1 && isDelimRow(row)) continue
-    lines.push(render(row, (t, c) => (widths ? t.padEnd(padWidth(t, c)) : t)))
-  }
+  for (let r = 1; r < cells.length; r++) lines.push(render(cells[r]))
   return lines.join('\n')
 }
 
 export interface TableEdit {
   text: string
   cursor: number
+}
+
+/** Raw source line index for a matrix row: the delimiter row is line 1. */
+function rawLineFor(row: number): number {
+  return row >= 1 ? row + 1 : row
 }
 
 /** Keep the same line/cell/inset across an edit, falling back sensibly. */
@@ -366,16 +384,25 @@ function mapCursor(oldText: string, nextText: string, cursor: number): number {
   const lines = splitLines(oldText)
   if (lines.length === 0) return 0
   const row = lineAt(lines, cursor)
+  const offsets = cursor - lines[row].start
   const spans = splitRow(lines[row].text)
-  let col = spans.findIndex((s) => cursor >= s.start && cursor <= s.end)
-  if (col < 0) col = spans.length - 1
+  // Only the last span may be empty (a trailing cell); matching an empty span
+  // would let it swallow the cursor from a real cell before it.
+  let col = spans.length - 1
+  for (let i = 0; i < spans.length - 1; i++) {
+    if (offsets >= spans[i].start && offsets <= spans[i].end) {
+      col = i
+      break
+    }
+  }
+  const from = spans[col]
 
   const nextLines = splitLines(nextText)
   if (nextLines.length === 0) return 0
-  const line = nextLines[Math.min(row, nextLines.length - 1)]
+  const line = nextLines[Math.min(rawLineFor(row), nextLines.length - 1)]
   const next = splitRow(line.text)
   const span = next[Math.min(col, next.length - 1)]
-  const inset = Math.min(Math.max(cursor - lines[row].start - spans[col].start, 0), span.end - span.start)
+  const inset = Math.min(Math.max(offsets - from.start, 0), span.end - span.start)
   return line.start + span.start + inset
 }
 
