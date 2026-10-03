@@ -11,10 +11,12 @@
 .editor__mirror code,
 .editor__input {
   font-family: var(--font-code);
-  font-size: 14px;
-  line-height: 1.7;
+  /* Both panes and the gutter read from these; keeping them in one block is
+     what holds the mirror aligned with the textarea. */
+  font-size: var(--editor-font-size, 14px);
+  line-height: var(--editor-line-height, 1.7);
   letter-spacing: 0;
-  tab-size: 2;
+  tab-size: var(--editor-tab-size, 2);
 }
 
 .editor {
@@ -45,8 +47,10 @@
 .editor__lineno {
   display: block;
   font-family: var(--font-code);
-  font-size: 14px;
-  line-height: 1.7;
+  /* Must match the editor metric block above, or the numbers drift from the
+     lines they label as soon as the user changes either value. */
+  font-size: var(--editor-font-size, 14px);
+  line-height: var(--editor-line-height, 1.7);
   transition: color var(--dur-fast) var(--ease-out);
 }
 .editor__lineno.is-current {
@@ -86,6 +90,9 @@
   color: transparent;
   background: transparent;
   caret-color: var(--accent);
+  /* `caret-shape` is real in Chromium; an unknown value falls back to `auto`
+     rather than invalidating the declaration. */
+  caret-shape: var(--editor-caret-shape, bar);
   resize: none;
   outline: none;
   /* Selection must be visible through a transparent text fill. */

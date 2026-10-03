@@ -8,6 +8,9 @@ import type {
   ExportMode,
   ExportPreview,
   InsertedAsset,
+  DiffSummary,
+  Revision,
+  SessionState,
   WorkspaceInfo
 } from '@shared/types'
 
@@ -59,6 +62,39 @@ const api = {
     orphans: (): Promise<string[]> => ipcRenderer.invoke(IPC.ASSET_ORPHANS),
     dataUrl: (path: string): Promise<string> => ipcRenderer.invoke(IPC.ASSET_READ_DATA_URL, path),
     reveal: (path: string) => ipcRenderer.send(IPC.ASSET_REVEAL, path)
+  },
+  history: {
+    list: (docId: string): Promise<Revision[]> => ipcRenderer.invoke(IPC.HISTORY_LIST, docId),
+    read: (docId: string, revId: string): Promise<string | null> =>
+      ipcRenderer.invoke(IPC.HISTORY_READ, docId, revId),
+    record: (
+      docId: string,
+      text: string,
+      kind: Revision['kind']
+    ): Promise<Revision | null> => ipcRenderer.invoke(IPC.HISTORY_RECORD, docId, text, kind),
+    forget: (docId: string, revId: string): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.HISTORY_FORGET, docId, revId),
+    clear: (docId: string): Promise<boolean> => ipcRenderer.invoke(IPC.HISTORY_CLEAR, docId),
+    diff: (docId: string, a: string, b: string): Promise<DiffSummary | null> =>
+      ipcRenderer.invoke(IPC.HISTORY_DIFF, docId, a, b)
+  },
+  session: {
+    load: (): Promise<SessionState> => ipcRenderer.invoke(IPC.SESSION_LOAD),
+    save: (state: Partial<SessionState>): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.SESSION_SAVE, state),
+    recent: (): Promise<string[]> => ipcRenderer.invoke(IPC.SESSION_RECENT)
+  },
+  app: {
+    /** Reveal a bundled file in Explorer. Returns null when it is absent. */
+    revealStock: (name: string): Promise<string | null> =>
+      ipcRenderer.invoke(IPC.APP_REVEAL_STOCK, name),
+    /**
+     * Path to a bundled document, copied into the user's documents on first
+     * use. A packaged app's resources directory is read-only and the document
+     * needs somewhere writable for the images it will gain.
+     */
+    resolveStock: (name: string): Promise<string | null> =>
+      ipcRenderer.invoke(IPC.APP_RESOLVE_STOCK, name)
   },
   export: {
     preview: (mode: ExportMode, docPath: string, text: string): Promise<ExportPreview> =>

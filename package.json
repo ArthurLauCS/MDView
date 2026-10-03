@@ -14,6 +14,24 @@
     "test:watch": "vitest",
     "dist": "npm run build && electron-builder --win"
   },
+  "build": {
+    "appId": "dev.mdview.app",
+    "productName": "MDView",
+    "directories": { "output": "release" },
+    "files": ["out/**/*", "package.json"],
+    "extraResources": [{ "from": "stock", "to": "stock" }],
+    "win": {
+      "target": ["nsis"],
+      "artifactName": "MDView-${version}-setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "runAfterFinish": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "MDView"
+    }
+  },
   "dependencies": {
     "chokidar": "^3.6.0",
     "gray-matter": "^4.0.3",

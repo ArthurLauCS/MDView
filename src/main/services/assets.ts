@@ -1,11 +1,11 @@
 import { promises as fs } from 'node:fs'
-import { basename, extname, join } from 'node:path'
+import { basename, dirname, extname, join } from 'node:path'
 import { createHash } from 'node:crypto'
-import { basename as base, dirname } from 'node:path'
 import { toLink } from './paths'
 import type { AssetRef, InsertedAsset } from '@shared/types'
 import type { WorkspaceService } from './workspace'
 import type { DocumentService } from './documents'
+import type { SettingsService } from './settings'
 
 const IMAGE_EXT = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.svg', '.bmp'
@@ -14,13 +14,26 @@ const IMAGE_EXT = new Set([
 export class AssetService {
   constructor(
     private readonly workspace: WorkspaceService,
-    private readonly documents: DocumentService
+    private readonly documents: DocumentService,
+    private readonly settings: SettingsService
   ) {}
 
   private stamp(): string {
     const d = new Date()
     const p = (n: number): string => String(n).padStart(2, '0')
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+  }
+
+  /** The stored filename for a new asset, per the user's naming preference. */
+  private nameFor(stem: string, hash: string, ext: string): string {
+    switch (this.settings.get().imageNaming) {
+      case 'original':
+        return `${stem}${ext}`
+      case 'hash':
+        return `${hash.slice(0, 12)}${ext}`
+      default:
+        return `${this.stamp()}-${hash.slice(0, 4)}-${stem}${ext}`
+    }
   }
 
   private async sha256(buf: Buffer): Promise<string> {
@@ -60,7 +73,7 @@ export class AssetService {
     const hash = await this.sha256(data)
     const index = await this.hashIndex(meta.assetDir)
 
-    const existing = index.get(hash)
+    const existing = this.settings.get().imageDedupe ? index.get(hash) : undefined
     if (existing) {
       return {
         relPath: toLink(meta.path, join(meta.assetDir, existing)),
@@ -73,9 +86,9 @@ export class AssetService {
     }
 
     const stem = originalName
-      ? base(originalName, extname(originalName)).replace(/[\\/:*?"<>|#?%]/g, '-')
+      ? basename(originalName, extname(originalName)).replace(/[\\/:*?"<>|#?%]/g, '-')
       : 'paste'
-    const fileName = `${this.stamp()}-${hash.slice(0, 4)}-${stem}${ext}`
+    const fileName = this.uniqueName(this.nameFor(stem, hash, ext), index)
     const absPath = join(meta.assetDir, fileName)
     await fs.writeFile(absPath, data)
 
@@ -87,6 +100,23 @@ export class AssetService {
       width: null,
       height: null
     }
+  }
+
+  /**
+   * Never overwrite. With naming set to `original` two photos called
+   * `image.png` would otherwise silently become one, and the second insert
+   * would point at the first one's bytes.
+   */
+  private uniqueName(name: string, taken: Map<string, string>): string {
+    const names = new Set(taken.values())
+    if (!names.has(name)) return name
+    const ext = extname(name)
+    const stem = name.slice(0, name.length - ext.length)
+    for (let n = 2; n < 1000; n++) {
+      const candidate = `${stem}-${n}${ext}`
+      if (!names.has(candidate)) return candidate
+    }
+    return name
   }
 
   /** Copy an existing file (drag-drop from Explorer) into the asset folder. */

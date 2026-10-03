@@ -10,6 +10,7 @@ import { applySettings, patchSettings, useSettings } from './state/settings'
 import { useWorkspace } from './state/workspace'
 import { useEditorContext } from './state/editor-context'
 import { closePanel, togglePanel, usePanel } from './state/ui'
+import { useSessionBoot, touchSession } from './state/session'
 
 export function App(): JSX.Element {
   const settings = useSettings()
@@ -17,7 +18,18 @@ export function App(): JSX.Element {
   const { active } = useDocuments()
   const { ctx, scopes } = useEditorContext()
   const panel = usePanel()
+  const boot = useSessionBoot()
   const [error, setError] = useState<string | null>(null)
+
+  /** Keep the session pointed at whatever is in front. */
+  useEffect(() => {
+    if (!active) return
+    touchSession({ activeDoc: active.meta.path })
+  }, [active?.meta.path])
+
+  useEffect(() => {
+    if (workspace.info) touchSession({ workspaceRoot: workspace.info.rootPath })
+  }, [workspace.info?.rootPath])
 
   /**
    * The palette and every panel live here rather than inside the editor pane,
@@ -39,6 +51,11 @@ export function App(): JSX.Element {
       } else if (mod && e.shiftKey && e.key.toLowerCase() === 'e') {
         e.preventDefault()
         togglePanel('export')
+      } else if (mod && e.key.toLowerCase() === 'h') {
+        // Ctrl+Shift+H was already taken by 高亮, and history reads more
+        // naturally on the unshifted chord anyway.
+        e.preventDefault()
+        togglePanel('history')
       }
       // Escape is deliberately not handled here — PanelHost owns dismissal
       // for the panels, and the palette owns its own. Handling it in both
@@ -80,11 +97,42 @@ export function App(): JSX.Element {
   }, [])
 
   useEffect(() => {
-    document.documentElement.dataset.theme = settings.theme === 'light' ? 'light' : 'dark'
-    document.documentElement.dataset.motion = settings.motion
-    document.documentElement.style.setProperty('--reading-size', `${settings.fontSize}px`)
-    document.documentElement.style.setProperty('--measure', `${settings.measure}ch`)
-  }, [settings.theme, settings.motion, settings.fontSize, settings.measure])
+    const root = document.documentElement
+    root.dataset.theme = settings.theme === 'light' ? 'light' : 'dark'
+    root.dataset.motion = settings.motion
+    root.style.setProperty('--reading-size', `${settings.fontSize}px`)
+    root.style.setProperty('--measure', `${settings.measure}ch`)
+    root.style.setProperty('--editor-font-size', `${settings.codeFontSize ?? 14}px`)
+    root.style.setProperty('--editor-line-height', String(settings.lineHeight ?? 1.7))
+    root.style.setProperty('--editor-caret-shape', settings.cursorStyle ?? 'bar')
+    root.style.setProperty('--editor-tab-size', String(settings.tabSize ?? 2))
+
+    // The accent is one value to the user and five tokens to the stylesheet.
+    // Deriving the rest here keeps a user's colour from leaving hover and
+    // selection in the built-in terracotta.
+    const accent = settings.accentOverride
+    if (accent && CSS.supports('color', accent)) {
+      root.style.setProperty('--accent', accent)
+      root.style.setProperty('--accent-hover', `color-mix(in srgb, ${accent} 88%, white)`)
+      root.style.setProperty('--accent-press', `color-mix(in srgb, ${accent} 88%, black)`)
+      root.style.setProperty('--accent-soft', `color-mix(in srgb, ${accent} 16%, transparent)`)
+      root.style.setProperty('--accent-line', `color-mix(in srgb, ${accent} 34%, transparent)`)
+    } else {
+      for (const token of ['--accent', '--accent-hover', '--accent-press', '--accent-soft', '--accent-line']) {
+        root.style.removeProperty(token)
+      }
+    }
+  }, [
+    settings.theme,
+    settings.motion,
+    settings.fontSize,
+    settings.measure,
+    settings.codeFontSize,
+    settings.lineHeight,
+    settings.cursorStyle,
+    settings.tabSize,
+    settings.accentOverride
+  ])
 
   const openFolder = async (): Promise<void> => {
     try {
@@ -103,6 +151,10 @@ export function App(): JSX.Element {
           <main className="doc doc--center">
             <p className="doc__notice doc__notice--error">{error}</p>
           </main>
+        ) : !boot.booted ? (
+          // Hold the first paint until the session is read — rendering the
+          // welcome screen and then swapping it out would flash.
+          <main className="doc doc--center" />
         ) : active ? (
           <EditorPane />
         ) : (

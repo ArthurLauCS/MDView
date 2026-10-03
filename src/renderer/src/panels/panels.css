@@ -300,6 +300,16 @@
   flex: 1 1 auto;
 }
 
+.field--color {
+  width: 108px;
+  font-size: var(--text-xs);
+}
+
+.field:disabled {
+  color: var(--text-disabled);
+  cursor: default;
+}
+
 .btn {
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-md);

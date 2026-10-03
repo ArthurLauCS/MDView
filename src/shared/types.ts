@@ -97,8 +97,51 @@ export interface ExportPreview {
   targetPath: string
 }
 
+// ---- history --------------------------------------------------------------
+
+export interface Revision {
+  /** Content hash — also the blob filename. */
+  id: string
+  at: number
+  bytes: number
+  kind: 'auto' | 'manual' | 'restore'
+}
+
+export interface DiffLine {
+  kind: 'same' | 'add' | 'del'
+  text: string
+  oldLine: number | null
+  newLine: number | null
+}
+
+export interface DiffSummary {
+  added: number
+  removed: number
+  /** Runs of changes with a little unchanged context around each. */
+  hunks: DiffLine[][]
+}
+
+// ---- session --------------------------------------------------------------
+
+export interface SessionState {
+  workspaceRoot: string | null
+  activeDoc: string | null
+  openDocs: string[]
+  cursors: Record<string, number>
+  scrolls: Record<string, number>
+  updatedAt: number
+  /** Set by the main process on the very first launch after install. */
+  firstRun?: boolean
+}
+
+// ---- appearance -----------------------------------------------------------
+
 export type ThemeMode = 'dark' | 'light' | 'system'
 export type MotionLevel = 'full' | 'reduced' | 'off'
+
+export type CursorStyle = 'bar' | 'block' | 'underline'
+
+export type ImageNaming = 'date-hash-name' | 'original' | 'hash'
 
 export interface AppSettings {
   theme: ThemeMode
@@ -118,6 +161,26 @@ export interface AppSettings {
   highlightCurrentLine: boolean
   /** Source view refuses edits; the document is presented for reading. */
   readOnly: boolean
+  /** Code and gutter size in px, independent of the reading size. */
+  codeFontSize: number
+  /** Body line-height multiplier, shared by the editor and the reading view. */
+  lineHeight: number
+  cursorStyle: CursorStyle
+  /** User colour for the single accent. null keeps the built-in terracotta. */
+  accentOverride: string | null
+  autoSave: boolean
+  autoSaveDelayMs: number
+  historyEnabled: boolean
+  /** Milliseconds between automatic snapshots. */
+  historyIntervalMs: number
+  spellCheck: boolean
+  autoPair: boolean
+  smartLists: boolean
+  tabSize: number
+  imageNaming: ImageNaming
+  imageDedupe: boolean
+  /** Cap in px; 0 means the image is written at its original size. */
+  imageMaxWidth: number
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -134,5 +197,20 @@ export const DEFAULT_SETTINGS: AppSettings = {
   outlineVisible: true,
   typewriterMode: false,
   highlightCurrentLine: true,
-  readOnly: false
+  readOnly: false,
+  codeFontSize: 13.5,
+  lineHeight: 1.75,
+  cursorStyle: 'bar',
+  accentOverride: null,
+  autoSave: true,
+  autoSaveDelayMs: 700,
+  historyEnabled: true,
+  historyIntervalMs: 20000,
+  spellCheck: false,
+  autoPair: true,
+  smartLists: true,
+  tabSize: 2,
+  imageNaming: 'date-hash-name',
+  imageDedupe: true,
+  imageMaxWidth: 0
 }

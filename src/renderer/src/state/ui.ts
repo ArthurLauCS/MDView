@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 
-export type PanelId = 'settings' | 'export' | 'shortcuts' | 'palette' | null
+export type PanelId =
+  | 'settings'
+  | 'export'
+  | 'shortcuts'
+  | 'help'
+  | 'history'
+  | 'palette'
+  | null
 
 type Listener = (id: PanelId) => void
 

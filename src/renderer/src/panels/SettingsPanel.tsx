@@ -1,8 +1,10 @@
-import { DEFAULT_SETTINGS, type AppSettings, type DocLayout, type MotionLevel, type PlainMdImagePolicy, type ThemeMode } from '@shared/types'
+import { DEFAULT_SETTINGS, type AppSettings, type CursorStyle, type DocLayout, type ImageNaming, type MotionLevel, type PlainMdImagePolicy, type ThemeMode } from '@shared/types'
 import { usePatchSettings, useSettings } from '../state/settings'
+import { openPanel } from '../state/ui'
 
 interface Props {
   onClose: () => void
+  onOpenWelcome?: () => void
 }
 
 const THEMES: { value: ThemeMode; label: string }[] = [
@@ -28,7 +30,27 @@ const IMAGE_POLICIES: { value: PlainMdImagePolicy; label: string; hint: string }
   { value: 'empty-ref', label: '保留空引用', hint: '留下 ![]()，之后可重新插图' }
 ]
 
-export function SettingsPanel({ onClose }: Props): JSX.Element {
+const CURSORS: { value: CursorStyle; label: string }[] = [
+  { value: 'bar', label: '竖线' },
+  { value: 'block', label: '方块' },
+  { value: 'underline', label: '下划线' }
+]
+
+const IMAGE_NAMINGS: { value: ImageNaming; label: string; hint: string }[] = [
+  { value: 'date-hash-name', label: '日期-哈希-原名', hint: '默认。同日多图不会互相覆盖，原名仍可读' },
+  { value: 'original', label: '保留原名', hint: '同名文件加序号，方便对照原图' },
+  { value: 'hash', label: '仅哈希', hint: '名字最短，但看不出图片是什么' }
+]
+
+const NOT_READ = '暂未接入，改动会被保存但编辑器还没读它'
+
+/**
+ * `__APP_VERSION__` is a build-time define, so it does not exist when the
+ * panel is evaluated outside a Vite build (vitest, a bare tsc run).
+ */
+const VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev'
+
+export function SettingsPanel({ onClose, onOpenWelcome }: Props): JSX.Element {
   const settings = useSettings()
   const patch = usePatchSettings()
 
@@ -62,7 +84,21 @@ export function SettingsPanel({ onClose }: Props): JSX.Element {
               <h3 className="section__title">外观</h3>
               <button
                 className="section__reset"
-                onClick={() => reset(['theme', 'motion', 'fontSize', 'measure', 'fontUi', 'fontRead', 'fontCode'])}
+                onClick={() =>
+                  reset([
+                    'theme',
+                    'motion',
+                    'fontSize',
+                    'measure',
+                    'fontUi',
+                    'fontRead',
+                    'fontCode',
+                    'codeFontSize',
+                    'lineHeight',
+                    'cursorStyle',
+                    'accentOverride'
+                  ])
+                }
               >
                 恢复默认
               </button>
@@ -132,6 +168,54 @@ export function SettingsPanel({ onClose }: Props): JSX.Element {
               sample="const value = 42 // 等宽 Aa"
               onChange={(fontCode) => patch({ fontCode })}
             />
+
+            <Row name="代码字号" hint="代码块、行号槽与编辑器正文共用">
+              <input
+                className="field field--num"
+                type="number"
+                min={11}
+                max={20}
+                step={0.5}
+                value={settings.codeFontSize}
+                onChange={(e) =>
+                  patch({ codeFontSize: clamp(Number(e.target.value), 11, 20) })
+                }
+              />
+              <span className="row__hint">px</span>
+            </Row>
+
+            <Row name="行高" hint="正文的行间距倍数，编辑与阅读同步">
+              <input
+                className="field field--num"
+                type="number"
+                min={1.3}
+                max={2.2}
+                step={0.05}
+                value={settings.lineHeight}
+                onChange={(e) =>
+                  patch({ lineHeight: clamp(Number(e.target.value), 1.3, 2.2) })
+                }
+              />
+              <span className="row__hint">倍</span>
+            </Row>
+
+            <Row name="光标样式" hint="源码视图里插入符的形状">
+              <Segmented
+                items={CURSORS}
+                value={settings.cursorStyle}
+                onChange={(cursorStyle) => patch({ cursorStyle })}
+              />
+            </Row>
+
+            <Row name="强调色" hint="留空使用内置陶土橙">
+              <input
+                className="field field--color"
+                value={settings.accentOverride ?? ''}
+                placeholder="#d97757"
+                spellCheck={false}
+                onChange={(e) => setAccent(e.target.value, patch)}
+              />
+            </Row>
           </section>
 
           <section className="section">
@@ -187,7 +271,21 @@ export function SettingsPanel({ onClose }: Props): JSX.Element {
               <button
                 className="section__reset"
                 onClick={() =>
-                  reset(['typewriterMode', 'highlightCurrentLine', 'readOnly', 'sidebarVisible', 'outlineVisible'])
+                  reset([
+                    'typewriterMode',
+                    'highlightCurrentLine',
+                    'readOnly',
+                    'sidebarVisible',
+                    'outlineVisible',
+                    'autoSave',
+                    'autoSaveDelayMs',
+                    'historyEnabled',
+                    'historyIntervalMs',
+                    'spellCheck',
+                    'autoPair',
+                    'smartLists',
+                    'tabSize'
+                  ])
                 }
               >
                 恢复默认
@@ -224,6 +322,165 @@ export function SettingsPanel({ onClose }: Props): JSX.Element {
               value={settings.outlineVisible}
               onChange={(outlineVisible) => patch({ outlineVisible })}
             />
+            <Toggle
+              name="自动保存"
+              hint={`停止输入后自动写盘。${NOT_READ}`}
+              value={settings.autoSave}
+              onChange={(autoSave) => patch({ autoSave })}
+            />
+            <Row name="自动保存延迟" hint="最后一次输入到写盘的等待时间">
+              <input
+                className="field field--num"
+                type="number"
+                min={200}
+                max={5000}
+                step={100}
+                disabled={!settings.autoSave}
+                value={settings.autoSaveDelayMs}
+                onChange={(e) =>
+                  patch({ autoSaveDelayMs: clamp(Number(e.target.value), 200, 5000) })
+                }
+              />
+              <span className="row__hint">ms</span>
+            </Row>
+            <Toggle
+              name="版本历史"
+              hint="按间隔留下快照，可以随时回看和还原"
+              value={settings.historyEnabled}
+              onChange={(historyEnabled) => patch({ historyEnabled })}
+            />
+            <Row name="快照间隔" hint={`两次自动快照之间的最短间隔。${NOT_READ}`}>
+              <input
+                className="field field--num"
+                type="number"
+                min={5}
+                max={300}
+                step={5}
+                disabled={!settings.historyEnabled}
+                value={Math.round(settings.historyIntervalMs / 1000)}
+                onChange={(e) =>
+                  patch({ historyIntervalMs: clamp(Number(e.target.value), 5, 300) * 1000 })
+                }
+              />
+              <span className="row__hint">秒</span>
+            </Row>
+            <Toggle
+              name="拼写检查"
+              hint={`浏览器的拼写波浪线。${NOT_READ}`}
+              value={settings.spellCheck}
+              onChange={(spellCheck) => patch({ spellCheck })}
+            />
+            <Toggle
+              name="自动配对"
+              hint={`输入括号引号时补上另一半。${NOT_READ}`}
+              value={settings.autoPair}
+              onChange={(autoPair) => patch({ autoPair })}
+            />
+            <Toggle
+              name="智能列表"
+              hint={`回车自动延续列表与引用前缀。${NOT_READ}`}
+              value={settings.smartLists}
+              onChange={(smartLists) => patch({ smartLists })}
+            />
+            <Row name="Tab 宽度" hint={NOT_READ}>
+              <input
+                className="field field--num"
+                type="number"
+                min={2}
+                max={8}
+                value={settings.tabSize}
+                onChange={(e) => patch({ tabSize: clamp(Number(e.target.value), 2, 8) })}
+              />
+              <span className="row__hint">空格</span>
+            </Row>
+          </section>
+
+          <section className="section">
+            <div className="section__head">
+              <h3 className="section__title">图片</h3>
+              <button
+                className="section__reset"
+                onClick={() =>
+                  reset([
+                    'imageNaming',
+                    'imageDedupe',
+                    'imageMaxWidth'
+                  ])
+                }
+              >
+                恢复默认
+              </button>
+            </div>
+
+            <Row
+              name="文件命名"
+              hint={`${IMAGE_NAMINGS.find((n) => n.value === settings.imageNaming)?.hint}。${NOT_READ}`}
+            >
+              <Segmented
+                items={IMAGE_NAMINGS}
+                value={settings.imageNaming}
+                onChange={(imageNaming) => patch({ imageNaming })}
+              />
+            </Row>
+
+            <Toggle
+              name="重复图片去重"
+              hint={`内容相同的图片只存一份，复用已有文件。${NOT_READ}`}
+              value={settings.imageDedupe}
+              onChange={(imageDedupe) => patch({ imageDedupe })}
+            />
+
+            <Row name="最大宽度" hint={`超过这个宽度会缩放后写入。${NOT_READ}`}>
+              <input
+                className="field field--num"
+                type="number"
+                min={0}
+                max={4000}
+                step={40}
+                value={settings.imageMaxWidth}
+                onChange={(e) =>
+                  patch({ imageMaxWidth: clamp(Number(e.target.value), 0, 4000) })
+                }
+              />
+              <span className="row__hint">px，0 = 不限制</span>
+            </Row>
+          </section>
+
+          <section className="section">
+            <div className="section__head">
+              <h3 className="section__title">帮助</h3>
+            </div>
+
+            <Row name="欢迎文档" hint="用本应用写成的说明文档，同时演示文档即文件夹">
+              <button
+                className="btn btn--primary"
+                disabled={!onOpenWelcome}
+                onClick={onOpenWelcome}
+              >
+                打开
+              </button>
+            </Row>
+            {!onOpenWelcome && (
+              <p className="panel__note">当前入口没有接入欢迎文档</p>
+            )}
+
+            <Row name="快捷键速查表" hint="按分组列出全部命令，可以搜索">
+              <button className="btn" onClick={() => openPanel('shortcuts')}>
+                打开 F1
+              </button>
+            </Row>
+
+            <Row name="给 AI 的协作规则" hint="随安装包一起分发，内容与说明见帮助面板">
+              <button className="btn" onClick={() => openPanel('help')}>
+                打开帮助
+              </button>
+            </Row>
+
+            <p className="panel__note">
+              设置存在 %APPDATA%/mdview/settings.json，版本历史存在
+              %APPDATA%/mdview/history/。修改即时写入，没有保存按钮。
+            </p>
+            <p className="panel__note">MDView {VERSION}</p>
           </section>
         </div>
 
@@ -360,6 +617,31 @@ function fallbackFor(cssVar: string): string {
   if (cssVar === '--font-code') return 'monospace'
   if (cssVar === '--font-read') return 'serif'
   return 'sans-serif'
+}
+
+/**
+ * The accent is one value to the user and five tokens to the stylesheet, so a
+ * user's colour has to repaint hover, press and selection too — setting
+ * `--accent` alone leaves the old terracotta on everything interactive.
+ * Mirrors the derivation in App.tsx, which owns the same tokens on startup;
+ * here it is only so the change is visible before the next launch.
+ * `CSS.supports` rejects a half-typed hex, which is the common case while
+ * someone is still typing.
+ */
+function setAccent(raw: string, patch: (p: Partial<AppSettings>) => void): void {
+  const value = raw.trim()
+  const root = document.documentElement
+  const tokens = ['--accent', '--accent-hover', '--accent-press', '--accent-soft', '--accent-line']
+  if (value && CSS.supports('color', value)) {
+    root.style.setProperty('--accent', value)
+    root.style.setProperty('--accent-hover', `color-mix(in srgb, ${value} 88%, white)`)
+    root.style.setProperty('--accent-press', `color-mix(in srgb, ${value} 88%, black)`)
+    root.style.setProperty('--accent-soft', `color-mix(in srgb, ${value} 16%, transparent)`)
+    root.style.setProperty('--accent-line', `color-mix(in srgb, ${value} 34%, transparent)`)
+  } else if (value === '') {
+    for (const token of tokens) root.style.removeProperty(token)
+  }
+  patch({ accentOverride: value === '' ? null : value })
 }
 
 function clamp(n: number, min: number, max: number): number {

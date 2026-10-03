@@ -36,6 +36,19 @@ export const IPC = {
   ASSET_OPEN_EXTERNAL: 'asset:open-external',
   ASSET_READ_DATA_URL: 'asset:read-data-url',
 
+  // ---- history ------------------------------------------------------------
+  HISTORY_LIST: 'history:list',
+  HISTORY_READ: 'history:read',
+  HISTORY_RECORD: 'history:record',
+  HISTORY_FORGET: 'history:forget',
+  HISTORY_CLEAR: 'history:clear',
+  HISTORY_DIFF: 'history:diff',
+
+  // ---- session ------------------------------------------------------------
+  SESSION_LOAD: 'session:load',
+  SESSION_SAVE: 'session:save',
+  SESSION_RECENT: 'session:recent',
+
   // ---- export -------------------------------------------------------------
   EXPORT_PREVIEW: 'export:preview',
   EXPORT_RUN: 'export:run',
@@ -46,7 +59,11 @@ export const IPC = {
   CLIPBOARD_WRITE_TEXT: 'clipboard:write-text',
   CLIPBOARD_WRITE_IMAGE: 'clipboard:write-image',
   DIALOG_OPEN_FILE: 'dialog:open-file',
-  DIALOG_SAVE_FILE: 'dialog:save-file'
+  DIALOG_SAVE_FILE: 'dialog:save-file',
+  /** Reveal a bundle that shipped with the app, e.g. the welcome document. */
+  APP_REVEAL_STOCK: 'app:reveal-stock',
+  /** Resolve a bundled file, copying it into the user's documents on first use. */
+  APP_RESOLVE_STOCK: 'app:resolve-stock'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

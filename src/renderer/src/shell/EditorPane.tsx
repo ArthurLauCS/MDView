@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Editor, type EditorHandle } from '../editor/Editor'
 import { ContextMenu, type MenuAnchor } from './ContextMenu'
 import { renderMarkdown } from '../markdown/render'
+import { resolveDocumentAssets } from '../markdown/resolve-assets'
 import { publishEditorContext } from '../state/editor-context'
+import { clearLiveText, publishLiveText } from '../history/live-text'
 import { closePanel, togglePanel, usePanel } from '../state/ui'
 import { TableToolbar } from '../tableui/TableToolbar'
 import { useTableEdit } from '../tableui/useTableEdit'
@@ -14,6 +16,7 @@ import { codeAt } from '../actions/registry'
 import { useDocuments } from '../state/documents'
 import { settingsSnapshot, useSettings } from '../state/settings'
 import type { ActionContext, ActionScope } from '../actions/types'
+import type { Revision } from '@shared/types'
 import './editorpane.css'
 
 type ViewMode = 'source' | 'render' | 'split'
@@ -23,6 +26,16 @@ export function EditorPane(): JSX.Element {
   const settings = useSettings()
   const [mode, setMode] = useState<ViewMode>('source')
   const [source, setSource] = useState(active?.body ?? '')
+  /**
+   * The live buffer, readable and writable from outside this component.
+   *
+   * The history panel needs the *unsaved* text to snapshot it and to restore
+   * over it, and it is mounted above the editor. A ref keeps that seam narrow
+   * — the alternative, threading a callback through the panel host, would
+   * make the panel depend on the editor's whole state shape.
+   */
+  const sourceRef = useRef(source)
+  sourceRef.current = source
   const [dirty, setDirty] = useState(false)
   const [menu, setMenu] = useState<MenuAnchor | null>(null)
   const panel = usePanel()
@@ -91,17 +104,47 @@ export function EditorPane(): JSX.Element {
   }, [ctx, availableScopes])
 
   const persist = useCallback(
-    (text: string) => {
+    (text: string, kind: Revision['kind'] = 'auto') => {
       if (!docPath) return
       if (saveTimer.current) window.clearTimeout(saveTimer.current)
+
+      // A snapshot is still worth taking with autosave off: the user turned
+      // off writing to their file, not the safety net.
+      const snapshot = (): void => {
+        const s = settingsSnapshot()
+        if (!s.historyEnabled || !active) return
+        void window.mdview.history
+          .record(active.meta.id, text, kind)
+          .then(() => undefined)
+      }
+
+      const s = settingsSnapshot()
+      if (!s.autoSave) {
+        // No disk write, but the history tick still runs on its own cadence.
+        if (kind !== 'auto') snapshot()
+        else saveTimer.current = window.setTimeout(snapshot, s.historyIntervalMs)
+        return
+      }
+
       // Debounced autosave: fast enough to survive a crash, slow enough that
       // a burst of typing is one write rather than two hundred.
       saveTimer.current = window.setTimeout(() => {
         void window.mdview.doc.write(docPath, text).then(() => setDirty(false))
-      }, 700)
+        snapshot()
+      }, s.autoSaveDelayMs)
     },
-    [docPath]
+    [docPath, active]
   )
+
+  /** Ctrl+S writes immediately and records a named point in the history. */
+  const saveNow = useCallback(() => {
+    if (!docPath) return
+    if (saveTimer.current) window.clearTimeout(saveTimer.current)
+    void window.mdview.doc.write(docPath, sourceRef.current).then(() => setDirty(false))
+    if (settingsSnapshot().historyEnabled && active) {
+      void window.mdview.history.record(active.meta.id, sourceRef.current, 'manual')
+    }
+  }, [docPath, active])
 
   const update = useCallback(
     (next: string) => {
@@ -111,6 +154,15 @@ export function EditorPane(): JSX.Element {
     },
     [persist]
   )
+
+  // Publish the buffer so the history panel can read it and write back over it.
+  useEffect(() => {
+    publishLiveText(
+      () => sourceRef.current,
+      (text) => update(text)
+    )
+    return () => clearLiveText()
+  }, [update])
 
   /**
    * Pasting an image saves it beside the document and inserts a relative
@@ -207,7 +259,7 @@ export function EditorPane(): JSX.Element {
       if (panel) return
       if (e.ctrlKey && e.key.toLowerCase() === 's') {
         e.preventDefault()
-        if (docPath) void window.mdview.doc.write(docPath, source).then(() => setDirty(false))
+        saveNow()
         return
       }
       if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'm') {
@@ -222,7 +274,7 @@ export function EditorPane(): JSX.Element {
       e.preventDefault()
       void action.run(ctx)
     },
-    [ctx, docPath, source, availableScopes]
+    [ctx, docPath, source, availableScopes, saveNow]
   )
 
   useEffect(() => {
@@ -232,7 +284,12 @@ export function EditorPane(): JSX.Element {
 
   if (!active) return <></>
 
-  const html = `${renderMarkdown(source)}`
+  // Local images must be rewritten before they reach the DOM: a relative
+  // `src` resolves against the app bundle, not against the document folder.
+  const html = resolveDocumentAssets(
+    renderMarkdown(source),
+    docPath ? docPath.replace(/[\\/][^\\/]+$/, '') : null
+  )
 
   return (
     <div className="ep">
