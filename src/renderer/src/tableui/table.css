@@ -6,33 +6,38 @@
    text sits.
    ========================================================================= */
 
+/* Positioned absolutely against the editor pane so it floats over the text
+   instead of becoming a row in the pane's own layout — as a flex child it
+   stretched to the full height and read as a giant empty panel. */
 .ttable {
-  position: sticky;
+  position: absolute;
   top: var(--space-2);
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 12;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  margin: 0 auto var(--space-2);
   padding: var(--space-1) var(--space-2);
   width: max-content;
-  max-width: 100%;
+  max-width: calc(100% - var(--space-6));
   overflow-x: auto;
-  border: 1px solid var(--border-soft);
+  overscroll-behavior-x: contain;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   background: var(--bg-overlay);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
   animation: ttable-in var(--dur-fast) var(--ease-out) both;
 }
 
 @keyframes ttable-in {
   from {
     opacity: 0;
-    transform: translateY(-6px);
+    transform: translateX(-50%) translateY(-6px);
   }
   to {
     opacity: 1;
-    transform: none;
+    transform: translateX(-50%);
   }
 }
 

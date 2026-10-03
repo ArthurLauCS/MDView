@@ -20,6 +20,8 @@ interface Props {
   onChange: (next: string) => void
   onContextMenu: (x: number, y: number) => void
   onCursorChange?: (cursor: number) => void
+  /** Image pastes are intercepted here; other pastes pass through untouched. */
+  onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void
   /** Intercept keys before the editor handles them. Return true to consume. */
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => boolean
   readOnly?: boolean
@@ -40,7 +42,7 @@ const LINE_HEIGHT = 1.7
  * more here than bespoke key handling.
  */
 export const Editor = forwardRef<EditorHandle, Props>(function Editor(
-  { source, onChange, onContextMenu, onCursorChange, onKeyDown, readOnly, typewriter, highlightLine },
+  { source, onChange, onContextMenu, onCursorChange, onPaste, onKeyDown, readOnly, typewriter, highlightLine },
   ref
 ) {
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -237,6 +239,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
           autoCorrect="off"
           autoCapitalize="off"
           onChange={(e) => onChange(e.target.value)}
+          onPaste={onPaste}
           onKeyDown={handleKeyDown}
           onScroll={syncScroll}
           onSelect={syncCursor}

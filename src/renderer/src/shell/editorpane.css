@@ -92,6 +92,8 @@
   display: flex;
   min-height: 0;
   overflow: hidden;
+  /* Anchors the floating table toolbar, which must not join the flow. */
+  position: relative;
 }
 
 .ep__body--split .editor,

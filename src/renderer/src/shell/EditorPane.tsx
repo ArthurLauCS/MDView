@@ -4,6 +4,11 @@ import { ContextMenu, type MenuAnchor } from './ContextMenu'
 import { renderMarkdown } from '../markdown/render'
 import { publishEditorContext } from '../state/editor-context'
 import { closePanel, togglePanel, usePanel } from '../state/ui'
+import { TableToolbar } from '../tableui/TableToolbar'
+import { useTableEdit } from '../tableui/useTableEdit'
+import { AssetPanel } from '../assets/AssetPanel'
+import { insertFromClipboard, insertFromPaths } from '../assets/insert'
+import { installDropTarget } from '../assets/drop'
 import { resolveBinding } from '../actions/keymap'
 import { codeAt } from '../actions/registry'
 import { useDocuments } from '../state/documents'
@@ -24,6 +29,7 @@ export function EditorPane(): JSX.Element {
   const [toast, setToast] = useState<string | null>(null)
   const [cursor, setCursor] = useState(0)
   const editorRef = useRef<EditorHandle>(null)
+  const paneRef = useRef<HTMLDivElement>(null)
   const saveTimer = useRef<number | null>(null)
 
   // A different document replaces the buffer outright.
@@ -33,6 +39,7 @@ export function EditorPane(): JSX.Element {
   }, [active?.meta.id])
 
   const docPath = active?.meta.path ?? null
+  const tableEdit = useTableEdit(source, cursor)
 
   const ctx: ActionContext = useMemo(() => {
     const handle = editorRef.current
@@ -43,8 +50,8 @@ export function EditorPane(): JSX.Element {
       selection,
       docPath,
       inCodeBlock: codeAt(source, cursor) !== null,
-      inTable: false,
-      tableColumn: null,
+      inTable: tableEdit.context !== null,
+      tableColumn: tableEdit.cell?.col ?? null,
       replace: (start, end, text, caret) => handle?.replace(start, end, text, caret),
       toggleLinePrefix: () => undefined,
       toggleInline: () => undefined,
@@ -62,7 +69,7 @@ export function EditorPane(): JSX.Element {
         window.setTimeout(() => setToast(null), 2200)
       }
     }
-  }, [source, cursor, docPath])
+  }, [source, cursor, docPath, tableEdit.context, tableEdit.cell])
 
   const availableScopes = useMemo<Set<string>>(() => {
     const scopes = new Set<string>(['global', 'app', 'document', 'insert', 'clipboard'])
@@ -103,6 +110,65 @@ export function EditorPane(): JSX.Element {
       persist(next)
     },
     [persist]
+  )
+
+  /**
+   * Pasting an image saves it beside the document and inserts a relative
+   * link; pasting anything else falls through to the browser's own handling
+   * so text, rich text and multi-line paste all behave normally.
+   */
+  /**
+   * Accept images dropped anywhere on the pane. Text drags pass through
+   * untouched — only an image payload is intercepted, which is what keeps
+   * ordinary drag-and-drop inside the textarea working.
+   */
+  useEffect(() => {
+    const el = paneRef.current
+    if (!el || !docPath) return
+    return installDropTarget(
+      el,
+      () => docPath,
+      (files) => {
+        const paths = files
+          .map((f) => window.mdview.asset.pathForFile(f))
+          .filter((p): p is string => p !== null)
+        if (paths.length === 0) {
+          setToast('这些文件无法定位到磁盘路径，请改用「插入图片」')
+          window.setTimeout(() => setToast(null), 3000)
+          return
+        }
+        void insertFromPaths(docPath, source, editorRef.current?.getCursor() ?? 0, null, paths).then(
+          (res) => {
+            setSource(res.markdown)
+            setDirty(true)
+            persist(res.markdown)
+            editorRef.current?.focus()
+          }
+        )
+      }
+    )
+  }, [docPath, source, persist])
+
+  const onPaste = useCallback(
+    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      if (!docPath) return
+      const hasImage = [...e.clipboardData.items].some((i) => i.type.startsWith('image/'))
+      if (!hasImage) return
+      e.preventDefault()
+      const ta = e.currentTarget
+      const selection =
+        ta.selectionStart === ta.selectionEnd ? null : ta.value.slice(ta.selectionStart, ta.selectionEnd)
+      void insertFromClipboard(docPath, source, ta.selectionStart, selection ?? undefined).then(
+        (res) => {
+          if (!res) return
+          setSource(res.markdown)
+          setDirty(true)
+          persist(res.markdown)
+          editorRef.current?.select(res.cursor, res.cursor)
+        }
+      )
+    },
+    [docPath, source, persist]
   )
 
   const globalKeyDown = useCallback(
@@ -190,13 +256,14 @@ export function EditorPane(): JSX.Element {
         </div>
       </div>
 
-      <div className={`ep__body ep__body--${mode}`}>
+      <div className={`ep__body ep__body--${mode}`} ref={paneRef}>
         {mode !== 'render' && (
           <Editor
             ref={editorRef}
             source={source}
             onChange={update}
             onCursorChange={setCursor}
+            onPaste={onPaste}
             onContextMenu={(x, y) => setMenu({ x, y, target: { scope: menuScope(ctx) } })}
             readOnly={settings.readOnly}
             typewriter={settings.typewriterMode}
@@ -208,7 +275,23 @@ export function EditorPane(): JSX.Element {
             <article className="md" dangerouslySetInnerHTML={{ __html: html }} />
           </div>
         )}
+
+        {/* The toolbar floats over the editor and only appears with a table
+            under the caret, so it never competes with the text itself. */}
+        {mode !== 'render' && (
+          <TableToolbar
+            edit={tableEdit}
+            onApply={(text, at) => {
+              update(text)
+              editorRef.current?.select(at, at)
+            }}
+          />
+        )}
       </div>
+
+      {settings.outlineVisible && docPath && (
+        <AssetPanel docPath={docPath} source={source} />
+      )}
 
       <ContextMenu anchor={menu} ctx={ctx} onClose={() => setMenu(null)} />
       {toast && <div className="ep__toast">{toast}</div>}

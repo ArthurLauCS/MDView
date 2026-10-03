@@ -118,7 +118,41 @@ function altTextFor(path: string): string {
   return base.replace(/\.[^.]+$/, '') || '图片'
 }
 
-/** Table actions land here once the table engine module is present. */
+/**
+ * A table action whose behaviour lives in the engine's spec table.
+ *
+ * The id is the whole contract: `tableui/specs.ts` maps it to a matrix
+ * transformation, and `runTableAction` applies it. The action stays disabled
+ * until the caret is actually inside a table, so the menu explains itself
+ * instead of offering something that would silently do nothing.
+ */
+const tableAction = (
+  id: string,
+  title: string,
+  key: string,
+  group: GroupId,
+  keywords: string[] = []
+): ActionDef => ({
+  id,
+  title,
+  keywords,
+  scope: 'table',
+  key,
+  group,
+  enabled: (ctx) => ctx.inTable,
+  disabledReason: (ctx) => (ctx.inTable ? undefined : '光标不在表格内'),
+  run: (ctx) => {
+    void import('../tableui/run-spec').then(({ runTableAction }) => {
+      if (!runTableAction(id, ctx)) ctx.toast('这个操作在当前单元格不可用')
+    })
+  }
+})
+
+/**
+ * A table action the menus should still advertise but which has no engine
+ * implementation yet. Each states its own reason, so a greyed-out row is an
+ * explanation rather than a dead end.
+ */
 const tableStub = (
   id: string,
   title: string,
@@ -133,7 +167,7 @@ const tableStub = (
   key,
   group,
   enabled: () => false,
-  disabledReason: () => '表格引擎尚未接入',
+  disabledReason: () => '这个操作还没实现',
   run: () => undefined
 })
 
@@ -369,44 +403,44 @@ export const ACTIONS: ActionDef[] = [
   },
 
   // ---- table: rows --------------------------------------------------------
-  tableStub('table.row.insertAbove', '上方插入行', 'Ctrl+Enter', 'table-row', ['row', 'insert']),
-  tableStub('table.row.insertBelow', '下方插入行', 'Ctrl+Alt+N', 'table-row'),
-  tableStub('table.row.delete', '删除本行', 'Ctrl+Shift+Backspace', 'table-row', ['delete', 'row']),
-  tableStub('table.row.moveUp', '上移本行', 'Alt+ArrowUp', 'table-row'),
-  tableStub('table.row.moveDown', '下移本行', 'Alt+ArrowDown', 'table-row'),
+  tableAction('table.row.insertAbove', '上方插入行', 'Ctrl+Enter', 'table-row', ['row', 'insert']),
+  tableAction('table.row.insertBelow', '下方插入行', 'Ctrl+Alt+N', 'table-row'),
+  tableAction('table.row.delete', '删除本行', 'Ctrl+Shift+Backspace', 'table-row', ['delete', 'row']),
+  tableAction('table.row.moveUp', '上移本行', 'Alt+ArrowUp', 'table-row'),
+  tableAction('table.row.moveDown', '下移本行', 'Alt+ArrowDown', 'table-row'),
   tableStub('table.row.copy', '复制本行', 'Ctrl+Shift+D', 'table-row'),
   tableStub('table.row.cut', '剪切本行', 'Ctrl+Shift+X', 'table-row'),
 
   // ---- table: columns -----------------------------------------------------
-  tableStub('table.col.insertLeft', '左侧插入列', 'Ctrl+Shift+Enter', 'table-col'),
-  tableStub('table.col.insertRight', '右侧插入列', 'Ctrl+Alt+Enter', 'table-col'),
-  tableStub('table.col.delete', '删除本列', 'Ctrl+Alt+Backspace', 'table-col'),
-  tableStub('table.col.moveLeft', '左移本列', 'Alt+ArrowLeft', 'table-col'),
-  tableStub('table.col.moveRight', '右移本列', 'Alt+ArrowRight', 'table-col'),
-  tableStub('table.col.alignLeft', '本列左对齐', 'Ctrl+Alt+L', 'table-col'),
-  tableStub('table.col.alignCenter', '本列居中', 'Ctrl+Alt+C', 'table-col'),
-  tableStub('table.col.alignRight', '本列右对齐', 'Ctrl+Alt+R', 'table-col'),
+  tableAction('table.col.insertLeft', '左侧插入列', 'Ctrl+Shift+Enter', 'table-col'),
+  tableAction('table.col.insertRight', '右侧插入列', 'Ctrl+Alt+Enter', 'table-col'),
+  tableAction('table.col.delete', '删除本列', 'Ctrl+Alt+Backspace', 'table-col'),
+  tableAction('table.col.moveLeft', '左移本列', 'Alt+ArrowLeft', 'table-col'),
+  tableAction('table.col.moveRight', '右移本列', 'Alt+ArrowRight', 'table-col'),
+  tableAction('table.col.alignLeft', '本列左对齐', 'Ctrl+Alt+L', 'table-col'),
+  tableAction('table.col.alignCenter', '本列居中', 'Ctrl+Alt+C', 'table-col'),
+  tableAction('table.col.alignRight', '本列右对齐', 'Ctrl+Alt+R', 'table-col'),
 
   // ---- table: cells -------------------------------------------------------
-  tableStub('table.cell.merge', '合并单元格', 'Ctrl+M', 'table-cell'),
-  tableStub('table.cell.split', '拆分单元格', 'Ctrl+Shift+M', 'table-cell'),
+  tableAction('table.cell.merge', '合并单元格', 'Ctrl+M', 'table-cell'),
+  tableAction('table.cell.split', '拆分单元格', 'Ctrl+Shift+M', 'table-cell'),
   tableStub('table.cell.clear', '清空单元格', 'Delete', 'table-cell'),
   tableStub('table.cell.newline', '单元格内换行', 'Alt+Enter', 'table-cell'),
 
   // ---- table: data --------------------------------------------------------
-  tableStub('table.sort.asc', '按本列升序', 'Ctrl+Alt+ArrowUp', 'table-data', ['sort']),
-  tableStub('table.sort.desc', '按本列降序', 'Ctrl+Alt+ArrowDown', 'table-data'),
+  tableAction('table.sort.asc', '按本列升序', 'Ctrl+Alt+ArrowUp', 'table-data', ['sort']),
+  tableAction('table.sort.desc', '按本列降序', 'Ctrl+Alt+ArrowDown', 'table-data'),
   tableStub('table.select.all', '选中整张表', 'Ctrl+Shift+Space', 'table-data'),
-  tableStub('table.stats.sum', '本列求和', '', 'table-data'),
-  tableStub('table.stats.avg', '本列均值', '', 'table-data'),
-  tableStub('table.stats.count', '本列计数', '', 'table-data'),
+  tableAction('table.stats.sum', '本列求和', '', 'table-data'),
+  tableAction('table.stats.avg', '本列均值', '', 'table-data'),
+  tableAction('table.stats.count', '本列计数', '', 'table-data'),
   tableStub('table.stats.min', '本列最小值', '', 'table-data'),
   tableStub('table.stats.max', '本列最大值', '', 'table-data'),
   tableStub('table.paste.fromClipboard', '从剪贴板建表', 'Ctrl+Alt+V', 'table-data'),
   tableStub('table.paste.fromExcel', '从 Excel 粘贴', '', 'table-data'),
 
   // ---- table: styling -----------------------------------------------------
-  tableStub('table.style.pad', '整表美化（对齐竖线）', 'Ctrl+Alt+P', 'table-style'),
+  tableAction('table.style.pad', '整表美化（对齐竖线）', 'Ctrl+Alt+P', 'table-style'),
   tableStub('table.style.zebra', '斑马纹', '', 'table-style'),
   tableStub('table.style.compact', '紧凑样式', '', 'table-style'),
   tableStub('table.style.borderless', '无边框', '', 'table-style'),
@@ -414,9 +448,9 @@ export const ACTIONS: ActionDef[] = [
   tableStub('table.style.center', '表格居中', '', 'table-style'),
 
   // ---- table: structure ---------------------------------------------------
-  tableStub('table.struct.transpose', '转置表格', 'Ctrl+Alt+X', 'table-struct'),
-  tableStub('table.struct.headerOn', '首行设为表头', '', 'table-struct'),
-  tableStub('table.struct.headerOff', '取消表头', '', 'table-struct'),
+  tableAction('table.struct.transpose', '转置表格', 'Ctrl+Alt+X', 'table-struct'),
+  tableAction('table.struct.headerOn', '首行设为表头', '', 'table-struct'),
+  tableAction('table.struct.headerOff', '取消表头', '', 'table-struct'),
   tableStub('table.struct.toCsv', '表格转 CSV', '', 'table-struct'),
   tableStub('table.struct.fromCsv', 'CSV 转表格', '', 'table-struct'),
   tableStub('table.struct.toJson', '表格转 JSON', '', 'table-struct'),
