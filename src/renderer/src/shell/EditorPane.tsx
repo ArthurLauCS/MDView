@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Editor, type EditorHandle } from '../editor/Editor'
 import { ContextMenu, type MenuAnchor } from './ContextMenu'
-import { CommandPalette } from './CommandPalette'
 import { renderMarkdown } from '../markdown/render'
+import { publishEditorContext } from '../state/editor-context'
+import { closePanel, togglePanel, usePanel } from '../state/ui'
 import { resolveBinding } from '../actions/keymap'
 import { codeAt } from '../actions/registry'
 import { useDocuments } from '../state/documents'
@@ -19,7 +20,7 @@ export function EditorPane(): JSX.Element {
   const [source, setSource] = useState(active?.body ?? '')
   const [dirty, setDirty] = useState(false)
   const [menu, setMenu] = useState<MenuAnchor | null>(null)
-  const [paletteOpen, setPaletteOpen] = useState(false)
+  const panel = usePanel()
   const [toast, setToast] = useState<string | null>(null)
   const [cursor, setCursor] = useState(0)
   const editorRef = useRef<EditorHandle>(null)
@@ -76,6 +77,12 @@ export function EditorPane(): JSX.Element {
     return scopes
   }, [ctx.selection, ctx.inCodeBlock, ctx.inTable])
 
+  // Hand the live editing context up to the overlays mounted above this pane.
+  useEffect(() => {
+    publishEditorContext(ctx, availableScopes)
+    return () => publishEditorContext(null, new Set(['app', 'global']))
+  }, [ctx, availableScopes])
+
   const persist = useCallback(
     (text: string) => {
       if (!docPath) return
@@ -104,18 +111,34 @@ export function EditorPane(): JSX.Element {
 
       if (e.key === 'F1') {
         e.preventDefault()
-        setPaletteOpen(true)
+        togglePanel('shortcuts')
+        return
+      }
+      if (e.key === 'Escape' && panel) {
+        e.preventDefault()
+        closePanel()
         return
       }
       if (!combo) return
 
-      // Ctrl+P and Ctrl+Shift+P both open the palette; the distinction only
-      // changes the initial grouping, which lands with the full palette UI.
       if (e.ctrlKey && e.key.toLowerCase() === 'p') {
         e.preventDefault()
-        setPaletteOpen(true)
+        togglePanel('palette')
         return
       }
+      if (e.ctrlKey && e.key === ',') {
+        e.preventDefault()
+        togglePanel('settings')
+        return
+      }
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'e') {
+        e.preventDefault()
+        togglePanel('export')
+        return
+      }
+      // An overlay owns the keyboard while it is up; letting document
+      // shortcuts through would edit the text behind a modal.
+      if (panel) return
       if (e.ctrlKey && e.key.toLowerCase() === 's') {
         e.preventDefault()
         if (docPath) void window.mdview.doc.write(docPath, source).then(() => setDirty(false))
@@ -188,12 +211,6 @@ export function EditorPane(): JSX.Element {
       </div>
 
       <ContextMenu anchor={menu} ctx={ctx} onClose={() => setMenu(null)} />
-      <CommandPalette
-        open={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
-        ctx={ctx}
-        availableScopes={availableScopes}
-      />
       {toast && <div className="ep__toast">{toast}</div>}
     </div>
   )

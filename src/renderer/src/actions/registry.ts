@@ -142,7 +142,7 @@ export const ACTIONS: ActionDef[] = [
   inline('format.bold', '加粗', 'Ctrl+B', INLINE_WRAPPERS.bold, ['bold', 'strong']),
   inline('format.italic', '斜体', 'Ctrl+I', INLINE_WRAPPERS.italic, ['italic', 'em']),
   inline('format.underline', '下划线', 'Ctrl+U', INLINE_WRAPPERS.underline, ['underline']),
-  inline('format.strike', '删除线', 'Ctrl+Shift+X', INLINE_WRAPPERS.strike, ['strikethrough', 'del']),
+  inline('format.strike', '删除线', 'Ctrl+Alt+S', INLINE_WRAPPERS.strike, ['strikethrough', 'del']),
   inline('format.code', '行内代码', 'Ctrl+E', INLINE_WRAPPERS.code, ['code', 'inline']),
   inline('format.mark', '高亮', 'Ctrl+Shift+H', INLINE_WRAPPERS.mark, ['mark', 'highlight']),
 
@@ -264,7 +264,7 @@ export const ACTIONS: ActionDef[] = [
     title: '插入目录',
     keywords: ['toc', 'outline', 'contents'],
     scope: 'document',
-    key: 'Ctrl+Alt+C',
+    key: 'Ctrl+Alt+O',
     group: 'insert',
     run: (ctx) => ctx.insertBlock('[TOC]')
   },
@@ -370,7 +370,7 @@ export const ACTIONS: ActionDef[] = [
 
   // ---- table: rows --------------------------------------------------------
   tableStub('table.row.insertAbove', '上方插入行', 'Ctrl+Enter', 'table-row', ['row', 'insert']),
-  tableStub('table.row.insertBelow', '下方插入行', 'Shift+Enter', 'table-row'),
+  tableStub('table.row.insertBelow', '下方插入行', 'Ctrl+Alt+N', 'table-row'),
   tableStub('table.row.delete', '删除本行', 'Ctrl+Shift+Backspace', 'table-row', ['delete', 'row']),
   tableStub('table.row.moveUp', '上移本行', 'Alt+ArrowUp', 'table-row'),
   tableStub('table.row.moveDown', '下移本行', 'Alt+ArrowDown', 'table-row'),
@@ -391,7 +391,7 @@ export const ACTIONS: ActionDef[] = [
   tableStub('table.cell.merge', '合并单元格', 'Ctrl+M', 'table-cell'),
   tableStub('table.cell.split', '拆分单元格', 'Ctrl+Shift+M', 'table-cell'),
   tableStub('table.cell.clear', '清空单元格', 'Delete', 'table-cell'),
-  tableStub('table.cell.newline', '单元格内换行', 'Shift+Enter', 'table-cell'),
+  tableStub('table.cell.newline', '单元格内换行', 'Alt+Enter', 'table-cell'),
 
   // ---- table: data --------------------------------------------------------
   tableStub('table.sort.asc', '按本列升序', 'Ctrl+Alt+ArrowUp', 'table-data', ['sort']),

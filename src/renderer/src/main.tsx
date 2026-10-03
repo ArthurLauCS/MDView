@@ -16,7 +16,7 @@ if (!el) throw new Error('#root missing from index.html')
  * Drive the UI from outside the window. The screenshot harness and future
  * end-to-end tests need to reach the same state layer the UI uses — poking
  * `window.mdview` directly would bypass the stores and leave the view stale.
- * Deliberately small: opening, settings, and nothing else.
+ * Deliberately small: documents, settings, panels, and nothing else.
  */
 declare global {
   interface Window {
@@ -24,6 +24,8 @@ declare global {
       openWorkspace: (path: string) => Promise<void>
       openDocument: (path: string) => Promise<void>
       setSettings: (patch: Record<string, unknown>) => Promise<void>
+      openPanel: (id: 'settings' | 'export' | 'shortcuts' | 'palette') => void
+      closePanel: () => void
     }
   }
 }
@@ -36,6 +38,12 @@ window.__mdview = {
   openDocument,
   setSettings: async (patch) => {
     await patchSettings(patch as never)
+  },
+  openPanel: (id) => {
+    void import('./state/ui').then(({ openPanel }) => openPanel(id))
+  },
+  closePanel: () => {
+    void import('./state/ui').then(({ closePanel }) => closePanel())
   }
 }
 

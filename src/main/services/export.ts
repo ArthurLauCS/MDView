@@ -8,6 +8,11 @@ interface Removal {
   reason: string
 }
 
+/** Remote and inline images travel with the document; local ones do not. */
+function isPortableImage(target: string): boolean {
+  return /^(https?:)?\/\//i.test(target) || target.startsWith('data:')
+}
+
 /**
  * Strip everything that would break the document on someone else's machine:
  * image refs, absolute paths, local-only HTML media, and our own markers.
@@ -28,6 +33,8 @@ export function previewPlainMd(
   const policy = settings.plainMdImagePolicy
   let inFrontmatter = false
   let frontmatterDone = false
+  /** The opening fence token while inside a code block, else null. */
+  let fenceLang: string | null = null
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
@@ -57,6 +64,21 @@ export function previewPlainMd(
       continue
     }
 
+    // Fenced content is sample text, not document structure. An image link
+    // inside a fence is there to be *read*, so rewriting or removing it would
+    // corrupt the example — leave everything between fences untouched.
+    const fence = /^\s*(```|~~~)/.exec(line)
+    if (fence) {
+      if (fenceLang === null) fenceLang = fence[1]
+      else if (fence[1] === fenceLang) fenceLang = null
+      kept.push(line)
+      continue
+    }
+    if (fenceLang !== null) {
+      kept.push(line)
+      continue
+    }
+
     // Our own inline markers.
     if (/<!--\s*mdview:[\s\S]*?-->/i.test(line)) {
       const stripped = line.replace(/<!--\s*mdview:[\s\S]*?-->/gi, '').trimEnd()
@@ -74,19 +96,35 @@ export function previewPlainMd(
       }
     }
 
-    // Markdown images.
-    const imgLink = /!\[([^\]]*)\]\(([^)\s]+)(\s+"[^"]*")?\)/.exec(line)
-    if (imgLink) {
+    // Markdown images. A line can hold several, and only the ones pointing at
+    // this disk are touched — a remote or inline image travels perfectly well.
+    const IMG_RE = /!\[([^\]]*)\]\(([^)\s]+)(\s+"[^"]*")?\)/g
+    const imageMatches = [...line.matchAll(IMG_RE)].filter((m) => isPortableImage(m[2]) === false)
+
+    if (imageMatches.length > 0) {
       if (policy === 'drop') {
-        removals.push({ line: lineNo, text: line, reason: '图片引用' })
-        continue
+        // Dropping the line only makes sense when the images are all it holds.
+        const onlyImages = line.replace(IMG_RE, '').trim() === ''
+        if (onlyImages) {
+          removals.push({ line: lineNo, text: line, reason: '图片引用' })
+          continue
+        }
       }
-      const alt = imgLink[1]
-      const replacement =
-        policy === 'alt-placeholder' ? (alt ? `*[图：${alt}]*` : '*[图片]*') : '![]()'
-      const next = line.split(imgLink[0]).join(replacement)
-      removals.push({ line: lineNo, text: line, reason: '图片引用（改为占位）' })
-      kept.push(next)
+      let next = line
+      for (const m of imageMatches) {
+        const alt = m[1]
+        const replacement =
+          policy === 'drop'
+            ? ''
+            : policy === 'alt-placeholder'
+              ? alt
+                ? `*[图：${alt}]*`
+                : '*[图片]*'
+              : '![]()'
+        next = next.split(m[0]).join(replacement)
+      }
+      removals.push({ line: lineNo, text: line, reason: '本地图片引用' })
+      kept.push(next.replace(/ {2,}/g, ' ').trimEnd())
       continue
     }
 

@@ -147,6 +147,30 @@ async function main() {
   )
   console.log('palette closed by Escape:', paletteClosed)
 
+  // Panels — each is opened through the app's own key handler.
+  const press = (key, opts = {}) =>
+    win.webContents.executeJavaScript(`
+      window.dispatchEvent(new KeyboardEvent('keydown', ${JSON.stringify({ key, bubbles: true, ...opts })}))
+    `)
+
+  await press('F1')
+  await wait(900)
+  await shoot(win, '11-shortcuts')
+  await press('Escape')
+  await wait(400)
+
+  await press(',', { ctrlKey: true })
+  await wait(900)
+  await shoot(win, '12-settings')
+  await press('Escape')
+  await wait(400)
+
+  await press('e', { ctrlKey: true, shiftKey: true })
+  await wait(1200)
+  await shoot(win, '13-export')
+  await press('Escape')
+  await wait(400)
+
   // Context menu with a selection in the editor
   await win.webContents.executeJavaScript(`
     (() => {

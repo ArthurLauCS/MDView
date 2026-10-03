@@ -259,6 +259,38 @@ export function parseTable(ctx: TableContext): string[][] {
   return out
 }
 
+/**
+ * Map a document offset to a matrix position. Row 0 is the header, matching
+ * `parseTable`; the delimiter row is skipped rather than offset around, so
+ * callers never have to know it exists.
+ *
+ * Returns null when the offset is not inside a cell — an empty line under the
+ * table, or the delimiter row itself.
+ */
+export function cellAt(ctx: TableContext, offset: number): CellPos | null {
+  const local = offset - ctx.start
+  if (local < 0 || local > ctx.raw.length) return null
+
+  const lines = splitLines(ctx.raw)
+  const rawLine = lines.findIndex((l) => local >= l.start && local <= l.start + l.text.length)
+  if (rawLine < 0) return null
+  // Source line 1 is the delimiter row; the matrix never sees it.
+  if (rawLine === 1) return null
+  const row = rawLine === 0 ? 0 : rawLine - 1
+
+  const line = lines[rawLine]
+  // `splitRow` offsets are relative to the line, so the caret has to be too.
+  const inset = local - line.start
+  const spans = splitRow(line.text)
+  let col = spans.findIndex((s) => inset >= s.start && inset <= s.end)
+  // A caret on a separator belongs to the cell it just left, which is what
+  // typing at the end of a cell should extend.
+  if (col < 0) col = Math.max(0, spans.length - 1)
+
+  if (col < 0 || col >= ctx.cols) return null
+  return { row, col }
+}
+
 /** Display width: CJK and fullwidth forms occupy two columns. */
 export function displayWidth(s: string): number {
   let w = 0
