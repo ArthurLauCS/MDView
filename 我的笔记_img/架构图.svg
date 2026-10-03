@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="944" viewBox="0 0 1000 944" role="img" aria-labelledby="title desc">
+  <title id="title">MDView 应用架构</title>
+  <desc id="desc">渲染进程通过 preload 暴露的 window.mdview 接口访问主进程。三层引用 shared 中的共享契约与逻辑。主进程管理文档、图片、历史、导出和技能安装；Codex、Cursor 与 Claude Code 使用 plugin 中的同源规则。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#d9977a" stroke-width="1.5"/></marker>
+    <marker id="shared-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#9caaa2" stroke-width="1.5"/></marker>
+  </defs>
+  <rect width="1000" height="944" rx="24" fill="#1f1e1d"/>
+  <g font-family="'Microsoft YaHei UI', 'PingFang SC', 'Noto Sans CJK SC', sans-serif">
+    <rect x="48" y="42" width="5" height="36" rx="2" fill="#d9977a"/>
+    <text x="70" y="72" font-size="32" font-weight="700" fill="#f3eee8">MDView · 应用架构</text>
+    <text x="48" y="110" font-size="18" fill="#b6ada4">本地写作 · 相对路径资源 · 同源 AI 规则</text>
+
+    <g fill="#292724" stroke="#4d4640">
+      <rect x="48" y="142" width="590" height="126" rx="14"/>
+      <rect x="48" y="316" width="590" height="100" rx="14"/>
+      <rect x="48" y="464" width="590" height="130" rx="14"/>
+    </g>
+    <text x="72" y="178" font-size="24" font-weight="700" fill="#f3eee8">编辑与界面</text>
+    <text x="608" y="176" text-anchor="end" font-size="16" fill="#d9977a">renderer / React + CodeMirror 6</text>
+    <text x="72" y="215" font-size="19" fill="#ddd5cd">实时编辑、大纲、表格与历史面板</text>
+    <text x="72" y="245" font-size="18" fill="#b6ada4">动作注册表统一快捷键、右键菜单与命令面板</text>
+
+    <text x="72" y="352" font-size="24" font-weight="700" fill="#f3eee8">系统能力桥接</text>
+    <text x="608" y="350" text-anchor="end" font-size="16" fill="#d9977a">preload / contextBridge</text>
+    <text x="72" y="390" font-size="19" fill="#ddd5cd">通过 window.mdview 暴露约定的接口</text>
+
+    <text x="72" y="502" font-size="24" font-weight="700" fill="#f3eee8">本地服务</text>
+    <text x="608" y="500" text-anchor="end" font-size="16" fill="#d9977a">main / Electron + Node.js</text>
+    <text x="72" y="540" font-size="19" fill="#ddd5cd">文档、图片、历史、设置与会话</text>
+    <text x="72" y="571" font-size="18" fill="#b6ada4">相对路径生成 · 导出 · AI 技能安装</text>
+
+    <g fill="none" stroke="#d9977a" stroke-width="2" marker-end="url(#arrow)">
+      <path d="M343 268 V308"/>
+      <path d="M343 416 V456"/>
+    </g>
+    <text x="362" y="298" font-size="16" fill="#b6ada4">调用接口</text>
+    <text x="362" y="446" font-size="16" fill="#b6ada4">IPC 请求</text>
+
+    <rect x="704" y="142" width="248" height="452" rx="14" fill="#252b28" stroke="#48594f"/>
+    <text x="728" y="181" font-size="24" font-weight="700" fill="#e2e9e4">共享契约与逻辑</text>
+    <text x="728" y="214" font-size="16" fill="#9caaa2">shared/</text>
+    <path d="M728 239 H928" stroke="#48594f"/>
+    <text x="728" y="279" font-size="19" fill="#d4ded7">类型与 IPC 常量</text>
+    <text x="728" y="323" font-size="19" fill="#d4ded7">Markdown 解析管线</text>
+    <text x="728" y="367" font-size="19" fill="#d4ded7">本地代码语言检测</text>
+    <text x="728" y="475" font-size="17" fill="#9caaa2">由需要它们的进程引用</text>
+    <text x="728" y="506" font-size="17" fill="#9caaa2">不依赖进程实现</text>
+    <text x="728" y="565" font-size="16" fill="#9caaa2">虚线 → 共享依赖</text>
+    <g fill="none" stroke="#9caaa2" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#shared-arrow)">
+      <path d="M638 206 H696"/>
+      <path d="M638 366 H696"/>
+      <path d="M638 529 H696"/>
+    </g>
+
+    <path d="M343 594 V630" fill="none" stroke="#d9977a" stroke-width="2"/>
+    <g fill="none" stroke="#d9977a" stroke-width="2" marker-end="url(#arrow)">
+      <path d="M343 630 H263 V660"/>
+      <path d="M343 630 H730 V660"/>
+    </g>
+    <rect x="48" y="668" width="430" height="132" rx="14" fill="#292724" stroke="#4d4640"/>
+    <rect x="508" y="668" width="444" height="132" rx="14" fill="#292724" stroke="#4d4640"/>
+    <text x="72" y="707" font-size="24" font-weight="700" fill="#f3eee8">可携带的文档文件夹</text>
+    <text x="72" y="744" font-size="19" fill="#ddd5cd">名称/名称.md + 名称_img/</text>
+    <text x="72" y="776" font-size="17" fill="#b6ada4">图片以相对路径引用，随文件夹一起走</text>
+    <text x="532" y="707" font-size="24" font-weight="700" fill="#f3eee8">导出与交付</text>
+    <text x="532" y="744" font-size="19" fill="#ddd5cd">Markdown · ZIP · HTML · PDF</text>
+    <text x="532" y="776" font-size="17" fill="#b6ada4">继续编辑、离线阅读或打印</text>
+
+    <rect x="48" y="830" width="904" height="80" rx="14" fill="#342923" stroke="#654d40"/>
+    <text x="72" y="863" font-size="20" font-weight="700" fill="#e8b49b">AI 协作规则 · plugin/</text>
+    <text x="72" y="893" font-size="18" fill="#ddd5cd">同一份 SKILL.md → 应用内说明 / Codex 与 Cursor 技能 / Claude Code 插件</text>
+  </g>
+</svg>
