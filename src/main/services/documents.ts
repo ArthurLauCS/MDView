@@ -5,8 +5,10 @@ import { buildRelativePath, toLink } from './paths'
 import { assetDirName, docIdFor } from './workspace'
 import { isDocumentFolder } from './organize'
 import type { DocumentContent, DocumentMeta } from '@shared/types'
+import { t } from '../i18n'
 
 export class DocumentService {
+  private pending = new Map<string, Promise<void>>()
   metaFor(absPath: string): DocumentMeta {
     const path = resolve(absPath)
     const dir = dirname(path)
@@ -35,8 +37,17 @@ export class DocumentService {
     }
   }
 
-  async write(absPath: string, text: string): Promise<void> {
-    await fs.writeFile(resolve(absPath), text, 'utf8')
+  async write(absPath: string, text: string, expected?: string): Promise<void> {
+    const path = resolve(absPath)
+    const key = process.platform === 'win32' ? path.toLowerCase() : path
+    const next = (this.pending.get(key) ?? Promise.resolve()).catch(() => undefined).then(async () => {
+      if (expected !== undefined && await fs.readFile(path, 'utf8') !== expected) {
+        throw new Error(t('文件已被其他窗口或程序修改。请复制当前内容后重新打开，避免覆盖已有修改。'))
+      }
+      await fs.writeFile(path, text, 'utf8')
+    })
+    this.pending.set(key, next)
+    try { await next } finally { if (this.pending.get(key) === next) this.pending.delete(key) }
   }
 
   /**

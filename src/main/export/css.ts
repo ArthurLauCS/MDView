@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 /**
  * The stylesheet for a standalone document.
  *
@@ -30,7 +31,7 @@ function findStylesDir(startDir: string): string {
   for (let dir = startDir, up = dirname(dir); ; dir = up, up = dirname(dir)) {
     const candidate = join(dir, 'src', 'renderer', 'src', 'styles', SHEET_NAMES[0])
     if (existsSync(candidate)) return dirname(candidate)
-    if (dir === up) throw new Error('找不到应用的样式表目录')
+    if (dir === up) throw new Error(t('找不到应用的样式表目录'))
   }
 }
 

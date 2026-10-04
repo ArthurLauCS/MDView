@@ -8,7 +8,7 @@ import { resolveBinding } from './actions/keymap'
 import { CommandPalette } from './shell/CommandPalette'
 import { PanelHost } from './panels/PanelHost'
 import { useDocuments } from './state/documents'
-import { applySettings, patchSettings, useSettings } from './state/settings'
+import { applySettings, observeSettings, patchSettings, useSettings } from './state/settings'
 import { useWorkspace } from './state/workspace'
 import { editorContext, useEditorContext } from './state/editor-context'
 import { closePanel, usePanel } from './state/ui'
@@ -24,6 +24,25 @@ export function App(): JSX.Element {
   const boot = useSessionBoot()
   const [error, setError] = useState<string | null>(null)
   const pressedActions = useRef(new Set<string>())
+
+  useEffect(() => {
+    const root = document.documentElement
+    const update = (event: KeyboardEvent | MouseEvent): void => {
+      root.classList.toggle('is-link-navigation', event.ctrlKey || event.metaKey)
+    }
+    const reset = (): void => root.classList.remove('is-link-navigation')
+    window.addEventListener('keydown', update, true)
+    window.addEventListener('keyup', update, true)
+    window.addEventListener('mousemove', update, true)
+    window.addEventListener('blur', reset)
+    return () => {
+      window.removeEventListener('keydown', update, true)
+      window.removeEventListener('keyup', update, true)
+      window.removeEventListener('mousemove', update, true)
+      window.removeEventListener('blur', reset)
+      reset()
+    }
+  }, [])
 
   /** Keep the session pointed at whatever is in front. */
   useEffect(() => {
@@ -47,7 +66,8 @@ export function App(): JSX.Element {
       // Some Windows IMEs consume a shortcut's keydown but still deliver keyup.
       // Keep this across renders so opening a panel cannot run the action twice.
       if (e.type === 'keydown') pressedActions.current.add(action.id)
-      else if (pressedActions.current.delete(action.id) || !(e.ctrlKey || e.altKey || e.metaKey)) return
+      // A newly opened window can receive the release of the key that created it.
+      else if (pressedActions.current.delete(action.id) || action.id === 'document.new' || action.id === 'document.open' || !(e.ctrlKey || e.altKey || e.metaKey)) return
       if (e.defaultPrevented || e.isComposing || e.repeat) return
       const ctx = editorContext()
       const target = e.target as HTMLElement
@@ -83,6 +103,7 @@ export function App(): JSX.Element {
 
   useEffect(() => {
     void applySettings()
+    return observeSettings()
   }, [])
 
   useEffect(() => {
@@ -118,6 +139,7 @@ export function App(): JSX.Element {
 
   useEffect(() => {
     const root = document.documentElement
+    root.lang = settings.language
     root.dataset.theme = settings.theme === 'light' ? 'light' : 'dark'
     root.dataset.motion = settings.motion
     root.style.setProperty('--reading-size', `${settings.fontSize}px`)
@@ -150,6 +172,7 @@ export function App(): JSX.Element {
       }
     }
   }, [
+    settings.language,
     settings.theme,
     settings.motion,
     settings.fontSize,

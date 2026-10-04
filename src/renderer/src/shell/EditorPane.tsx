@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Editor, type EditorHandle } from '../editor/Editor'
 import { ContextMenu, type MenuAnchor } from './ContextMenu'
@@ -10,6 +11,8 @@ import { insertFromClipboard, insertFromPaths } from '../assets/insert'
 import { installDropTarget } from '../assets/drop'
 import { codeAt } from '../actions/registry'
 import { findTableAt } from '../table/model'
+import { followDocumentLink, jumpToFragment } from '../markdown/navigation'
+import { linkAt } from '../markdown/links'
 import { documentBuffer, saveDocument, updateDocumentBuffer, useDocuments } from '../state/documents'
 import { openPanel } from '../state/ui'
 import { useSettings } from '../state/settings'
@@ -17,7 +20,7 @@ import type { ActionContext, ActionScope } from '../actions/types'
 import './editorpane.css'
 
 export function EditorPane(): JSX.Element {
-  const { active, dirty, confirming, transitioning } = useDocuments()
+  const { active, dirty, confirming, transitioning, fragment } = useDocuments()
   const settings = useSettings()
   const [source, setSource] = useState(documentBuffer)
   /**
@@ -78,6 +81,7 @@ export function EditorPane(): JSX.Element {
 
   const availableScopes = useMemo<Set<string>>(() => {
     const scopes = new Set<string>(['global', 'app', 'document', 'insert', 'clipboard'])
+    if (linkAt(source, cursor) !== null) scopes.add('link')
     if (ctx.selection) {
       for (const s of ['selection', 'format', 'convert', 'find']) scopes.add(s)
     }
@@ -87,7 +91,11 @@ export function EditorPane(): JSX.Element {
       scopes.add('tableColumn')
     }
     return scopes
-  }, [ctx.selection, ctx.inCodeBlock, ctx.inTable])
+  }, [ctx.selection, ctx.inCodeBlock, ctx.inTable, source, cursor])
+
+  useEffect(() => {
+    if (fragment) jumpToFragment(ctx, fragment)
+  }, [])
 
   // Hand the live editing context up to the overlays mounted above this pane.
   useEffect(() => {
@@ -115,7 +123,7 @@ export function EditorPane(): JSX.Element {
     if (!docPath || !active || !settings.historyEnabled) return
     const snapshot = (): void => {
       void recordRevision(active.meta.id, sourceRef.current, 'auto')
-        .catch((error) => setToast(`历史记录失败：${error.message}`))
+        .catch((error) => setToast(t('历史记录失败：{0}', error.message)))
     }
     snapshot()
     const timer = window.setInterval(snapshot, settings.historyIntervalMs)
@@ -157,12 +165,12 @@ export function EditorPane(): JSX.Element {
       el,
       () => docPath,
       (files) => {
-        if (!docPath) { ctx.toast('请先保存文档，再插入图片；图片会放在文档旁边。'); return }
+        if (!docPath) { ctx.toast(t('请先保存文档，再插入图片；图片会放在文档旁边。')); return }
         const paths = files
           .map((f) => window.mdview.asset.pathForFile(f))
           .filter((p): p is string => p !== null)
         if (paths.length === 0) {
-          setToast('这些文件无法定位到磁盘路径，请改用「插入图片」')
+          setToast(t('这些文件无法定位到磁盘路径，请改用「插入图片」'))
           window.setTimeout(() => setToast(null), 3000)
           return
         }
@@ -181,7 +189,7 @@ export function EditorPane(): JSX.Element {
       const hasImage = [...e.clipboardData.items].some((i) => i.type.startsWith('image/'))
       if (!hasImage) return
       e.preventDefault()
-      if (!docPath) { ctx.toast('请先保存文档，再粘贴图片；图片会放在文档旁边。'); return }
+      if (!docPath) { ctx.toast(t('请先保存文档，再粘贴图片；图片会放在文档旁边。')); return }
       const handle = editorRef.current!
       const range = handle.getSelection()
       const text = handle.getSource()
@@ -202,25 +210,26 @@ export function EditorPane(): JSX.Element {
     <div className="ep">
       <div className="ep__toolbar">
         <div className="ep__meta">
-          {dirty && <span className="ep__dirty" title="有未保存的改动" />}
+          {dirty && <span className="ep__dirty" title={t('有未保存的改动')} />}
           <span className="ep__path" title={active.meta.path}>
-            {docPath ? `${active.meta.parentDir.replace(/.*[\\/]/, '')} / ${active.meta.stem}` : '未命名 · 首次保存时选择位置'}
+            {docPath ? `${active.meta.parentDir.replace(/.*[\\/]/, '')} / ${active.meta.stem}` : t('未命名 · 首次保存时选择位置')}
           </span>
           {docPath && !active.meta.inFolder && (
-            <button className="ep__loose" title="图片与文档分开存放，整个发给别人时会断" onClick={() => openPanel('organize')}>
-              散装文件 · 整理为文档文件夹
-            </button>
+            <button className="ep__loose" title={t('图片与文档分开存放，整个发给别人时会断')} onClick={() => openPanel('organize')}>
+              {t('散装文件 · 整理为文档文件夹')}</button>
           )}
-          <span className="ep__save-state">{!docPath ? '尚未保存' : dirty ? '有未保存修改' : '已保存'}</span>
+          <span className="ep__save-state">{!docPath ? t('尚未保存') : dirty ? t('有未保存修改') : t('已保存')}</span>
         </div>
       </div>
 
       <div className="ep__body" ref={paneRef}>
         <Editor
+          language={settings.language}
           ref={editorRef}
           docPath={active.meta.path}
           source={source}
           onChange={update}
+          onOpenLink={(href) => { void followDocumentLink(ctx, href) }}
           onCursorChange={(cursor) => setCaret({ cursor })}
           onPaste={onPaste}
           onContextMenu={(x, y) => setMenu({ x, y, target: { scope: menuScope(ctx) } })}
@@ -245,6 +254,7 @@ export function EditorPane(): JSX.Element {
 }
 
 function menuScope(ctx: ActionContext): ActionScope {
+  if (linkAt(ctx.source, ctx.cursor) !== null) return 'link'
   if (ctx.inCodeBlock) return 'codeblock'
   if (ctx.inTable) return 'table'
   if (ctx.selection) return 'selection'

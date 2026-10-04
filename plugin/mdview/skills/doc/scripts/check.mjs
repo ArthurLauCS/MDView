@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Validate an MDView document folder.
+ * Validate an MDWisp document folder.
  *
  *   node check.mjs <document folder | .md file> [--no-images]
  *

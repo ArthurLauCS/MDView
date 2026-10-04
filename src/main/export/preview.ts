@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 /**
  * Previews for the three packaged export modes.
  *
@@ -46,11 +47,11 @@ export async function previewZip(docPath: string): Promise<ExportPreview> {
   }))
 
   const summary =
-    `将打包 ${files} 个文件` +
-    (dirs > 0 ? `、${dirs} 个文件夹` : '') +
-    `，共 ${humanBytes(bytes)}。` +
-    `文档内的相对链接不会改动，解压后即可直接打开。` +
-    (removals.length > 0 ? `另有 ${removals.length} 项未包含。` : '')
+    t('将打包 {0} 个文件', files) +
+    (dirs > 0 ? t('、{0} 个文件夹', dirs) : '') +
+    t('，共 {0}。', humanBytes(bytes)) +
+    t('文档内的相对链接不会改动，解压后即可直接打开。') +
+    (removals.length > 0 ? t('另有 {0} 项未包含。', removals.length) : '')
 
   return previewFor('zip', docPath, removals, summary, archiveNameFor(docPath))
 }
@@ -69,11 +70,11 @@ export async function previewHtml(
   }))
 
   const summary =
-    `将生成一个自包含的 HTML 文件，约 ${humanBytes(build.bytes)}。` +
-    `已内嵌 ${build.inlined.length} 张本地图片` +
-    (build.external.length > 0 ? `，保留 ${build.external.length} 个网络图片地址` : '') +
-    `。打开时不产生任何网络请求。` +
-    (removals.length > 0 ? `有 ${removals.length} 张本地图片读不到，将显示占位符。` : '')
+    t('将生成一个自包含的 HTML 文件，约 {0}。', humanBytes(build.bytes)) +
+    t('已内嵌 {0} 张本地图片', build.inlined.length) +
+    (build.external.length > 0 ? t('，保留 {0} 个网络图片地址', build.external.length) : '') +
+    t('。打开时不产生任何网络请求。') +
+    (removals.length > 0 ? t('有 {0} 张本地图片读不到，将显示占位符。', removals.length) : '')
 
   const stem = basename(docPath).replace(/\.(md|markdown|mdx)$/i, '')
   return previewFor('html', docPath, removals, summary, `${stem}.html`)
@@ -99,10 +100,10 @@ export async function previewPdf(
   }))
 
   const summary =
-    `将按 A4 排版输出 PDF，约 ${humanBytes(build.bytes)} 的 HTML 内容。` +
-    `已内嵌 ${build.inlined.length} 张本地图片。` +
-    `分页由排版决定，导出后才能确定页数。` +
-    (removals.length > 0 ? `有 ${removals.length} 张本地图片读不到，将显示占位符。` : '')
+    t('将按 A4 排版输出 PDF，约 {0} 的 HTML 内容。', humanBytes(build.bytes)) +
+    t('已内嵌 {0} 张本地图片。', build.inlined.length) +
+    t('分页由排版决定，导出后才能确定页数。') +
+    (removals.length > 0 ? t('有 {0} 张本地图片读不到，将显示占位符。', removals.length) : '')
 
   const stem = basename(docPath).replace(/\.(md|markdown|mdx)$/i, '')
   return previewFor('pdf', docPath, removals, summary, `${stem}.pdf`)

@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { extractHeadings, headingAt, type Heading } from './headings'
 import './outline.css'
@@ -45,10 +46,11 @@ export function Outline({ source, cursor, onJump }: Props): JSX.Element {
 
   const render = ({ heading: h, children }: Branch): JSX.Element => {
     const open = !collapsed.has(h.id)
+    const label = h.text || t('未命名标题')
     return <li key={h.id}>
       <div className={`nav-row outline__row ${active?.id === h.id ? 'is-active' : ''}`}
         style={{ '--depth': h.depth } as CSSProperties}>
-        {children.length ? <button className="outline__toggle" aria-label={`${open ? '折叠' : '展开'} ${h.text}`}
+        {children.length ? <button className="outline__toggle" aria-label={`${open ? t('折叠') : t('展开')} ${label}`}
           aria-expanded={open} onClick={() => setCollapsed((previous) => {
             const next = new Set(previous)
             if (open) next.add(h.id)
@@ -56,12 +58,12 @@ export function Outline({ source, cursor, onJump }: Props): JSX.Element {
             return next
           })}><span className={`tree__chevron ${open ? 'is-open' : ''}`} aria-hidden /></button>
           : <span className="outline__spacer" />}
-        <button className="outline__jump" title={h.text} aria-current={active?.id === h.id ? 'location' : undefined}
+        <button className="outline__jump" title={label} aria-current={active?.id === h.id ? 'location' : undefined}
           onClick={() => {
             const prefix = /^#{1,6}[ \t]*/.exec(source.slice(h.offset))?.[0].length ?? 0
             onJump(h.offset + prefix)
           }}>
-          <span className="outline__label">{h.text}</span>
+          <span className="outline__label">{label}</span>
           <span className="outline__level">H{h.level}</span>
         </button>
       </div>
@@ -69,8 +71,8 @@ export function Outline({ source, cursor, onJump }: Props): JSX.Element {
     </li>
   }
 
-  return <nav className="outline" aria-label="文档大纲">
-    {headings.length === 0 ? <p className="sidebar__empty">这份文档还没有标题。添加标题后会在这里按层级显示。</p>
+  return <nav className="outline" aria-label={t('文档大纲')}>
+    {headings.length === 0 ? <p className="sidebar__empty">{t('这份文档还没有标题。添加标题后会在这里按层级显示。')}</p>
       : <ul className="outline__list" ref={listRef}>{branches.map(render)}</ul>}
   </nav>
 }

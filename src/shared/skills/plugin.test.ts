@@ -68,6 +68,7 @@ describe('plugin check script', () => {
 
   it('accepts the welcome document the app ships', () => {
     expect(check(resolve(__dirname, '../../../stock/欢迎使用'))).toMatchObject({ status: 0 })
+    expect(check(resolve(__dirname, '../../../stock/Welcome'))).toMatchObject({ status: 0 })
   })
 })
 
@@ -76,6 +77,8 @@ describe('bundled rules', () => {
     for (const skill of BUNDLED_SKILLS) {
       expect(skill.body.startsWith('# ')).toBe(true)
       expect(skill.body).not.toContain('description:')
+      expect(skill.bodyEn.startsWith('# ')).toBe(true)
+      expect(skill.bodyEn).not.toContain('description:')
     }
   })
 })

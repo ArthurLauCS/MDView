@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 /**
  * Package a document folder so it survives the trip to another machine.
  *
@@ -50,7 +51,7 @@ export async function planZip(docPath: string): Promise<ZipPlan> {
 
       if (item.isDirectory()) {
         if (shouldSkipDir(item.name)) {
-          skipped.push({ path: abs, reason: '隐藏或工具目录，不属于文档' })
+          skipped.push({ path: abs, reason: t('隐藏或工具目录，不属于文档') })
           continue
         }
         entries.push({ name: `${name}/`, data: Buffer.alloc(0), directory: true })
@@ -59,7 +60,7 @@ export async function planZip(docPath: string): Promise<ZipPlan> {
       }
 
       if (!item.isFile()) {
-        skipped.push({ path: abs, reason: '不是普通文件' })
+        skipped.push({ path: abs, reason: t('不是普通文件') })
         continue
       }
 

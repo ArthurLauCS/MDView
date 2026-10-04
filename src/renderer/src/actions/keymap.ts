@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { ACTIONS } from './registry'
 import type { ActionDef } from './types'
 
@@ -115,7 +116,7 @@ export function prettyKey(binding: string): string {
     .replace(/ArrowRight/g, '→')
     .replace(/Backspace/g, '⌫')
     .replace(/Enter/g, '↵')
-    .replace(/Space/g, '空格')
+    .replace(/Space/g, t('空格'))
     .replace(/Escape/g, 'Esc')
     .replace(/Backslash/g, '\\')
     .replace(/Ctrl/g, 'Ctrl')

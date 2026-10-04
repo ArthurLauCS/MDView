@@ -1,25 +1,27 @@
+import { t } from '../i18n'
 import { useMemo, useState } from 'react'
 import { ACTIONS, GROUP_LABELS, GROUPS } from '../actions/registry'
 import { prettyKey } from '../actions/keymap'
 import type { ActionDef, ActionScope } from '../actions/types'
 import { useEditorContext } from '../state/editor-context'
+import { useSettings } from '../state/settings'
 
 const SCOPE_LABELS: Record<ActionScope, string> = {
-  global: '全局',
-  app: '全局',
-  document: '文档',
-  selection: '选中文本',
-  format: '文本',
-  convert: '块类型',
-  insert: '插入',
-  find: '查找',
-  clipboard: '剪贴板',
-  codeblock: '代码块内',
-  table: '表格内',
-  tableColumn: '表格内',
-  image: '图片上',
-  link: '链接上',
-  filetree: '文件树'
+  get global() { return t('全局') },
+  get app() { return t('全局') },
+  get document() { return t('文档') },
+  get selection() { return t('选中文本') },
+  get format() { return t('文本') },
+  get convert() { return t('块类型') },
+  get insert() { return t('插入') },
+  get find() { return t('查找') },
+  get clipboard() { return t('剪贴板') },
+  get codeblock() { return t('代码块内') },
+  get table() { return t('表格内') },
+  get tableColumn() { return t('表格内') },
+  get image() { return t('图片上') },
+  get link() { return t('链接上') },
+  get filetree() { return t('文件树') }
 }
 
 interface Row {
@@ -28,6 +30,7 @@ interface Row {
 }
 
 export function ShortcutsSettings(): JSX.Element {
+  const { language } = useSettings()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('all')
   const { ctx } = useEditorContext()
@@ -64,15 +67,15 @@ export function ShortcutsSettings(): JSX.Element {
       ordered.push({ id: g, label: g, rows: byGroup.get(g) as Row[] })
     }
     return ordered
-  }, [query, category])
+  }, [query, category, language])
 
   const total = groups.reduce((n, g) => n + g.rows.length, 0)
 
   return (
     <div className="shortcuts-settings">
-          <div className="section__head"><h3 className="section__title">快捷键</h3>
-            <select className="field" aria-label="快捷键功能分类" value={category} onChange={(e) => setCategory(e.target.value)}>
-              <option value="all">全部功能</option>
+          <div className="section__head"><h3 className="section__title">{t('快捷键')}</h3>
+            <select className="field" aria-label={t('快捷键功能分类')} value={category} onChange={(e) => setCategory(e.target.value)}>
+              <option value="all">{t('全部功能')}</option>
               {GROUPS.map((id) => <option key={id} value={id}>{GROUP_LABELS[id]}</option>)}
             </select>
           </div>
@@ -80,14 +83,14 @@ export function ShortcutsSettings(): JSX.Element {
             className="field field--grow"
             style={{ width: '100%', marginBottom: 'var(--space-6)' }}
             value={query}
-            placeholder="搜索命令或按键…"
-            aria-label="搜索快捷键"
+            placeholder={t('搜索命令或按键…')}
+            aria-label={t('搜索快捷键')}
             spellCheck={false}
             autoFocus
             onChange={(e) => setQuery(e.target.value)}
           />
 
-          {total === 0 && <p className="panel__empty">没有匹配的命令</p>}
+          {total === 0 && <p className="panel__empty">{t('没有匹配的命令')}</p>}
 
           {groups.map((group) => (
             <section className="section" key={group.id}>
@@ -107,7 +110,7 @@ export function ShortcutsSettings(): JSX.Element {
                         {action.key ? (
                           [action.key, ...(action.altKeys ?? [])].map(key => <kbd className="keys__kbd" key={key}>{prettyKey(key)}</kbd>)
                         ) : (
-                          <span className="keys__none">命令面板</span>
+                          <span className="keys__none">{t('命令面板')}</span>
                         )}
                       </td>
                     </tr>
@@ -117,8 +120,8 @@ export function ShortcutsSettings(): JSX.Element {
             </section>
           ))}
         <footer className="panel__note">
-          <span>共 {total} 条</span>
-          <span>表格、代码和图片快捷键需先聚焦对应内容；没有按键的可用命令在 Ctrl+P 中执行</span>
+          <span>{t('共 {0} 条', total)}</span>
+          <span>{t('表格、代码和图片快捷键需先聚焦对应内容；没有按键的可用命令在 Ctrl+P 中执行')}</span>
         </footer>
     </div>
   )

@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useEffect, useState } from 'react'
 import { useSettings } from '../state/settings'
 import { useDocuments } from '../state/documents'
@@ -33,7 +34,7 @@ export function TitleBar(): JSX.Element {
         <button
           className="titlebar__btn titlebar__btn--icon"
           onClick={() => void sidebarAction.run(editorContext())}
-          aria-label={settings.sidebarVisible ? '隐藏侧栏' : '显示侧栏'}
+          aria-label={settings.sidebarVisible ? t('隐藏侧栏') : t('显示侧栏')}
           title={`${sidebarAction.title}  ${prettyKey(sidebarAction.key!)}`}
         >
           <span className="titlebar__rail" aria-hidden />
@@ -51,11 +52,11 @@ export function TitleBar(): JSX.Element {
       <div className="titlebar__center">
         {active ? (
           <span className="titlebar__doc">
-            <span className="titlebar__doc-name">{dirty ? '● ' : ''}{active.meta.stem}</span>
+            <span className="titlebar__doc-name">{dirty ? '● ' : ''}{active.meta.path ? active.meta.stem : t('未命名')}</span>
             <span className="titlebar__doc-dir">{active.meta.parentDir.replace(/.*[\\/]/, '')}</span>
           </span>
         ) : (
-          <span className="titlebar__name">MDView</span>
+          <span className="titlebar__name">MDWisp</span>
         )}
       </div>
 
@@ -64,8 +65,8 @@ export function TitleBar(): JSX.Element {
         <button
           className="wbtn"
           onClick={() => window.mdview.window.minimize()}
-          aria-label="最小化"
-          title="最小化"
+          aria-label={t('最小化')}
+          title={t('最小化')}
         >
           <svg viewBox="0 0 10 10" aria-hidden>
             <path d="M0 5h10" />
@@ -76,8 +77,8 @@ export function TitleBar(): JSX.Element {
           onClick={() => {
             window.mdview.window.toggleMaximize()
           }}
-          aria-label={maximized ? '向下还原' : '最大化'}
-          title={maximized ? '向下还原' : '最大化'}
+          aria-label={maximized ? t('向下还原') : t('最大化')}
+          title={maximized ? t('向下还原') : t('最大化')}
         >
           {maximized ? (
             <svg viewBox="0 0 10 10" aria-hidden>
@@ -93,8 +94,8 @@ export function TitleBar(): JSX.Element {
         <button
           className="wbtn wbtn--close"
           onClick={() => window.mdview.window.close()}
-          aria-label="关闭"
-          title="关闭"
+          aria-label={t('关闭')}
+          title={t('关闭')}
         >
           <svg viewBox="0 0 10 10" aria-hidden>
             <path d="M0 0l10 10M10 0L0 10" />

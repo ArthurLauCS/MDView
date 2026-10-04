@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { DiffSummary, Revision } from '@shared/types'
 import { currentDocument, useDocuments } from '../state/documents'
@@ -142,26 +143,26 @@ export function HistoryPanel({ onClose }: Props): JSX.Element {
       <section
         className="history-panel"
         id="history-panel"
-        aria-label="历史版本"
+        aria-label={t('历史版本')}
       >
         <ResizeHandle side="right" />
         <header className="side-panel__head">
           <div>
-            <h2 className="side-panel__title">历史版本</h2>
-            <div className="side-panel__subtitle" title={active?.meta.path}>{active?.meta.stem ?? '未打开文档'}</div>
+            <h2 className="side-panel__title">{t('历史版本')}</h2>
+            <div className="side-panel__subtitle" title={active?.meta.path}>{active ? active.meta.path ? active.meta.stem : t('未命名') : t('未打开文档')}</div>
           </div>
-          <button className="panel__close" onClick={onClose} aria-label="收起历史版本">
+          <button className="panel__close" onClick={onClose} aria-label={t('收起历史版本')}>
             ›
           </button>
         </header>
 
         <div className="panel__body">
           {(error || history.error) && <p className="hist__error" role="alert">{error || history.error}</p>}
-          {history.loading && <p className="panel__empty">正在读取历史…</p>}
+          {history.loading && <p className="panel__empty">{t('正在读取历史…')}</p>}
 
           {!history.loading && rows.length === 0 && (
             <p className="panel__empty">
-              {!docId ? '首次保存文档后开始记录历史；未命名草稿不会定时保存。' : '这篇文档还没有还原点。点击「立即记录」保存当前内容。'}
+              {!docId ? t('首次保存文档后开始记录历史；未命名草稿不会定时保存。') : t('这篇文档还没有还原点。点击「立即记录」保存当前内容。')}
             </p>
           )}
 
@@ -172,7 +173,7 @@ export function HistoryPanel({ onClose }: Props): JSX.Element {
                   <li key={row.rev.id} className="hist__item">
                     {forgetting === row.rev.id ? (
                       <div className="hist__row hist__row--confirm">
-                        <span className="hist__confirm-text">删除这个还原点？</span>
+                        <span className="hist__confirm-text">{t('删除这个还原点？')}</span>
                         <span className="hist__confirm-actions">
                           <button
                             className="btn btn--danger"
@@ -182,11 +183,9 @@ export function HistoryPanel({ onClose }: Props): JSX.Element {
                               setForgetting(null)
                             })}
                           >
-                            删除
-                          </button>
+                            {t('删除')}</button>
                           <button className="btn" onClick={() => setForgetting(null)}>
-                            取消
-                          </button>
+                            {t('取消')}</button>
                         </span>
                       </div>
                     ) : (
@@ -207,14 +206,14 @@ export function HistoryPanel({ onClose }: Props): JSX.Element {
                           <span
                             className={`hist__delta ${row.delta === null ? '' : row.delta > 0 ? 'is-add' : row.delta < 0 ? 'is-del' : ''}`}
                           >
-                            {row.delta === null ? '起始版本' : formatDelta(row.delta)}
+                            {row.delta === null ? t('起始版本') : formatDelta(row.delta)}
                           </span>
                         </span>
                         <span
                           className="hist__del"
                           role="button"
                           tabIndex={-1}
-                          title="删除这个还原点"
+                          title={t('删除这个还原点')}
                           onClick={(e) => {
                             e.stopPropagation()
                             setForgetting(row.rev.id)
@@ -230,24 +229,24 @@ export function HistoryPanel({ onClose }: Props): JSX.Element {
 
               <div className="hist__detail">
                 <div className="hist__detail-head">
-                  <button className="btn" aria-pressed={view === 'diff'} onClick={() => setView('diff')}>变更</button>
-                  <button className="btn" aria-pressed={view === 'text'} onClick={() => setView('text')}>全文</button>
-                  <button className="btn" disabled={!selected || busy} onClick={() => selected && setForgetting(selected)}>删除此版本</button>
+                  <button className="btn" aria-pressed={view === 'diff'} onClick={() => setView('diff')}>{t('变更')}</button>
+                  <button className="btn" aria-pressed={view === 'text'} onClick={() => setView('text')}>{t('全文')}</button>
+                  <button className="btn" disabled={!selected || busy} onClick={() => selected && setForgetting(selected)}>{t('删除此版本')}</button>
                 </div>
                 <p className="hist__caption">{selectedRow && absoluteTime(selectedRow.rev.at)}</p>
                 {view === 'text' ? <pre className="hist__source">{selectedRow?.text}</pre> : <>
-                <p className="hist__caption">{selectedRow?.prevId ? '与上一还原点比较' : '起始版本'}</p>
+                <p className="hist__caption">{selectedRow?.prevId ? t('与上一还原点比较') : t('起始版本')}</p>
                 <div className="summary">
                   <span className="summary__n">+{diff?.added ?? 0}</span>
-                  <span>新增</span>
+                  <span>{t('新增')}</span>
                   <span className="summary__n">−{diff?.removed ?? 0}</span>
-                  <span>删除</span>
+                  <span>{t('删除')}</span>
                 </div>
 
-                {diffLoading && <p className="panel__empty">正在比较…</p>}
+                {diffLoading && <p className="panel__empty">{t('正在比较…')}</p>}
 
                 {!diffLoading && diff && diff.hunks.length === 0 && (
-                  <p className="panel__empty">这一版与上一版内容相同</p>
+                  <p className="panel__empty">{t('这一版与上一版内容相同')}</p>
                 )}
 
                 {!diffLoading &&
@@ -273,17 +272,16 @@ export function HistoryPanel({ onClose }: Props): JSX.Element {
         <footer className="panel__foot">
           <span>
             {confirming === 'clear'
-              ? '将删除这篇文档的全部还原点，无法撤销。'
+              ? t('将删除这篇文档的全部还原点，无法撤销。')
               : confirming === 'restore'
-                ? '恢复会覆盖当前内容，原内容会先存为一个还原点。'
-                : `${rows.length} 个还原点`}
+                ? t('恢复会覆盖当前内容，原内容会先存为一个还原点。')
+                : t('{0} 个还原点', rows.length)}
           </span>
           <fieldset className="hist__actions" disabled={busy}>
             {confirming === 'clear' ? (
               <>
                 <button className="btn" onClick={() => setConfirming(null)}>
-                  取消
-                </button>
+                  {t('取消')}</button>
                 <button
                   className="btn btn--danger"
                   onClick={() => void perform(async () => {
@@ -291,33 +289,27 @@ export function HistoryPanel({ onClose }: Props): JSX.Element {
                     setConfirming(null)
                   })}
                 >
-                  确认清空
-                </button>
+                  {t('确认清空')}</button>
               </>
             ) : confirming === 'restore' ? (
               <>
                 <button className="btn" onClick={() => setConfirming(null)}>
-                  取消
-                </button>
+                  {t('取消')}</button>
                 <button className="btn btn--primary" disabled={settings.readOnly} onClick={() => void perform(restore)}>
-                  确认恢复
-                </button>
+                  {t('确认恢复')}</button>
               </>
             ) : (
               <>
                 <button className="btn" disabled={!active || !rows.length} onClick={() => setConfirming('clear')}>
-                  清空历史
-                </button>
+                  {t('清空历史')}</button>
                 <button className="btn" disabled={!docId} onClick={() => void perform(recordNow)}>
-                  立即记录
-                </button>
+                  {t('立即记录')}</button>
                 <button
                   className="btn btn--primary"
                   disabled={!selected || !active || settings.readOnly}
                   onClick={() => setConfirming('restore')}
                 >
-                  恢复到此版本
-                </button>
+                  {t('恢复到此版本')}</button>
               </>
             )}
           </fieldset>
@@ -330,14 +322,14 @@ export function HistoryDock(): JSX.Element {
   const open = useHistoryOpen()
   const { active } = useDocuments()
   const action = findAction('view.history')!
-  return <aside className="history-dock" aria-label="文档工具栏">
+  return <aside className="history-dock" aria-label={t('文档工具栏')}>
     {open && <HistoryPanel key={active?.meta.id ?? 'empty'} onClose={() => togglePanel('history')} />}
     <div className="history-dock__rail">
       <button className="history-dock__toggle" title={`${action.title}  ${action.key}`}
         aria-label={action.title} aria-expanded={open} aria-controls="history-panel"
         onClick={() => void action.run(editorContext())}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2 7M3 5v6h6M12 7v5l3 2" /></svg>
-        <span>历史</span>
+        <span>{t('历史')}</span>
       </button>
     </div>
   </aside>

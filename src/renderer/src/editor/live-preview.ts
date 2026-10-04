@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { StateField, type EditorState, type Range } from '@codemirror/state'
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
@@ -5,8 +6,11 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import hljs from 'highlight.js/lib/common'
 import { detectLanguage } from '@shared/markdown/detect'
 import { frontmatterEnd } from '@shared/markdown/frontmatter'
+import { markdownReferences, type MarkdownReferences } from '@shared/markdown/pipeline'
 import { renderMarkdown } from '../markdown/render'
 import { resolveDocumentAssets } from '../markdown/resolve-assets'
+import { linkResolver } from '../markdown/links'
+import { settingsSnapshot } from '../state/settings'
 import { cellRange, escapePipes, findTableAt, parseTable, serializeTable, type TableContext } from '../table/model'
 
 const highlightDelimiter = { resolve: 'Highlight', mark: 'HighlightMark' }
@@ -37,21 +41,22 @@ export function leaveCodeBlock(view: EditorView, end: number): void {
 }
 
 class CodeLanguage extends WidgetType {
+  readonly language = settingsSnapshot().language
   constructor(readonly from: number, readonly infoFrom: number, readonly infoTo: number, readonly to: number,
     readonly lang: string, readonly detected: string | null, readonly readOnly: boolean) { super() }
   eq(other: CodeLanguage): boolean {
-    return this.from === other.from && this.infoFrom === other.infoFrom && this.infoTo === other.infoTo && this.to === other.to &&
+    return this.language === other.language && this.from === other.from && this.infoFrom === other.infoFrom && this.infoTo === other.infoTo && this.to === other.to &&
       this.lang === other.lang && this.detected === other.detected && this.readOnly === other.readOnly
   }
   toDOM(view: EditorView): HTMLElement {
     const select = document.createElement('select')
     select.className = 'live-code-language'
-    select.setAttribute('aria-label', '代码语言')
+    select.setAttribute('aria-label', t('代码语言'))
     select.dataset.from = String(this.from)
     select.dataset.to = String(this.to)
     select.disabled = this.readOnly
-    select.add(new Option(this.detected ? `自动检测 · ${this.detected}` : '自动检测', ''))
-    select.add(new Option('纯文本', 'text'))
+    select.add(new Option(this.detected ? t('自动检测 · {0}', this.detected) : t('自动检测'), ''))
+    select.add(new Option(t('纯文本'), 'text'))
     const languages = hljs.listLanguages()
     if (this.lang && this.lang !== 'text' && !languages.includes(this.lang)) languages.push(this.lang)
     for (const lang of languages.sort()) select.add(new Option(lang, lang))
@@ -76,31 +81,33 @@ export function liveMarkdown() {
 }
 
 class TaskCheckbox extends WidgetType {
+  readonly language = settingsSnapshot().language
   constructor(readonly from: number, readonly checked: boolean, readonly readOnly: boolean) { super() }
   eq(other: TaskCheckbox): boolean {
-    return this.from === other.from && this.checked === other.checked && this.readOnly === other.readOnly
+    return this.language === other.language && this.from === other.from && this.checked === other.checked && this.readOnly === other.readOnly
   }
   toDOM(view: EditorView): HTMLElement {
     const input = document.createElement('input')
     input.type = 'checkbox'
     input.checked = this.checked
     input.disabled = this.readOnly
-    input.setAttribute('aria-label', '完成任务')
+    input.setAttribute('aria-label', t('完成任务'))
     input.onchange = () => view.dispatch({ changes: { from: this.from + 1, to: this.from + 2, insert: input.checked ? 'x' : ' ' }, userEvent: 'input' })
     return input
   }
 }
 
 class Rendered extends WidgetType {
+  readonly language = settingsSnapshot().language
   constructor(readonly html: string) { super() }
-  eq(other: Rendered): boolean { return this.html === other.html }
+  eq(other: Rendered): boolean { return this.language === other.language && this.html === other.html }
   toDOM(): HTMLElement {
     const dom = document.createElement('span')
     dom.className = 'live-rendered'
     dom.innerHTML = this.html
     for (const image of dom.querySelectorAll('img')) {
       image.tabIndex = 0
-      image.title = '点击选中图片，按 Z 全屏查看，Esc 返回'
+      image.title = t('点击选中图片，按 Z 全屏查看，Esc 返回')
       image.onmousedown = event => {
         event.preventDefault()
         event.stopPropagation()
@@ -114,19 +121,21 @@ class Rendered extends WidgetType {
 
 const tables = new WeakMap<HTMLElement, LiveTable>()
 
-function cellHtml(raw: string, docDir: string | null): string {
+function cellHtml(raw: string, docDir: string | null, references: MarkdownReferences): string {
   const dom = document.createElement('div')
-  dom.innerHTML = resolveDocumentAssets(renderMarkdown(raw), docDir)
+  dom.innerHTML = resolveDocumentAssets(renderMarkdown(raw, references), docDir)
   return dom.firstElementChild?.tagName === 'P' ? dom.firstElementChild.innerHTML : dom.innerHTML
 }
 
 /** Keep a cell's input alive through transactions, including IME composition. */
 class LiveTable extends WidgetType {
-  constructor(readonly ctx: TableContext, readonly docDir: string | null, readonly readOnly: boolean) {
+  readonly language = settingsSnapshot().language
+  constructor(readonly ctx: TableContext, readonly docDir: string | null, readonly readOnly: boolean,
+    readonly references: MarkdownReferences, readonly referenceKey: string) {
     super()
   }
   eq(other: LiveTable): boolean {
-    return this.ctx.raw === other.ctx.raw && this.ctx.start === other.ctx.start && this.readOnly === other.readOnly
+    return this.referenceKey === other.referenceKey && this.language === other.language && this.docDir === other.docDir && this.ctx.raw === other.ctx.raw && this.ctx.start === other.ctx.start && this.readOnly === other.readOnly
   }
   toDOM(view: EditorView): HTMLElement {
     const dom = document.createElement('div')
@@ -182,7 +191,7 @@ class LiveTable extends WidgetType {
   }
   paint(dom: HTMLElement): void {
     tables.set(dom, this)
-    dom.innerHTML = resolveDocumentAssets(renderMarkdown(this.ctx.raw), this.docDir)
+    dom.innerHTML = resolveDocumentAssets(renderMarkdown(this.ctx.raw, this.references), this.docDir)
     const rows = parseTable(this.ctx)
     dom.querySelectorAll('tr').forEach((tr, row) => {
       tr.querySelectorAll<HTMLElement>('th, td').forEach((cell, col) => {
@@ -193,7 +202,7 @@ class LiveTable extends WidgetType {
         cell.dataset.cellTo = String(range.to)
         cell.dataset.raw = rows[row][col]
         cell.tabIndex = this.readOnly ? -1 : 0
-        cell.setAttribute('aria-label', `第 ${row + 1} 行，第 ${col + 1} 列`)
+        cell.setAttribute('aria-label', t('第 {0} 行，第 {1} 列', row + 1, col + 1))
         cell.onfocus = () => {
           if (!this.readOnly && !cell.querySelector('input')) editCell(EditorView.findFromDOM(dom)!, cell)
         }
@@ -209,10 +218,11 @@ class LiveTable extends WidgetType {
       dom.querySelectorAll<HTMLElement>('[data-cell-from]').forEach((cell) => {
         const range = cellRange(this.ctx, { row: Number(cell.dataset.row), col: Number(cell.dataset.col) })
         const raw = this.ctx.raw.slice(range.from - this.ctx.start, range.to - this.ctx.start)
-        if (!cell.contains(input) && cell.dataset.raw !== raw) cell.innerHTML = cellHtml(raw, this.docDir)
+        if (!cell.contains(input) && (cell.dataset.raw !== raw || previous.referenceKey !== this.referenceKey)) cell.innerHTML = cellHtml(raw, this.docDir, this.references)
         cell.dataset.cellFrom = String(range.from)
         cell.dataset.cellTo = String(range.to)
         cell.dataset.raw = raw
+        cell.setAttribute('aria-label', t('第 {0} 行，第 {1} 列', Number(cell.dataset.row) + 1, Number(cell.dataset.col) + 1))
         if (cell.contains(input) && input.value !== cell.dataset.raw) input.value = cell.dataset.raw
       })
     } else {
@@ -228,7 +238,7 @@ function editCell(view: EditorView, cell: HTMLElement, start?: number, end = sta
   for (const other of table.querySelectorAll<HTMLInputElement>('.live-cell-input')) {
     if (other.parentElement !== cell) {
       const previous = other.parentElement!
-      previous.innerHTML = cellHtml(previous.dataset.raw ?? '', tables.get(table)!.docDir)
+      previous.innerHTML = cellHtml(previous.dataset.raw ?? '', tables.get(table)!.docDir, tables.get(table)!.references)
     }
   }
   let input = cell.querySelector<HTMLInputElement>('input')
@@ -266,6 +276,9 @@ export function focusTableCell(view: EditorView, start: number, end: number): bo
 export function previewDecorations(state: EditorState, docDir: string | null): DecorationSet {
   const ranges: Range<Decoration>[] = []
   const source = state.doc.toString()
+  const references = markdownReferences(source)
+  const referenceKey = JSON.stringify(references)
+  const resolveLink = linkResolver(source, references)
   const hide = (from: number, to: number): void => {
     if (to > from) ranges.push(Decoration.replace({}).range(from, to))
   }
@@ -317,21 +330,23 @@ export function previewDecorations(state: EditorState, docDir: string | null): D
           ranges.push(Decoration.replace({ widget: new Rendered('<span class="live-bullet">•</span>') }).range(from, to))
         }
       }
-      if (name === 'Link') {
-        mark(from, to, 'live-link')
+      if (name === 'Link' || name === 'Autolink' || (name === 'URL' && !['Link', 'Autolink', 'Image', 'LinkReference'].includes(node.node.parent?.name ?? ''))) {
+        const href = resolveLink(node.node)
+        if (href === null) return false
+        ranges.push(Decoration.mark({ class: 'live-link', attributes: { 'data-md-href': href, title: t('Ctrl+点击打开链接') } }).range(from, to))
         // The label stays editable; reveal the destination only while editing it.
         const end = node.node.getChildren('LinkMark')[1]
         if (end) {
           hide(from, from + 1)
           if (state.selection.main.head <= end.from || state.selection.main.head >= to) hide(end.from, to)
         }
-        return false
+        if (name !== 'Link') return false
       }
       if (name === 'Image') {
         const selected = state.selection.ranges.some((r) => r.from < to && r.to > from)
         const inside = state.selection.main.head > from && state.selection.main.head < to
         if (!selected && !inside) {
-          const html = resolveDocumentAssets(renderMarkdown(source.slice(from, to)), docDir)
+          const html = resolveDocumentAssets(renderMarkdown(source.slice(from, to), references), docDir)
           ranges.push(Decoration.replace({ widget: new Rendered(html) }).range(from, to))
         }
         return false
@@ -374,7 +389,7 @@ export function previewDecorations(state: EditorState, docDir: string | null): D
       }
       if (name === 'Table') {
         const ctx = findTableAt(source, from)
-        if (ctx) ranges.push(Decoration.replace({ widget: new LiveTable(ctx, docDir, state.readOnly), block: true }).range(ctx.start, ctx.end))
+        if (ctx) ranges.push(Decoration.replace({ widget: new LiveTable(ctx, docDir, state.readOnly, references, referenceKey), block: true }).range(ctx.start, ctx.end))
         return false
       }
     }

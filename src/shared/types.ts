@@ -3,6 +3,11 @@
  * Renderer, preload and main all speak these types — keep them dependency free.
  */
 
+export interface WindowLaunch {
+  path: string | null
+  fragment: string
+}
+
 export type ExportMode =
   /** Portable plain markdown: images and local paths stripped. */
   | 'plain-md'
@@ -154,6 +159,8 @@ export interface SessionState {
 // ---- appearance -----------------------------------------------------------
 
 export type ThemeMode = 'dark' | 'light' | 'system'
+export type Locale = 'zh-CN' | 'en'
+export type LinkTarget = { kind: 'external'; url: string } | { kind: 'document'; path: string; fragment: string }
 export type MotionLevel = 'full' | 'reduced' | 'off'
 
 export type CursorStyle = 'bar' | 'block' | 'underline'
@@ -161,6 +168,7 @@ export type CursorStyle = 'bar' | 'block' | 'underline'
 export type ImageNaming = 'date-hash-name' | 'original' | 'hash'
 
 export interface AppSettings {
+  language: Locale
   theme: ThemeMode
   motion: MotionLevel
   plainMdImagePolicy: PlainMdImagePolicy
@@ -204,6 +212,7 @@ export interface AppSettings {
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
+  language: 'zh-CN',
   theme: 'dark',
   motion: 'full',
   plainMdImagePolicy: 'alt-placeholder',

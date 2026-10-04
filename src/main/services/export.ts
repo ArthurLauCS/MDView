@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { basename, dirname, join } from 'node:path'
 import { isPortableLink } from './paths'
 import type { AppSettings, ExportMode, ExportPreview } from '@shared/types'
@@ -57,7 +58,7 @@ export function previewPlainMd(
         continue
       }
       if (/^mdview:/i.test(trimmed)) {
-        removals.push({ line: lineNo, text: line, reason: '本地私有状态' })
+        removals.push({ line: lineNo, text: line, reason: t('本地私有状态') })
         continue
       }
       kept.push(line)
@@ -82,7 +83,7 @@ export function previewPlainMd(
     // Our own inline markers.
     if (/<!--\s*mdview:[\s\S]*?-->/i.test(line)) {
       const stripped = line.replace(/<!--\s*mdview:[\s\S]*?-->/gi, '').trimEnd()
-      removals.push({ line: lineNo, text: line, reason: '编辑器标记' })
+      removals.push({ line: lineNo, text: line, reason: t('编辑器标记') })
       if (stripped) kept.push(stripped)
       continue
     }
@@ -91,7 +92,7 @@ export function previewPlainMd(
     if (/<(video|audio|source|iframe)\b/i.test(line)) {
       const src = /src=["']([^"']+)["']/i.exec(line)?.[1]
       if (!src || !isPortableLink(src)) {
-        removals.push({ line: lineNo, text: line, reason: '本地媒体引用' })
+        removals.push({ line: lineNo, text: line, reason: t('本地媒体引用') })
         continue
       }
     }
@@ -106,7 +107,7 @@ export function previewPlainMd(
         // Dropping the line only makes sense when the images are all it holds.
         const onlyImages = line.replace(IMG_RE, '').trim() === ''
         if (onlyImages) {
-          removals.push({ line: lineNo, text: line, reason: '图片引用' })
+          removals.push({ line: lineNo, text: line, reason: t('图片引用') })
           continue
         }
       }
@@ -118,12 +119,12 @@ export function previewPlainMd(
             ? ''
             : policy === 'alt-placeholder'
               ? alt
-                ? `*[图：${alt}]*`
-                : '*[图片]*'
+                ? t('*[图：{0}]*', alt)
+                : t('*[图片]*')
               : '![]()'
         next = next.split(m[0]).join(replacement)
       }
-      removals.push({ line: lineNo, text: line, reason: '本地图片引用' })
+      removals.push({ line: lineNo, text: line, reason: t('本地图片引用') })
       kept.push(next.replace(/ {2,}/g, ' ').trimEnd())
       continue
     }
@@ -132,7 +133,7 @@ export function previewPlainMd(
     if (/<img\b/i.test(line)) {
       const src = /src=["']([^"']+)["']/i.exec(line)?.[1]
       if (!src || !isPortableLink(src)) {
-        removals.push({ line: lineNo, text: line, reason: '本地图片标签' })
+        removals.push({ line: lineNo, text: line, reason: t('本地图片标签') })
         continue
       }
     }
@@ -149,14 +150,14 @@ export function previewPlainMd(
       touched = true
     }
     if (touched) {
-      removals.push({ line: lineNo, text: line, reason: '本地绝对路径' })
+      removals.push({ line: lineNo, text: line, reason: t('本地绝对路径') })
       kept.push(mutated)
       continue
     }
 
     // Bare absolute paths left in prose or fenced text.
     if (/[A-Za-z]:\\\\?[^ \n]*\\/i.test(line) || /file:\/\/\//i.test(line)) {
-      removals.push({ line: lineNo, text: line, reason: '本地路径' })
+      removals.push({ line: lineNo, text: line, reason: t('本地路径') })
       kept.push(line.replace(/file:\/\/\/\S+/gi, '').replace(/[A-Za-z]:\\(?:[^\\\s]+\\)+/g, ''))
       continue
     }

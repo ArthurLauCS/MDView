@@ -22,8 +22,8 @@ const canonical = binding => binding.replace(/Digit/g, '').replace(/ArrowUp/g, '
 
 async function main() {
   for (let i = 0; i < 80 && !BrowserWindow.getAllWindows().length; i++) await wait(100)
-  const win = BrowserWindow.getAllWindows()[0]
-  win.setTitle('MDView — Shortcut verification')
+  let win = BrowserWindow.getAllWindows()[0]
+  win.setTitle('MDWisp — Shortcut verification')
   win.setSize(1440, 900)
   const run = code => win.webContents.executeJavaScript(code, true)
   const ctx = 'window.__mdview.editorContext()'
@@ -68,7 +68,7 @@ async function main() {
   await until(`!!document.querySelector('.cm-content')`)
   await run('document.fonts.ready.then(() => true)')
   await run(`window.addEventListener('keydown', e => { window.__lastKey = {key:e.key,code:e.code,ctrl:e.ctrlKey,alt:e.altKey,shift:e.shiftKey} }, true)`)
-  await run(`window.__mdview.setSettings({autoSave:false,historyEnabled:false,autoPair:false,motion:'off'})`)
+  await run(`window.__mdview.setSettings({language:'zh-CN',autoSave:false,historyEnabled:false,autoPair:false,motion:'off'})`)
   assert.equal(win.isMenuBarVisible(), false, 'native menu must not steal editor shortcuts')
 
   await press('F1')
@@ -123,10 +123,25 @@ async function main() {
   assert.match(await fs.readFile(exported, 'utf8'), /实时缓冲区/)
   await shot('01-export-from-panels')
   await press('Escape')
+  const sourceWindow = win
   await press('Ctrl+N')
+  win = BrowserWindow.getAllWindows().find(window => window !== sourceWindow)
+  assert.ok(win)
+  win.setTitle('MDWisp — Shortcut verification')
+  win.setSize(1440, 900)
+  await until(`!!document.querySelector('.cm-content')`)
+  assert.match(await sourceWindow.webContents.executeJavaScript('window.__mdview.editorContext().source'), /实时缓冲区/)
+  sourceWindow.destroy()
   assert.equal(await text(), '')
   opens.push(file)
+  const blankWindow = win
   await press('Ctrl+O')
+  win = BrowserWindow.getAllWindows().find(window => window !== blankWindow)
+  assert.ok(win)
+  win.setTitle('MDWisp — Shortcut verification')
+  win.setSize(1440, 900)
+  await until(`!!document.querySelector('.cm-content')`)
+  blankWindow.destroy()
   assert.equal(await text(), await fs.readFile(file, 'utf8'))
   opens.push(path.join(OUT, 'documents'))
   await press('Ctrl+Shift+O')

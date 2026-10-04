@@ -1,5 +1,31 @@
 # 更新记录
 
+## 0.2.0 · 2026-10-04
+
+### 简体中文
+
+- 产品更名为 **MDWisp**，保留图标、既有设置、历史数据和 AI 命令标识。
+- 修复 Ctrl+点击跳转：支持相对 Markdown 文件、网址、邮箱、标题锚点、参考式链接、表格内链接和带链接图片。
+- 按住 Ctrl 时链接显示手形指针，松开或窗口失焦后恢复文本光标。
+- 跨文档跳转、新建、打开文件及再次双击快捷方式均打开新窗口，保留当前草稿；窗口独立管理目录和关闭确认，并阻止过期内容覆盖其他窗口的保存。
+- 新增 551 条完整配对的中英界面文案；设置中即时切换，重启后保留，切换时保留编辑内容、光标和撤销记录。
+- 提供中英 README、欢迎文档、AI 规则和安装器；技能包包含两种语言。
+- 修复移除链接误改相邻文字、表格参考式链接和图片无法渲染，以及图片侧栏误读代码示例的问题。
+- 补充 [Markdown 语法支持清单](docs/markdown-support.md)，明确数学公式、Mermaid 等扩展目前仅显示源码。
+- 420 项单元测试、类型检查、71 个快捷键及真实 Electron 多窗口、编辑和打包导出回归通过。
+
+### English
+
+- Renamed the product to **MDWisp**, preserving its icon, existing settings, history and AI command identifiers.
+- Fixed Ctrl+click navigation for relative Markdown files, websites, email, heading anchors, reference links, table links and linked images.
+- Links show a hand cursor while Ctrl is held, and return to the text cursor on release or window blur.
+- Cross-document navigation, new/open commands and repeated shortcut launches use new windows and preserve drafts. Workspaces and close confirmations are isolated; stale saves cannot overwrite another window's changes.
+- Added 551 paired English/Simplified Chinese messages, immediate language switching and persistence without resetting text, cursor or undo history.
+- Added bilingual READMEs, welcome documents, AI rules and installer languages; the skills archive includes both languages.
+- Fixed unlinking adjacent text, reference links/images inside tables, and image examples incorrectly appearing in the asset sidebar.
+- Added a [Markdown support matrix](docs/markdown-support.md); math and Mermaid remain source-only.
+- Verified 420 unit tests, both TypeScript projects, 71 keyboard shortcuts, native Electron multiple windows, editing and packaged exports.
+
 ## 0.1.2 · 2026-10-03
 
 首次公开发行，提供 Windows x64 安装包和独立 AI 技能包。

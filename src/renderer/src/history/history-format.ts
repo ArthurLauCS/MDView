@@ -1,9 +1,10 @@
+import { t } from '../i18n'
 import type { Revision } from '@shared/types'
 
 const KINDS: Record<Revision['kind'], string> = {
-  auto: '自动',
-  manual: '手动',
-  restore: '还原'
+  get auto() { return t('自动') },
+  get manual() { return t('手动') },
+  get restore() { return t('还原') }
 }
 
 const UNITS = ['B', 'KB', 'MB', 'GB']
@@ -52,6 +53,6 @@ export function lineDelta(before: string, after: string): LineDelta {
 
 /** `+12 行` / `-3 行` / `行数不变`. */
 export function formatDelta(delta: number): string {
-  if (delta === 0) return '行数不变'
-  return `${delta > 0 ? '+' : '−'}${Math.abs(delta)} 行`
+  if (delta === 0) return t('行数不变')
+  return t('{0}{1} 行', delta > 0 ? '+' : '−', Math.abs(delta))
 }

@@ -41,8 +41,8 @@ export function extractHeadings(source: string): Heading[] {
     const label = match[1] === 'ATX'
       ? raw.replace(/^#{1,6}[ \t]*/, '').replace(/[ \t]+#+[ \t]*$/, '')
       : raw.slice(0, raw.lastIndexOf('\n'))
-    const text = stripInline(label).replace(/\s+/g, ' ') || '未命名标题'
-    const base = slugify(text)
+    const text = stripInline(label).replace(/\s+/g, ' ')
+    const base = slugify(text || '未命名标题')
     let id = base
     for (let suffix = 1; ids.has(id); suffix++) id = `${base}-${suffix}`
     ids.add(id)

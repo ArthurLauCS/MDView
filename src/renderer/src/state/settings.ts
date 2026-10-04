@@ -15,6 +15,10 @@ export async function applySettings(): Promise<void> {
   emit()
 }
 
+export function observeSettings(): () => void {
+  return window.mdview.settings.onChanged((settings) => { current = settings; emit() })
+}
+
 export async function patchSettings(patch: Partial<AppSettings>): Promise<void> {
   // Optimistic: the UI should never lag a toggle waiting on disk IO.
   current = { ...current, ...patch }

@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 /**
  * Asset references for the current document.
  *
@@ -56,7 +57,7 @@ export function stripLocalImages(source: string, policy: PlainMdImagePolicy): st
     for (const m of local) {
       const alt = m[1]
       const replacement =
-        policy === 'alt-placeholder' ? (alt ? `*[图：${alt}]*` : '*[图片]*') : '![]()'
+        policy === 'alt-placeholder' ? (alt ? t('*[图：{0}]*', alt) : t('*[图片]*')) : '![]()'
       next = next.split(m[0]).join(replacement)
     }
     kept.push(next)

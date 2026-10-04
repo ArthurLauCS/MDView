@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useCallback, useEffect, useState } from 'react'
 import { findMissing, findOutsideFolder } from './refs'
 import type { AssetRef } from '@shared/types'
@@ -6,15 +7,15 @@ import './assets.css'
 type Filter = 'all' | 'missing' | 'outside'
 
 const FILTERS: { id: Filter; label: string }[] = [
-  { id: 'all', label: '全部' },
-  { id: 'missing', label: '缺失' },
-  { id: 'outside', label: '文件夹外' }
+  { id: 'all', get label() { return t('全部') } },
+  { id: 'missing', get label() { return t('缺失') } },
+  { id: 'outside', get label() { return t('文件夹外') } }
 ]
 
 const EMPTY: Record<Filter, string> = {
-  all: '这篇文档还没有图片。把图片拖进编辑器，或按 Ctrl+Shift+I 插入。',
-  missing: '没有缺失的图片，所有引用都能找到文件。',
-  outside: '没有引用文档文件夹以外的图片。'
+  get all() { return t('这篇文档还没有图片。把图片拖进编辑器，或按 Ctrl+Shift+I 插入。') },
+  get missing() { return t('没有缺失的图片，所有引用都能找到文件。') },
+  get outside() { return t('没有引用文档文件夹以外的图片。') }
 }
 
 /** Filename of a relative link, which is what a person actually recognises. */
@@ -80,13 +81,13 @@ export function AssetPanel({ docPath, source }: { docPath: string; source: strin
     refs === null ? null : filter === 'missing' ? findMissing(refs) : filter === 'outside' ? findOutsideFolder(refs) : refs
 
   return (
-    <section className="assets" aria-label="本文图片">
+    <section className="assets" aria-label={t('本文图片')}>
       <div className="assets__head">
-        <span className="assets__title">本文图片</span>
+        <span className="assets__title">{t('本文图片')}</span>
         {refs !== null && <span className="assets__count">{refs.length}</span>}
       </div>
 
-      <div className="assets__filters" role="tablist" aria-label="图片筛选">
+      <div className="assets__filters" role="tablist" aria-label={t('图片筛选')}>
         {FILTERS.map((f) => (
           <button
             key={f.id}
@@ -102,7 +103,7 @@ export function AssetPanel({ docPath, source }: { docPath: string; source: strin
 
       <div className="assets__list">
         {shown === null ? (
-          <p className="assets__empty">正在载入…</p>
+          <p className="assets__empty">{t('正在载入…')}</p>
         ) : shown.length === 0 ? (
           <p className="assets__empty">{EMPTY[filter]}</p>
         ) : (

@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 /**
  * Turn a loose markdown file into a document folder.
  *
@@ -119,11 +120,11 @@ export async function planOrganize(docPath: string, text: string): Promise<Organ
   const { targetDir } = targetFor(docPath)
   const found = await collect(docPath, text)
   let blocked: string | null = null
-  if (isDocumentFolder(docPath)) blocked = '这份文档已经在自己的文档文件夹里'
+  if (isDocumentFolder(docPath)) blocked = t('这份文档已经在自己的文档文件夹里')
   else {
     try {
       await fs.access(targetDir)
-      blocked = `同名文件夹已存在：${targetDir}`
+      blocked = t('同名文件夹已存在：{0}', targetDir)
     } catch {
       // Free to create.
     }

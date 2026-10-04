@@ -46,7 +46,7 @@ async function main() {
   }
   await wait(1500)
   await run('document.fonts.ready.then(() => true)')
-  await run(`window.__mdview.setSettings({autoSave:false,historyEnabled:false,sidebarVisible:false,motion:'off'})`)
+  await run(`window.__mdview.setSettings({language:'zh-CN',autoSave:false,historyEnabled:false,sidebarVisible:false,motion:'off'})`)
   for (const autoPair of [true, false]) {
     await run(`window.__mdview.setSettings({autoPair:${autoPair}})`)
     await edit('')
@@ -154,7 +154,7 @@ async function main() {
   assert.match(await text(), /^## 键盘菜单/)
   assert.deepEqual(errors, [])
   console.log('PASS: code fences, ordered typing, IME, caret, language detection/selection/undo/hover, prose after code, read-only, submenu mouse/keyboard and viewport edges')
-  if (process.argv.includes('--manual')) { await edit(''); win.setTitle('MDView — Code input verification'); return }
+  if (process.argv.includes('--manual')) { await edit(''); win.setTitle('MDWisp — Code input verification'); return }
   app.exit(0)
 }
 app.whenReady().then(main).catch(error => { console.error(error); app.exit(1) })

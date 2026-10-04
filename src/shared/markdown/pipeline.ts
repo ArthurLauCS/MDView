@@ -17,6 +17,9 @@ import sup from 'markdown-it-sup'
 import hljs from 'highlight.js/lib/common'
 import { detectLanguage } from './detect'
 import { frontmatterEnd } from './frontmatter'
+import type { Locale } from '../types'
+import { en } from '../locales/en'
+import { zhCN } from '../locales/zh-CN'
 
 const md = new MarkdownIt({
   html: true,
@@ -62,6 +65,17 @@ const md = new MarkdownIt({
   }
 })
 
+export { md as markdownParser }
+
+export type MarkdownReferences = Record<string, { href: string; title: string }>
+
+export function markdownReferences(source: string): MarkdownReferences {
+  if (!source.includes(']:')) return {}
+  const env: { references?: MarkdownReferences } = {}
+  md.parse(source.slice(frontmatterEnd(source)), env)
+  return env.references ?? {}
+}
+
 md.use(anchor, {
   permalink: anchor.permalink.linkInsideHeader({
     symbol: '#',
@@ -80,7 +94,11 @@ md.use(anchor, {
 })
 md.use(footnote).use(taskLists, { label: true }).use(deflist).use(mark).use(sub).use(sup)
 
+const fence = md.renderer.rules.fence!
+md.renderer.rules.fence = (tokens, index, options, env, self) => fence(tokens, index, options, env, self)
+  .replace('aria-label="复制代码"', `aria-label="${(env.language === 'en' ? en : zhCN)['复制代码']}"`)
+
 /** Rendering is pure and cheap enough to run per keystroke on normal docs. */
-export function renderMarkdown(source: string): string {
-  return md.render(source.slice(frontmatterEnd(source)))
+export function renderMarkdown(source: string, language: Locale = 'zh-CN', references: MarkdownReferences = {}): string {
+  return md.render(source.slice(frontmatterEnd(source)), { language, references: { ...references } })
 }

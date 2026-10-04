@@ -1,197 +1,162 @@
 <div align="center">
-  <img src="build/icon.png" width="112" height="112" alt="MDView 应用徽标" />
+  <img src="build/icon.png" width="112" height="112" alt="MDWisp icon" />
 
-# MDView
+# MDWisp
 
-**打开就写，图片随文档一起走。**
+[English](README.md) · [简体中文](README.zh-CN.md)
 
-一款为中文写作、代码笔记与表格设计的 Markdown 桌面编辑器。
+**Start writing. Keep images with your document.**
 
-[![Release](https://img.shields.io/github/v/release/ArthurLauCS/MDView?color=d97757&label=release)](https://github.com/ArthurLauCS/MDView/releases/latest)
-![Windows x64](https://img.shields.io/badge/Windows-x64-30302e)
-[![License: MIT](https://img.shields.io/badge/license-MIT-30302e)](LICENSE)
+A local Markdown desktop editor for writing, code notes and tables, with English and Simplified Chinese interfaces.
 
-[下载应用](https://github.com/ArthurLauCS/MDView/releases/latest) · [安装 AI 插件](#安装-ai-插件) · [开始写作](#开始写作) · [更新记录](CHANGELOG.md)
+[Download](https://github.com/ArthurLauCS/MDView/releases/latest) · [AI skills](#ai-skills) · [Getting started](#getting-started) · [Changelog](CHANGELOG.md)
 
 </div>
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="docs/images/editor-light.png" />
-  <img src="docs/images/editor-dark.png" alt="MDView 实际界面：层级大纲、直接编辑、代码高亮与表格" width="100%" />
+  <img src="docs/images/editor-dark.png" alt="Editor with outline, live Markdown, code highlighting and tables" width="100%" />
 </picture>
 
-## 为写作留出空间
+Formerly **MDView**. The icon is unchanged. Existing settings, history, repository URLs and AI command identifiers remain compatible. The screenshots show the earlier Chinese interface.
 
-| 写作 | 整理 | 交付 |
-| :--- | :--- | :--- |
-| 在排版后的正文中直接编辑 | 按标题层级折叠和跳转的大纲 | Markdown、ZIP、HTML、PDF 导出 |
-| 正文宽度、边距和侧栏可拖动调整 | 图片使用相对路径，跟随文档保存 | HTML 内嵌图片与字体，便于离线阅读 |
-| 代码语言自动检测，也可手动选择 | 右侧历史面板，查看差异与恢复版本 | Codex、Cursor、Claude Code 协作规则 |
-| 深浅主题，中文圆体与等宽代码字体 | 表格编辑、排序、统计与转置 | 本地文件，可用其他编辑器继续打开 |
+## Features
 
-## 下载与安装
+| Write | Organize | Share |
+| --- | --- | --- |
+| Edit directly in formatted Markdown | Collapsible heading outline | Markdown, ZIP, HTML and PDF export |
+| Adjustable margins and sidebar widths | Relative image paths beside the document | HTML with embedded images and fonts |
+| Local code detection and explicit language selection | Version history, comparison and restore | Rules for Codex, Cursor and Claude Code |
+| Dark/light themes and configurable fonts | Table editing, sorting, statistics and transpose | Ordinary files that work in other editors |
 
-前往 **[Releases](https://github.com/ArthurLauCS/MDView/releases/latest)**，下载并运行 `MDView-0.1.2-setup.exe`。安装时可以选择目录，并创建桌面快捷方式。
+## Download and installation
 
-当前提供 **Windows x64** 安装包；macOS 和 Linux 尚未验证。安装包暂未进行代码签名。
+Download `MDWisp-0.2.0-setup.exe` from [Releases](https://github.com/ArthurLauCS/MDView/releases/latest), or build it with `npm run dist`. Installation offers English and Simplified Chinese, a directory choice and a desktop shortcut. Installers are currently unsigned; macOS and Linux have not been verified.
 
-只需要 AI 协作规则，可以下载同一发行版中的 `MDView-AI-skills-0.1.2.zip`，无需安装桌面应用。`SHA256SUMS.txt` 提供下载文件的校验值。
+`MDWisp-AI-skills-0.2.0.zip` provides AI rules without installing the app. Copy `en/.agents` into a project for English rules, or `.agents` for Simplified Chinese. Check downloaded files against `SHA256SUMS.txt` from the release.
 
-## 开始写作
+## Getting started
 
-1. **打开就写。** 启动后直接输入，`Ctrl+N` 新建，`Ctrl+O` 打开已有文档。
-2. **第一次保存再选位置。** `Ctrl+S` 选择文件名和目录；取消保存仍保留当前内容。未命名草稿不自动保存、不生成历史快照。
-3. **图片跟着文档走。** 保存文档后，粘贴、拖入或插入图片；应用复制图片并生成相对路径。本文图片集中在左侧栏底部。
-4. **整理与分享。** 可将散装 Markdown 整理成文档文件夹，再按 `Ctrl+Shift+E` 导出。
+1. Start typing immediately. **Ctrl+N** creates a document in a new window; **Ctrl+O** opens one in a new window.
+2. **Ctrl+S** chooses a name and location on first save. Canceling keeps the draft. Untitled drafts have no autosave or snapshots and must be saved before quitting.
+3. Save before pasting, dropping or inserting images. Images are copied beside the document with relative links and listed in the sidebar.
+4. Organize a loose file into a document folder, then use **Ctrl+Shift+E** to export.
 
-保存后的自动保存和历史记录由「设置 → 文档与保存」控制。未命名草稿不会在退出后恢复，关闭前请保存。
+New documents, opened files and repeated shortcut launches use independent windows, preserving the current document and its unsaved edits. After the first save, autosave and history follow **Settings → Documents & saving**. Closing a window offers Save, Don't save and Cancel for unsaved edits. A failed save keeps that window open. A stale save cannot overwrite changes made by another window.
 
-输入三个反引号后按回车即可开始代码块，无需先填写语言。悬停或在代码块内编辑时显示语言选择器；点击代码块下方可以继续写正文。正文两侧边距可直接拖动，双击恢复默认。
+## Language and links
 
-## 文档与图片，一起保存
+Choose **Settings → Appearance & fonts → Interface language** for **English** or **简体中文**. The choice applies immediately and persists across restarts without translating document content or resetting the editor.
 
-MDView 使用普通文件，推荐每篇文档独占一个文件夹：
-
-```text
-我的笔记/
-├── 我的笔记.md
-└── 我的笔记_img/
-    ├── 架构图.svg
-    └── 操作截图.png
-```
-
-图片引用始终相对于 Markdown 文件：
+Use **Ctrl+click** to follow links; use Cmd on macOS. Holding the modifier displays a hand cursor over links. Relative Markdown files open in a new app window, heading anchors navigate within the current document, websites open in the default browser and email links use the mail handler. Reference links, table links and linked images are supported. Ordinary clicks remain editing actions.
 
 ```markdown
-![架构图](./我的笔记_img/架构图.svg)
+[English](README.md) · [简体中文](README.zh-CN.md)
+[Website](https://example.com)
+[Section](#getting-started)
 ```
 
-下面的 MDView 应用架构图就是这个相对路径的实际图片：
+`[English]\(README.md)` escapes the parenthesis and is literal text, not a Markdown link. See the [syntax support matrix](docs/markdown-support.md) for supported syntax and limitations.
 
-![MDView 应用架构：编辑界面经 preload 访问本地服务，共享解析逻辑，保存文档文件夹并导出多种格式](./我的笔记_img/架构图.svg)
-
-把整个文件夹拷走，图片仍然可用。整理前可预览变更，并选择是否保留原文件。
-
-| 格式 | 适合什么场景 |
-| :--- | :--- |
-| Markdown | 继续编辑；纯文本导出，可在导出面板预览图片等内容的处理方式 |
-| ZIP | 携带完整文档文件夹及图片，交给他人继续编辑 |
-| HTML | 单文件离线阅读，内嵌图片、样式与字体 |
-| PDF | 固定版式阅读与打印 |
-
-## 安装 AI 插件
-
-提供两项能力：**doc** 生成符合文档文件夹格式的文档，**share** 预览并移除本地图片与链接，整理可单独分享的 Markdown。三种客户端使用[同一份规则](plugin/mdview/skills)，无需分别维护提示词。
-
-可要求「不生成图片」或「尽量生成图片」；实际图片生成能力取决于所用客户端已连接的工具。
-
-### Codex 与 Cursor：通过应用安装
-
-1. 在 MDView 中打开 **使用说明 → 给 AI 的协作规则**。
-2. 找到 **Codex / Cursor**，点击 **安装到项目**。
-3. 选择准备写文档的项目文件夹。
-4. 在 Codex 或 Cursor 中打开同一文件夹，开始新会话；若未出现技能，重启客户端。
-
-安装后目录如下。安装器会保留已有自定义内容，遇到不同版本时提示先备份处理。
+## Portable document folders
 
 ```text
-你的项目/
-└── .agents/
-    └── skills/
-        ├── mdview-doc/
-        │   ├── SKILL.md
-        │   └── scripts/check.mjs
-        └── mdview-share/
-            └── SKILL.md
+Notes/
+├── Notes.md
+└── Notes_img/
+    └── architecture.svg
 ```
 
-| 客户端 | 创建文档 | 整理交付 |
-| :--- | :--- | :--- |
-| Codex | `$mdview-doc 为这个项目写一份使用手册` | `$mdview-share 整理可分享的单文件 Markdown` |
-| Cursor | `/mdview-doc 为这个项目写一份使用手册` | `/mdview-share 整理可分享的单文件 Markdown` |
-
-**不使用桌面应用：** 解压发行版中的 AI 技能包，将 `.agents` 文件夹复制到项目根目录。如果目标已有同名技能，先比较内容，保留自己的修改。希望所有项目可用，可将两个 `mdview-*` 文件夹放入用户目录 `~/.agents/skills/`。
-
-这里使用客户端的本地 Agent Skills 支持；它不依赖应用商店上架。路径与加载方式见 [Codex Skills 文档](https://learn.chatgpt.com/docs/build-skills)和 [Cursor Skills 文档](https://cursor.com/docs/skills)。
-
-### Claude Code：从 GitHub 安装
-
-在终端执行：
-
-```bash
-claude plugin marketplace add ArthurLauCS/MDView
-claude plugin install mdview@mdview
+```markdown
+![Architecture](./Notes_img/architecture.svg)
 ```
 
-在新的 Claude Code 会话中使用：
+The folder name, Markdown filename and `_img` prefix match. Omit the image folder when there are no images. Share the entire document folder so images remain available on another machine.
 
-```text
-/mdview:doc 为这个项目写一份使用手册
-/mdview:share 整理可分享的单文件 Markdown
-```
+**Organize into a document folder** previews local images, missing references and optional remote downloads. Keep the original or move it to the recycle bin. Code examples remain unchanged. ZIP export requires a document folder so unrelated files are not archived.
 
-也可以在 MDView 的「给 AI 的协作规则」中，点击 Claude Code 的 **复制安装命令**，把命令粘贴到 Claude Code 会话中，使用随应用分发的本地插件。
+## Code, tables and history
 
-如果已下载源码或 AI 技能包，在解压目录运行：
+Code fences use an explicit language or local rule-based detection without network access. Uncertain results remain plain text.
+
+Click table cells to edit. Toolbar, context menu and palette actions support rows, columns, alignment, sorting, statistics, merging and conversion. Some registered actions remain unavailable; see [project status](docs/STATUS.md).
+
+History opens beside the editor. Inspect snapshots, compare changes, record a snapshot or restore a version. Restoration saves the current content first and can be undone. Deleting snapshots or clearing history is permanent. History is stored in application data, outside shared document folders.
+
+## Export
+
+| Format | Result |
+| --- | --- |
+| Plain Markdown | Removes local images and paths according to the image policy, with a preview |
+| ZIP | Archives saved files in the document folder without rewriting links |
+| HTML | A self-contained file with local images and fonts embedded |
+| PDF | A4 pages with embedded local images |
+
+## AI skills
+
+The `doc` skill creates portable document folders; `share` previews and removes local images and paths for a standalone file. All clients use the [plugin rule sources](plugin/mdview/skills), with English companion rules included.
+
+In **Help → Rules for AI assistants**, choose a project to install skills for Codex and Cursor. Existing project instructions are preserved. Conflicting skill files must be backed up before replacing them. The selected interface language determines the installed rules' language.
+
+| Client | Write | Share |
+| --- | --- | --- |
+| Codex | `$mdview-doc Write a user guide` | `$mdview-share Export standalone Markdown` |
+| Cursor | `/mdview-doc Write a user guide` | `/mdview-share Export standalone Markdown` |
+
+Skills install in `.agents/skills/mdview-doc/` and `.agents/skills/mdview-share/`. These identifiers remain compatible with the former MDView name. Alternatively copy `en/.agents` from the AI skills archive into your project as `.agents`; for all projects, use `~/.agents/skills/` and preserve custom modifications.
+
+For Claude Code, use the app's **Copy install command**, or run from a checkout:
 
 ```bash
 claude plugin marketplace add ./plugin
 claude plugin install mdview@mdview
 ```
 
-用 `claude plugin list` 检查安装结果。若之前已添加名为 `mdview` 的本地市场，可继续使用它，无需重复添加。此处指 **Claude Code** 的插件系统；安装机制见 [Claude Code 插件市场文档](https://code.claude.com/docs/en/plugin-marketplaces)。
-
-### 检查 AI 生成的文档
-
-校验脚本需要 Node.js，无需安装依赖。在安装技能的项目根目录运行：
+Use `/mdview:doc` or `/mdview:share` in a new session. Validate generated folders with Node.js:
 
 ```bash
-node .agents/skills/mdview-doc/scripts/check.mjs "./我的笔记"
+node .agents/skills/mdview-doc/scripts/check.mjs "./Notes"
 ```
 
-从源码或 AI 技能包运行时，也可使用 `plugin/mdview/skills/doc/scripts/check.mjs`。它会检查文件夹命名、Markdown 主文件及图片引用等约定。
+## Shortcuts
 
-## 常用快捷键
+| Action | Shortcut | Action | Shortcut |
+| --- | --- | --- | --- |
+| New document | Ctrl+N | Open document | Ctrl+O |
+| Save | Ctrl+S | Export | Ctrl+Shift+E |
+| Command palette | Ctrl+P | Settings | Ctrl+, |
+| History | Ctrl+H | Code block | Ctrl+Shift+C |
+| Insert image | Ctrl+Shift+I | Toggle sidebar | Ctrl+\ |
+| Undo | Ctrl+Z | Redo | Ctrl+Shift+Z / Ctrl+Y |
 
-| 操作 | 快捷键 | 操作 | 快捷键 |
-| :--- | :--- | :--- | :--- |
-| 新建文档 | `Ctrl+N` | 打开文档 | `Ctrl+O` |
-| 保存 | `Ctrl+S` | 导出 | `Ctrl+Shift+E` |
-| 命令面板 | `Ctrl+P` | 设置 | `Ctrl+,` |
-| 历史版本 | `Ctrl+H` | 插入代码块 | `Ctrl+Shift+C` |
-| 插入图片 | `Ctrl+Shift+I` | 显示 / 隐藏侧栏 | `Ctrl+\` |
-| 撤销 | `Ctrl+Z` | 重做 | `Ctrl+Shift+Z` / `Ctrl+Y` |
+Press **F1** for the searchable list. Table, code and image commands depend on focus. App commands such as Export remain available while panels are open.
 
-按 `F1` 查看按功能分类的完整列表。格式和表格操作取决于当前编辑位置；导出等应用级快捷键在设置、历史等面板获得焦点时仍可使用。
+## Development and verification
 
-## 开发与验证
-
-基于 Electron、React、TypeScript、CodeMirror 6 和 markdown-it。准备 Node.js 22 LTS、npm 与 Git；Windows 安装包在 Windows 环境构建。
+Built with Electron, React, TypeScript, CodeMirror 6 and markdown-it. Use Node.js 22 LTS, npm and Git. Build Windows installers on Windows.
 
 ```bash
 npm ci
-npm run dev          # 本地开发
-npm test             # 单元测试
-npm run typecheck    # 主进程与渲染进程类型检查
-npm run dist         # 构建 Windows NSIS 安装包，输出到 release/
+npm run dev
+npm test
+npm run typecheck
+npm run dist
 ```
 
-交互回归使用真实 Electron 窗口和隔离的临时文档：
+Real Electron regressions use isolated profiles and document copies:
 
 ```bash
 npm run build
 npx electron scripts/shoot.cjs design-review/round-N
+npx electron scripts/links-i18n-check.cjs design-review/round-links-i18n-N
 npx electron scripts/code-block-menu-check.cjs design-review/code-block-menu-N
 npx electron scripts/shortcuts-layout-check.cjs design-review/shortcuts-layout-N
 node scripts/packaged-check.cjs design-review/packaged-N
-claude plugin validate .
 claude plugin validate plugin
 ```
 
-0.1.2 已通过 357 个单元测试、类型检查、快捷键与编辑交互回归，并验证打包应用的四种导出和技能安装。剩余的 14 个无快捷键表格动作及其他限制记录在[项目状态](docs/STATUS.md)。问题反馈请使用 [Issues](https://github.com/ArthurLauCS/MDView/issues)。
+See [AGENTS.md](AGENTS.md) for development rules. Report issues in the existing [GitHub repository](https://github.com/ArthurLauCS/MDView/issues).
 
-开发约定见 [AGENTS.md](AGENTS.md)：系统能力通过 preload 暴露；资源路径集中处理；快捷键、右键菜单与命令面板共享动作注册表。
+## License and fonts
 
-## 许可证与字体
-
-应用代码采用 [MIT License](LICENSE)。内置字体使用各自的开源授权，授权文本随源码与安装包分发：[源泉圆体](src/renderer/public/OFL-GenSen.txt)、[站酷小薇体](src/renderer/public/OFL-ZCOOLXiaoWei.txt)。
+Code uses [MIT](LICENSE). Bundled fonts retain their open licenses: [GenSen Rounded](src/renderer/public/OFL-GenSen.txt) and [ZCOOL XiaoWei](src/renderer/public/OFL-ZCOOLXiaoWei.txt).

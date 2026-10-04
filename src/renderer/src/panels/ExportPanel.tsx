@@ -1,7 +1,9 @@
+import { t } from '../i18n'
 import { useCallback, useEffect, useState } from 'react'
 import type { ExportMode, ExportPreview } from '@shared/types'
 import { documentBuffer, useDocuments } from '../state/documents'
 import { openPanel } from '../state/ui'
+import { useSettings } from '../state/settings'
 
 interface Props {
   onClose: () => void
@@ -16,27 +18,28 @@ interface ModeDef {
 const MODES: ModeDef[] = [
   {
     value: 'plain-md',
-    name: '纯 Markdown',
-    hint: '剥离图片与本地路径，得到一份可以直接粘贴的文本'
+    get name() { return t('纯 Markdown') },
+    get hint() { return t('剥离图片与本地路径，得到一份可以直接粘贴的文本') }
   },
   {
     value: 'zip',
-    name: '打包 ZIP',
-    hint: '压缩整个文档文件夹里已保存的内容，链接原样不动'
+    get name() { return t('打包 ZIP') },
+    get hint() { return t('压缩整个文档文件夹里已保存的内容，链接原样不动') }
   },
   {
     value: 'html',
-    name: '单文件 HTML',
-    hint: '图片转 base64 内嵌，可直接发邮件'
+    get name() { return t('单文件 HTML') },
+    get hint() { return t('图片转 base64 内嵌，可直接发邮件') }
   },
   {
     value: 'pdf',
     name: 'PDF',
-    hint: 'A4 分页排版，图片内嵌'
+    get hint() { return t('A4 分页排版，图片内嵌') }
   }
 ]
 
 export function ExportPanel({ onClose }: Props): JSX.Element {
+  const { language } = useSettings()
   const { active } = useDocuments()
   const [mode, setMode] = useState<ExportMode>('plain-md')
   const [preview, setPreview] = useState<ExportPreview | null>(null)
@@ -63,7 +66,7 @@ export function ExportPanel({ onClose }: Props): JSX.Element {
     } finally {
       setBusy(false)
     }
-  }, [docPath, mode, source, needsFolder])
+  }, [docPath, mode, source, needsFolder, language])
 
   useEffect(() => {
     void runPreview()
@@ -94,13 +97,13 @@ export function ExportPanel({ onClose }: Props): JSX.Element {
       <div className="panel__scrim" onMouseDown={onClose}>
         <div className="panel" onMouseDown={(e) => e.stopPropagation()}>
           <header className="panel__head">
-            <h2 className="panel__title">导出</h2>
+            <h2 className="panel__title">{t('导出')}</h2>
             <button className="panel__close" onClick={onClose}>
               Esc
             </button>
           </header>
           <div className="panel__body">
-            <p className="panel__empty">请先保存文档，确定文档及图片的位置后再导出。</p>
+            <p className="panel__empty">{t('请先保存文档，确定文档及图片的位置后再导出。')}</p>
           </div>
         </div>
       </div>
@@ -112,11 +115,11 @@ export function ExportPanel({ onClose }: Props): JSX.Element {
       <div
         className="panel panel--wide"
         role="dialog"
-        aria-label="导出"
+        aria-label={t('导出')}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <header className="panel__head">
-          <h2 className="panel__title">导出</h2>
+          <h2 className="panel__title">{t('导出')}</h2>
           <button className="panel__close" onClick={onClose}>
             Esc
           </button>
@@ -138,8 +141,7 @@ export function ExportPanel({ onClose }: Props): JSX.Element {
 
           {needsFolder && (
             <p className="panel__note">
-              这是一份散装文件，所在文件夹里还有别的东西，不能整个打包。
-              <button className="panel__link" onClick={() => openPanel('organize')}>先整理为文档文件夹</button>
+              {t('这是一份散装文件，所在文件夹里还有别的东西，不能整个打包。')}<button className="panel__link" onClick={() => openPanel('organize')}>{t('先整理为文档文件夹')}</button>
             </p>
           )}
           {shown && !plain && !needsFolder && <p className="panel__note">{shown.output}</p>}
@@ -147,14 +149,14 @@ export function ExportPanel({ onClose }: Props): JSX.Element {
           {(plain || !!shown?.removals.length) && (
             <section className="section" style={{ marginTop: 'var(--space-8)' }}>
               <div className="section__head">
-                <h3 className="section__title">{plain ? '将要移除的内容' : '未包含的内容'}</h3>
+                <h3 className="section__title">{plain ? t('将要移除的内容') : t('未包含的内容')}</h3>
                 <span className="row__hint">
-                  {busy ? '计算中…' : `${shown?.removals.length ?? 0} ${plain ? '行' : '项'}`}
+                  {busy ? t('计算中…') : `${shown?.removals.length ?? 0} ${plain ? t('行') : t('项')}`}
                 </span>
               </div>
 
               {shown && shown.removals.length === 0 && (
-                <p className="panel__empty">这份文档不含图片和本地路径，导出后内容完全一致</p>
+                <p className="panel__empty">{t('这份文档不含图片和本地路径，导出后内容完全一致')}</p>
               )}
 
               {shown && shown.removals.length > 0 && (
@@ -173,19 +175,19 @@ export function ExportPanel({ onClose }: Props): JSX.Element {
             </section>
           )}
 
-          <p className="panel__note">写出目标：{shown?.targetPath ?? '—'}</p>
+          <p className="panel__note">{t('写出目标：')}{shown?.targetPath ?? '—'}</p>
         </div>
 
         <footer className="panel__foot">
           <span>
             {error ? (
-              `导出失败：${error}`
+              t('导出失败：{0}', error)
             ) : result ? (
               <>
-                已导出到 <code>{result}</code>
+                {t('已导出到')}<code>{result}</code>
               </>
             ) : (
-              '写出前会先让你确认'
+              t('写出前会先让你确认')
             )}
           </span>
           <button
@@ -193,8 +195,7 @@ export function ExportPanel({ onClose }: Props): JSX.Element {
             disabled={busy || needsFolder}
             onClick={() => void confirm()}
           >
-            导出
-          </button>
+            {t('导出')}</button>
         </footer>
       </div>
     </div>

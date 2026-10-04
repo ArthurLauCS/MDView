@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { SessionState } from '@shared/types'
 import { openWorkspacePath } from './workspace'
-import { confirmDocumentChange, currentDocument, documentError, hasUnsavedChanges, newDocument, openDocument } from './documents'
+import { confirmDocumentChange, currentDocument, documentError, hasUnsavedChanges, initializeDocument, loadDocument } from './documents'
 
 /**
  * Restores the window's previous state on launch and keeps it up to date.
@@ -63,7 +63,7 @@ export async function restoreSession(): Promise<boolean> {
   current = state
   // A double-clicked file is what the user asked for; it outranks last time's.
   const launch = await window.mdview.app.launchDocument()
-  const target = launch ?? state.activeDoc
+  const target = launch.path ?? state.activeDoc
 
   if (state.workspaceRoot) {
     try {
@@ -72,13 +72,13 @@ export async function restoreSession(): Promise<boolean> {
       // The folder went away between sessions; start clean rather than
       // leaving the window in a broken half-open state.
       current = null
-      if (!launch) return false
+      if (!launch.path) return false
     }
   }
 
   if (target) {
     try {
-      await openDocument(target)
+      await loadDocument(target, launch.fragment)
       return currentDocument()?.meta.path === target
     } catch {
       return false
@@ -115,13 +115,12 @@ export function useSessionBoot(): { booted: boolean; restored: boolean } {
   useEffect(() => {
     let live = true
     bootPromise ??= restoreSession().then(async (restored) => {
-      if (!restored) await newDocument()
+      if (!restored) await initializeDocument()
       return restored
     })
     void bootPromise.then((restored) => {
       if (live) setState({ booted: true, restored })
     })
-    const stopOpen = window.mdview.app.onOpenDocument((path) => void openDocument(path))
     let closing = false
     let approved = false
     const stop = window.mdview.window.onCloseRequested(() => {
@@ -144,7 +143,6 @@ export function useSessionBoot(): { booted: boolean; restored: boolean } {
     return () => {
       live = false
       stop()
-      stopOpen()
       window.removeEventListener('beforeunload', beforeReload)
     }
   }, [])

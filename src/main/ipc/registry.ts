@@ -1,4 +1,5 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, shell } from 'electron'
+import { t } from '../i18n'
+import { app, BrowserWindow, clipboard, dialog, nativeImage, shell } from 'electron'
 import { promises as fs } from 'node:fs'
 import { existsSync } from 'node:fs'
 import { dirname, extname, join, relative } from 'node:path'
@@ -6,6 +7,7 @@ import { IPC } from '@shared/ipc'
 import { previewPlainMd } from '../services/export'
 import { planOrganize, runOrganize } from '../services/organize'
 import { installSkills } from '../services/plugin'
+import { resolveDocumentLink } from '../services/paths'
 import { archiveNameFor, runZip } from '../export/archive'
 import { buildHtml } from '../export/html'
 import { renderPdf, writePdf } from '../export/pdf'
@@ -17,10 +19,12 @@ import type { DocumentService } from '../services/documents'
 import type { AssetService } from '../services/assets'
 import type { HistoryService } from '../services/history'
 import type { SessionService } from '../services/session'
-import type { AppSettings, ExportMode, OrganizeOptions } from '@shared/types'
+import type { AppSettings, ExportMode, OrganizeOptions, WindowLaunch } from '@shared/types'
 
 export interface HandlerContext {
   getWindow: () => BrowserWindow | null
+  openWindow: (path: string | null, fragment: string) => void
+  launch: WindowLaunch
   settings: SettingsService
   workspace: WorkspaceService
   documents: DocumentService
@@ -35,8 +39,18 @@ const IMAGE_FILTER: Electron.FileFilter[] = [
 
 export function registerAllHandlers(ctx: HandlerContext): void {
   const { getWindow, settings, workspace, documents, assets, history, session } = ctx
+  const ipcMain = getWindow()!.webContents.ipc
 
   // ---- window chrome ------------------------------------------------------
+  ipcMain.handle(IPC.APP_LAUNCH_DOCUMENT, () => {
+    const launch = ctx.launch
+    ctx.launch = { path: null, fragment: '' }
+    return launch
+  })
+  ipcMain.handle(IPC.WINDOW_OPEN, async (_e, path: string | null, fragment: string) => {
+    if (path) await documents.read(path)
+    ctx.openWindow(path, fragment)
+  })
   ipcMain.on(IPC.WINDOW_MINIMIZE, () => getWindow()?.minimize())
   ipcMain.on(IPC.WINDOW_CLOSE, () => getWindow()?.close())
   let closeApproved = false
@@ -63,7 +77,7 @@ export function registerAllHandlers(ctx: HandlerContext): void {
     if (!win) return null
     const res = await dialog.showOpenDialog(win, {
       properties: ['openDirectory'],
-      title: '打开文档目录'
+      title: t('打开文档目录')
     })
     if (res.canceled || res.filePaths.length === 0) return null
     return workspace.open(res.filePaths[0])
@@ -74,22 +88,23 @@ export function registerAllHandlers(ctx: HandlerContext): void {
 
   // ---- documents ----------------------------------------------------------
   ipcMain.handle(IPC.DOC_READ, (_e, path: string) => documents.read(path))
-  ipcMain.handle(IPC.DOC_WRITE, async (_e, path: string, text: string) => {
-    await documents.write(path, text)
+  ipcMain.handle(IPC.DOC_RESOLVE_LINK, (_e, path: string, href: string) => resolveDocumentLink(path, href))
+  ipcMain.handle(IPC.DOC_WRITE, async (_e, path: string, text: string, expected?: string) => {
+    await documents.write(path, text, expected)
     return documents.metaFor(path)
   })
   ipcMain.handle(IPC.DIALOG_OPEN_DOCUMENT, async () => {
     const result = await dialog.showOpenDialog(getWindow()!, {
-      title: '打开文档', properties: ['openFile'],
-      filters: [{ name: 'Markdown 文档', extensions: ['md', 'markdown', 'mdx'] }]
+      title: t('打开文档'), properties: ['openFile'],
+      filters: [{ name: t('Markdown 文档'), extensions: ['md', 'markdown', 'mdx'] }]
     })
     return result.canceled ? null : result.filePaths[0]
   })
   ipcMain.handle(IPC.DIALOG_CONFIRM_SAVE, async (_event, name: string) => {
     const result = await dialog.showMessageBox(getWindow()!, {
-      type: 'question', title: '保存文档', message: `是否保存「${name}」的修改？`,
-      detail: '不保存会丢弃本次尚未写入文件的内容。',
-      buttons: ['保存', '不保存', '取消'], defaultId: 0, cancelId: 2, noLink: true
+      type: 'question', title: t('保存文档'), message: t('是否保存「{0}」的修改？', name),
+      detail: t('不保存会丢弃本次尚未写入文件的内容。'),
+      buttons: [t('保存'), t('不保存'), t('取消')], defaultId: 0, cancelId: 2, noLink: true
     })
     return ['save', 'discard', 'cancel'][result.response]
   })
@@ -153,7 +168,7 @@ export function registerAllHandlers(ctx: HandlerContext): void {
     if (mode === 'plain-md') {
       const preview = await previewPlainMd(docPath, text, settings.get(), mode)
       const res = await dialog.showSaveDialog(win, {
-        title: '导出为纯 Markdown',
+        title: t('导出为纯 Markdown'),
         defaultPath: preview.targetPath
       })
       if (res.canceled || !res.filePath) return null
@@ -164,7 +179,7 @@ export function registerAllHandlers(ctx: HandlerContext): void {
     if (mode === 'zip') {
       const { archive } = await runZip(docPath)
       const res = await dialog.showSaveDialog(win, {
-        title: '打包文档文件夹',
+        title: t('打包文档文件夹'),
         defaultPath: join(docPath, '..', archiveNameFor(docPath)),
         filters: [{ name: 'ZIP', extensions: ['zip'] }]
       })
@@ -176,7 +191,7 @@ export function registerAllHandlers(ctx: HandlerContext): void {
     if (mode === 'html') {
       const preview = await previewHtml(docPath, text, settings.get())
       const res = await dialog.showSaveDialog(win, {
-        title: '导出为单文件 HTML',
+        title: t('导出为单文件 HTML'),
         defaultPath: preview.targetPath,
         filters: [{ name: 'HTML', extensions: ['html'] }]
       })
@@ -193,7 +208,7 @@ export function registerAllHandlers(ctx: HandlerContext): void {
     if (mode === 'pdf') {
       const preview = await previewPdf(docPath, text, settings.get())
       const res = await dialog.showSaveDialog(win, {
-        title: '导出为 PDF',
+        title: t('导出为 PDF'),
         defaultPath: preview.targetPath,
         filters: [{ name: 'PDF', extensions: ['pdf'] }]
       })
@@ -211,7 +226,10 @@ export function registerAllHandlers(ctx: HandlerContext): void {
   })
 
   // ---- shell + clipboard --------------------------------------------------
-  ipcMain.handle(IPC.SHELL_OPEN_EXTERNAL, (_e, url: string) => shell.openExternal(url))
+  ipcMain.handle(IPC.SHELL_OPEN_EXTERNAL, (_e, url: string) => {
+    if (!/^(https?:|mailto:)/i.test(url) && url !== 'ms-settings:defaultapps') throw new Error(t('不支持的链接类型'))
+    return shell.openExternal(url)
+  })
 
   ipcMain.handle(IPC.CLIPBOARD_READ_TABLE, () => clipboard.readHTML() || clipboard.readText())
   ipcMain.handle(IPC.CLIPBOARD_WRITE_TEXT, (_e, text: string) => {
@@ -233,7 +251,7 @@ export function registerAllHandlers(ctx: HandlerContext): void {
       if (!win) return null
       const res = await dialog.showSaveDialog(win, {
         defaultPath: defaultName,
-        filters: filters ?? [{ name: '所有文件', extensions: ['*'] }]
+        filters: filters ?? [{ name: t('所有文件'), extensions: ['*'] }]
       })
       return res.canceled || !res.filePath ? null : res.filePath
     }
@@ -315,7 +333,7 @@ export function registerAllHandlers(ctx: HandlerContext): void {
   ipcMain.handle(IPC.APP_PLUGIN_PATH, () => join(stockRoot(), '..', 'plugin'))
   ipcMain.handle(IPC.APP_INSTALL_SKILLS, async () => {
     const selected = await dialog.showOpenDialog(getWindow()!, {
-      title: '选择 Codex / Cursor 使用的项目文件夹',
+      title: t('选择 Codex / Cursor 使用的项目文件夹'),
       properties: ['openDirectory', 'createDirectory']
     })
     if (selected.canceled) return null
@@ -361,5 +379,9 @@ export function registerAllHandlers(ctx: HandlerContext): void {
 
   // ---- settings -----------------------------------------------------------
   ipcMain.handle('settings:get', () => settings.get())
-  ipcMain.handle('settings:patch', (_e, patch: Partial<AppSettings>) => settings.patch(patch))
+  ipcMain.handle('settings:patch', (_e, patch: Partial<AppSettings>) => {
+    const next = settings.patch(patch)
+    for (const win of BrowserWindow.getAllWindows()) win.webContents.send(IPC.SETTINGS_CHANGED, next)
+    return next
+  })
 }

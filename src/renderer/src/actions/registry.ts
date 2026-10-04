@@ -1,7 +1,10 @@
+import { t } from '../i18n'
 import { patchSettings, settingsSnapshot } from '../state/settings'
 import { togglePanel } from '../state/ui'
 import { currentDocument, newDocument, openDocumentDialog, saveDocument } from '../state/documents'
 import { openWorkspaceDialog } from '../state/workspace'
+import { linkAt, unlinkAt } from '../markdown/links'
+import { followDocumentLink } from '../markdown/navigation'
 import type { ActionContext, ActionDef } from './types'
 import {
   autoPair,
@@ -46,22 +49,22 @@ export const GROUPS = [
 export type GroupId = (typeof GROUPS)[number]
 
 export const GROUP_LABELS: Record<GroupId, string> = {
-  format: '格式',
-  convert: '转换为',
-  insert: '插入',
-  find: '查找',
-  clipboard: '剪贴板',
-  'table-row': '行',
-  'table-col': '列',
-  'table-cell': '单元格',
-  'table-data': '数据',
-  'table-style': '样式',
-  'table-struct': '结构',
-  code: '代码',
-  image: '图片',
-  link: '链接',
-  file: '文件',
-  view: '视图'
+  get format() { return t('格式') },
+  get convert() { return t('转换为') },
+  get insert() { return t('插入') },
+  get find() { return t('查找') },
+  get clipboard() { return t('剪贴板') },
+  get 'table-row'() { return t('行') },
+  get 'table-col'() { return t('列') },
+  get 'table-cell'() { return t('单元格') },
+  get 'table-data'() { return t('数据') },
+  get 'table-style'() { return t('样式') },
+  get 'table-struct'() { return t('结构') },
+  get code() { return t('代码') },
+  get image() { return t('图片') },
+  get link() { return t('链接') },
+  get file() { return t('文件') },
+  get view() { return t('视图') }
 }
 
 /** Wrappers exposed as one action each so a key can bind to any of them. */
@@ -73,7 +76,7 @@ const inline = (
   keywords: string[]
 ): ActionDef => ({
   id,
-  title,
+  get title() { return t(title) },
   keywords,
   scope: 'document',
   key,
@@ -88,7 +91,7 @@ const inline = (
 
 const prefix = (toggle: (typeof LINE_PREFIXES)[number], key?: string): ActionDef => ({
   id: `prefix.${toggle.id}`,
-  title: toggle.title,
+  get title() { return toggle.title },
   keywords: ['list', 'quote', 'bullet', 'ordered', 'task'],
   scope: 'document',
   key,
@@ -103,7 +106,7 @@ const prefix = (toggle: (typeof LINE_PREFIXES)[number], key?: string): ActionDef
 
 const heading = (level: number): ActionDef => ({
   id: `heading.${level}`,
-  title: level === 0 ? '正文段落' : `标题 H${level}`,
+  get title() { return level === 0 ? t('正文段落') : t('标题 H{0}', level) },
   keywords: ['heading', 'title', `h${level}`],
   scope: 'document',
   key: level > 0 ? `Ctrl+Shift+Digit${level}` : 'Ctrl+Shift+Digit0',
@@ -118,7 +121,7 @@ const heading = (level: number): ActionDef => ({
 /** Alt text from the original filename — never from the hashed stored name. */
 function altTextFor(path: string): string {
   const base = path.split(/[\\/]/).pop() ?? ''
-  return base.replace(/\.[^.]+$/, '') || '图片'
+  return base.replace(/\.[^.]+$/, '') || t('图片')
 }
 
 /**
@@ -137,17 +140,17 @@ const tableAction = (
   keywords: string[] = []
 ): ActionDef => ({
   id,
-  title,
+  get title() { return t(title) },
   keywords,
   scope: 'table',
   key,
   group,
   enabled: (ctx) => ctx.inTable,
-  disabledReason: (ctx) => (ctx.inTable ? undefined : '光标不在表格内'),
+  disabledReason: (ctx) => (ctx.inTable ? undefined : t('光标不在表格内')),
   run: async (ctx) => {
     const { runTableAction, needsClipboard } = await import('../tableui/run-spec')
     const text = needsClipboard(id) ? await window.mdview.clipboard.readTable() : ''
-    if (!runTableAction(id, ctx, text)) ctx.toast('这个操作在当前单元格不可用')
+    if (!runTableAction(id, ctx, text)) ctx.toast(t('这个操作在当前单元格不可用'))
   }
 })
 
@@ -164,47 +167,47 @@ const tableStub = (
   keywords: string[] = []
 ): ActionDef => ({
   id,
-  title,
+  get title() { return t(title) },
   keywords,
   scope: 'table',
   key,
   group,
   enabled: () => false,
-  disabledReason: () => '这个操作还没实现',
+  disabledReason: () => t('这个操作还没实现'),
   run: () => undefined
 })
 
 export const ACTIONS: ActionDef[] = [
-  { id: 'document.new', title: '新建文档', key: 'Ctrl+N', scope: 'app', group: 'file', keywords: ['new', 'blank', '草稿'], run: () => newDocument() },
-  { id: 'document.open', title: '打开文档', key: 'Ctrl+O', scope: 'app', group: 'file', keywords: ['open'], run: () => openDocumentDialog() },
-  { id: 'workspace.open', title: '打开目录', key: 'Ctrl+Shift+O', scope: 'app', group: 'file', run: () => openWorkspaceDialog() },
-  { id: 'view.settings', title: '设置', key: 'Ctrl+,', scope: 'app', group: 'view', run: () => togglePanel('settings') },
-  { id: 'view.shortcuts', title: '快捷键', key: 'F1', scope: 'app', group: 'view', run: () => togglePanel('shortcuts') },
-  { id: 'view.help', title: '使用说明', scope: 'app', group: 'view', run: () => togglePanel('help') },
-  { id: 'view.palette', title: '命令面板', key: 'Ctrl+P', scope: 'app', group: 'view', run: () => togglePanel('palette') },
-  { id: 'document.export', title: '导出文档', key: 'Ctrl+Shift+E', scope: 'app', group: 'file', run: () => togglePanel('export') },
+  { id: 'document.new', get title() { return t('新建文档') }, key: 'Ctrl+N', scope: 'app', group: 'file', keywords: ['new', 'blank', '草稿'], run: () => newDocument() },
+  { id: 'document.open', get title() { return t('打开文档') }, key: 'Ctrl+O', scope: 'app', group: 'file', keywords: ['open'], run: () => openDocumentDialog() },
+  { id: 'workspace.open', get title() { return t('打开目录') }, key: 'Ctrl+Shift+O', scope: 'app', group: 'file', run: () => openWorkspaceDialog() },
+  { id: 'view.settings', get title() { return t('设置') }, key: 'Ctrl+,', scope: 'app', group: 'view', run: () => togglePanel('settings') },
+  { id: 'view.shortcuts', get title() { return t('快捷键') }, key: 'F1', scope: 'app', group: 'view', run: () => togglePanel('shortcuts') },
+  { id: 'view.help', get title() { return t('使用说明') }, scope: 'app', group: 'view', run: () => togglePanel('help') },
+  { id: 'view.palette', get title() { return t('命令面板') }, key: 'Ctrl+P', scope: 'app', group: 'view', run: () => togglePanel('palette') },
+  { id: 'document.export', get title() { return t('导出文档') }, key: 'Ctrl+Shift+E', scope: 'app', group: 'file', run: () => togglePanel('export') },
   {
-    id: 'view.history', title: '历史版本', key: 'Ctrl+H',
+    id: 'view.history', get title() { return t('历史版本') }, key: 'Ctrl+H',
     scope: 'app', group: 'view', keywords: ['history', '快照', '还原'],
     run: () => togglePanel('history')
   },
   {
-    id: 'document.save', title: '保存文档', key: 'Ctrl+S', scope: 'document', group: 'file',
+    id: 'document.save', get title() { return t('保存文档') }, key: 'Ctrl+S', scope: 'document', group: 'file',
     run: async () => { await saveDocument() }
   },
   {
-    id: 'document.organize', title: '整理为文档文件夹', scope: 'document', group: 'file',
+    id: 'document.organize', get title() { return t('整理为文档文件夹') }, scope: 'document', group: 'file',
     keywords: ['organize', 'folder', '文件夹', '散装', '转换'],
     enabled: () => !!currentDocument()?.meta.path && !currentDocument()!.meta.inFolder,
-    disabledReason: () => (currentDocument()?.meta.path ? '这份文档已经在自己的文档文件夹里' : '请先保存文档'),
+    disabledReason: () => (currentDocument()?.meta.path ? t('这份文档已经在自己的文档文件夹里') : t('请先保存文档')),
     run: () => togglePanel('organize')
   },
   {
-    id: 'document.undo', title: '撤销', key: 'Ctrl+Z', scope: 'document', group: 'file',
+    id: 'document.undo', get title() { return t('撤销') }, key: 'Ctrl+Z', scope: 'document', group: 'file',
     run: (ctx) => ctx.undo?.()
   },
   {
-    id: 'document.redo', title: '重做', key: 'Ctrl+Shift+Z', altKeys: ['Ctrl+Y'], scope: 'document', group: 'file',
+    id: 'document.redo', get title() { return t('重做') }, key: 'Ctrl+Shift+Z', altKeys: ['Ctrl+Y'], scope: 'document', group: 'file',
     run: (ctx) => ctx.redo?.()
   },
   // ---- inline formatting --------------------------------------------------
@@ -230,7 +233,7 @@ export const ACTIONS: ActionDef[] = [
   // ---- insert -------------------------------------------------------------
   {
     id: 'insert.link',
-    title: '链接',
+    get title() { return t('链接') },
     keywords: ['link', 'url'],
     scope: 'document',
     key: 'Ctrl+K',
@@ -246,7 +249,7 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'insert.image',
-    title: '插入图片',
+    get title() { return t('插入图片') },
     keywords: ['image', 'picture', 'paste'],
     scope: 'document',
     key: 'Ctrl+Shift+I',
@@ -254,7 +257,7 @@ export const ACTIONS: ActionDef[] = [
     run: (ctx) => {
       void (async () => {
         if (!ctx.docPath) {
-          ctx.toast('请先保存文档，再插入图片；图片会放在文档旁边。', 'error')
+          ctx.toast(t('请先保存文档，再插入图片；图片会放在文档旁边。'), 'error')
           return
         }
         const paths = await window.mdview.dialog.openImages()
@@ -271,7 +274,7 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'insert.codeblock',
-    title: '代码块',
+    get title() { return t('代码块') },
     keywords: ['code', 'fence'],
     scope: 'document',
     key: 'Ctrl+Shift+C',
@@ -283,7 +286,7 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'insert.table',
-    title: '插入表格',
+    get title() { return t('插入表格') },
     keywords: ['table', 'grid'],
     scope: 'document',
     key: 'Ctrl+Alt+T',
@@ -297,7 +300,7 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'insert.footnote',
-    title: '插入脚注',
+    get title() { return t('插入脚注') },
     keywords: ['footnote', 'note'],
     scope: 'document',
     key: 'Ctrl+Shift+W',
@@ -306,7 +309,7 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'insert.math',
-    title: '插入数学块',
+    get title() { return t('插入数学块') },
     keywords: ['math', 'latex', 'katex', 'formula'],
     scope: 'document',
     key: 'Ctrl+Alt+M',
@@ -318,19 +321,19 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'insert.mermaid',
-    title: '插入 Mermaid 图',
+    get title() { return t('插入 Mermaid 图') },
     keywords: ['mermaid', 'diagram', 'chart', 'flowchart'],
     scope: 'document',
     key: 'Ctrl+Alt+K',
     group: 'insert',
     run: (ctx) => {
-      const res = insertBlock(ctx.source, ctx.cursor, '```mermaid\ngraph TD\n  A[开始] --> B[结束]\n```')
+      const res = insertBlock(ctx.source, ctx.cursor, t('```mermaid\ngraph TD\n  A[开始] --> B[结束]\n```'))
       ctx.replace(0, ctx.source.length, res.text, res.cursor)
     }
   },
   {
     id: 'insert.toc',
-    title: '插入目录',
+    get title() { return t('插入目录') },
     keywords: ['toc', 'outline', 'contents'],
     scope: 'document',
     key: 'Ctrl+Alt+O',
@@ -339,7 +342,7 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'insert.hr',
-    title: '插入分隔线',
+    get title() { return t('插入分隔线') },
     keywords: ['hr', 'divider', 'rule', 'separator'],
     scope: 'document',
     key: 'Ctrl+Alt+H',
@@ -348,16 +351,16 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'insert.details',
-    title: '插入折叠块',
+    get title() { return t('插入折叠块') },
     keywords: ['details', 'collapse', 'fold'],
     scope: 'document',
     group: 'insert',
     run: (ctx) =>
-      ctx.insertBlock('<details>\n<summary>展开</summary>\n\n\n</details>')
+      ctx.insertBlock(t('<details>\n<summary>展开</summary>\n\n\n</details>'))
   },
   {
     id: 'insert.pagebreak',
-    title: '插入分页符',
+    get title() { return t('插入分页符') },
     keywords: ['page break', 'pdf'],
     scope: 'document',
     group: 'insert',
@@ -367,7 +370,7 @@ export const ACTIONS: ActionDef[] = [
   // ---- clipboard / find ---------------------------------------------------
   {
     id: 'clipboard.copyPlain',
-    title: '复制为纯文本',
+    get title() { return t('复制为纯文本') },
     keywords: ['copy', 'plain'],
     scope: 'document',
     key: 'Ctrl+Shift+Alt+C',
@@ -375,19 +378,19 @@ export const ACTIONS: ActionDef[] = [
     run: (ctx) => {
       const { start, end } = ctx.selection ?? { start: 0, end: ctx.source.length }
       void window.mdview.clipboard.writeText(toPlainText(ctx.source.slice(start, end)))
-      ctx.toast('已复制为纯文本', 'success')
+      ctx.toast(t('已复制为纯文本'), 'success')
     }
   },
   {
     id: 'clipboard.copyAll',
-    title: '复制全文',
+    get title() { return t('复制全文') },
     scope: 'document',
     group: 'clipboard',
     run: (ctx) => void window.mdview.clipboard.writeText(ctx.source)
   },
   {
     id: 'find.selection',
-    title: '查找选中内容',
+    get title() { return t('查找选中内容') },
     keywords: ['find', 'search'],
     scope: 'find',
     key: 'Ctrl+Shift+F',
@@ -399,12 +402,12 @@ export const ACTIONS: ActionDef[] = [
       const next = ctx.source.indexOf(text, end)
       const at = next >= 0 ? next : ctx.source.indexOf(text)
       ctx.select(at, at + text.length)
-      if (at === start) ctx.toast('没有其他匹配内容')
+      if (at === start) ctx.toast(t('没有其他匹配内容'))
     }
   },
   {
     id: 'view.toggleTheme',
-    title: '切换深浅主题',
+    get title() { return t('切换深浅主题') },
     keywords: ['theme', 'dark', 'light'],
     scope: 'app',
     key: 'Ctrl+Shift+T',
@@ -412,12 +415,12 @@ export const ACTIONS: ActionDef[] = [
     run: (ctx) => {
       const next = settingsSnapshot().theme === 'light' ? 'dark' : 'light'
       void patchSettings({ theme: next })
-      ctx.toast(next === 'dark' ? '已切换到深色' : '已切换到浅色')
+      ctx.toast(next === 'dark' ? t('已切换到深色') : t('已切换到浅色'))
     }
   },
   {
     id: 'view.toggleSidebar',
-    title: '显示 / 隐藏侧栏',
+    get title() { return t('显示 / 隐藏侧栏') },
     keywords: ['sidebar', 'panel'],
     scope: 'app',
     key: 'Ctrl+Backslash',
@@ -427,12 +430,12 @@ export const ACTIONS: ActionDef[] = [
     }
   },
   {
-    id: 'view.showOutline', title: '大纲', keywords: ['outline', 'heading', '标题层级'],
+    id: 'view.showOutline', get title() { return t('大纲') }, keywords: ['outline', 'heading', '标题层级'],
     scope: 'app', group: 'view',
     run: () => patchSettings({ sidebarVisible: true, outlineVisible: true })
   },
   {
-    id: 'view.showFiles', title: '文件', keywords: ['files', 'tree', '文件导航'],
+    id: 'view.showFiles', get title() { return t('文件') }, keywords: ['files', 'tree', '文件导航'],
     scope: 'app', group: 'view',
     run: () => patchSettings({ sidebarVisible: true, outlineVisible: false })
   },
@@ -440,7 +443,7 @@ export const ACTIONS: ActionDef[] = [
   // ---- document hygiene ---------------------------------------------------
   {
     id: 'document.tidy',
-    title: '格式化文档',
+    get title() { return t('格式化文档') },
     keywords: ['format', 'tidy', 'clean', 'normalise'],
     scope: 'document',
     key: 'Ctrl+Alt+F',
@@ -448,7 +451,7 @@ export const ACTIONS: ActionDef[] = [
     run: (ctx) => {
       const next = tidyMarkdown(ctx.source)
       if (next === ctx.source) {
-        ctx.toast('文档已是规范格式')
+        ctx.toast(t('文档已是规范格式'))
         return
       }
       ctx.replace(0, ctx.source.length, next, Math.min(ctx.cursor, next.length))
@@ -514,7 +517,7 @@ export const ACTIONS: ActionDef[] = [
   // ---- code block ---------------------------------------------------------
   {
     id: 'code.copy',
-    title: '复制代码',
+    get title() { return t('复制代码') },
     keywords: ['copy', 'code'],
     scope: 'codeblock',
     key: 'Ctrl+Shift+Alt+E',
@@ -523,12 +526,12 @@ export const ACTIONS: ActionDef[] = [
       const block = codeAt(ctx.source, ctx.cursor)
       if (!block) return
       void window.mdview.clipboard.writeText(block.body)
-      ctx.toast('已复制代码', 'success')
+      ctx.toast(t('已复制代码'), 'success')
     }
   },
   {
     id: 'code.selectAll',
-    title: '全选代码块',
+    get title() { return t('全选代码块') },
     scope: 'codeblock',
     key: 'Ctrl+Shift+A',
     group: 'code',
@@ -540,7 +543,7 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'code.unwrap',
-    title: '解包为纯文本',
+    get title() { return t('解包为纯文本') },
     keywords: ['unwrap', 'strip', 'fence'],
     scope: 'codeblock',
     group: 'code',
@@ -552,7 +555,7 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'code.toInline',
-    title: '转换为行内代码',
+    get title() { return t('转换为行内代码') },
     scope: 'codeblock',
     group: 'code',
     run: (ctx) => {
@@ -564,7 +567,7 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'code.pickLanguage',
-    title: '指定语言',
+    get title() { return t('指定语言') },
     keywords: ['language', 'lang', 'syntax'],
     scope: 'codeblock',
     group: 'code',
@@ -574,7 +577,7 @@ export const ACTIONS: ActionDef[] = [
   // ---- image / link -------------------------------------------------------
   {
     id: 'image.fullscreen',
-    title: '全屏查看',
+    get title() { return t('全屏查看') },
     keywords: ['zoom', 'preview'],
     scope: 'image',
     key: 'Z',
@@ -583,24 +586,24 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'image.copyPath',
-    title: '复制图片路径',
+    get title() { return t('复制图片路径') },
     scope: 'image',
     group: 'image',
     run: (ctx) => {
       void window.mdview.clipboard.writeText(relImageAt(ctx.source, ctx.cursor) ?? '')
-      ctx.toast('路径已复制', 'success')
+      ctx.toast(t('路径已复制'), 'success')
     }
   },
   {
     id: 'image.reveal',
-    title: '在文件管理器中显示',
+    get title() { return t('在文件管理器中显示') },
     scope: 'image',
     group: 'image',
     run: () => undefined
   },
   {
     id: 'image.delete',
-    title: '删除图片',
+    get title() { return t('删除图片') },
     scope: 'image',
     group: 'image',
     run: (ctx) => {
@@ -611,33 +614,33 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'link.open',
-    title: '打开链接',
+    get title() { return t('打开链接') },
     scope: 'link',
     group: 'link',
     run: (ctx) => {
       const href = linkAt(ctx.source, ctx.cursor)
-      if (href && /^https?:/.test(href)) void window.mdview.shell.openExternal(href)
+      if (href !== null) void followDocumentLink(ctx, href)
     }
   },
   {
     id: 'link.copy',
-    title: '复制链接地址',
+    get title() { return t('复制链接地址') },
     scope: 'link',
     group: 'link',
     run: (ctx) => {
       void window.mdview.clipboard.writeText(linkAt(ctx.source, ctx.cursor) ?? '')
-      ctx.toast('链接已复制', 'success')
+      ctx.toast(t('链接已复制'), 'success')
     }
   },
   {
     id: 'link.remove',
-    title: '移除链接（保留文字）',
+    get title() { return t('移除链接（保留文字）') },
     scope: 'link',
     group: 'link',
+    enabled: (ctx) => unlinkAt(ctx.source, ctx.cursor) !== null,
     run: (ctx) => {
-      const m = /\[([^\]]*)\]\(([^)]*)\)/.exec(ctx.source.slice(ctx.cursor, ctx.cursor + 400))
-      if (!m) return
-      ctx.replace(ctx.cursor, ctx.cursor + m[0].length, m[1], ctx.cursor)
+      const link = unlinkAt(ctx.source, ctx.cursor)
+      if (link) ctx.replace(link.from, link.to, link.text, link.from)
     }
   }
 ]
@@ -708,14 +711,7 @@ export function relImageAt(src: string, offset: number): string | null {
   return /!\[[^\]]*\]\(([^)]*)\)/.exec(src.slice(span[0], span[1]))?.[1] ?? null
 }
 
-export function linkAt(src: string, offset: number): string | null {
-  const re = /\[[^\]]*\]\(([^)]+)\)/g
-  for (const m of src.matchAll(re)) {
-    const start = m.index ?? 0
-    if (offset >= start && offset <= start + m[0].length) return m[1]
-  }
-  return null
-}
+export { linkAt }
 
 /* -------------------------------------------------------- auto-pair bridge */
 

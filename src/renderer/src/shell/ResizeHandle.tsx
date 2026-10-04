@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useEffect, useRef, type PointerEvent } from 'react'
 import { DEFAULT_SETTINGS } from '@shared/types'
 import { usePatchSettings, useSettings } from '../state/settings'
@@ -43,7 +44,7 @@ export function ResizeHandle({ side }: Props): JSX.Element {
   }
 
   return <div className={`side-resizer side-resizer--${side}`} role="separator" tabIndex={0}
-    aria-label={side === 'left' ? '调整导航栏宽度' : '调整历史栏宽度'} aria-orientation="vertical"
+    aria-label={side === 'left' ? t('调整导航栏宽度') : t('调整历史栏宽度')} aria-orientation="vertical"
     aria-valuenow={Math.min(maxWidth, settings[setting])} aria-valuemin={minWidth} aria-valuemax={maxWidth}
     onPointerDown={start}
     onPointerMove={(event) => {

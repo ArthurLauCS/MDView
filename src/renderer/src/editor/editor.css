@@ -96,6 +96,8 @@
 .live-sub { font-size: 0.75em; vertical-align: sub; }
 .live-strike { text-decoration: line-through; color: var(--text-tertiary); }
 .live-link { color: var(--link); text-decoration: underline; text-underline-offset: var(--space-1); }
+.cm-editor :is([data-md-href], a[href]) { cursor: text; }
+.is-link-navigation .cm-editor :is([data-md-href], a[href], [data-md-href] *, a[href] *) { cursor: pointer; }
 .live-code {
   font-family: var(--font-code);
   font-size: 0.88em;

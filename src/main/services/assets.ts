@@ -3,6 +3,7 @@ import { basename, dirname, extname, join, resolve } from 'node:path'
 import { createHash } from 'node:crypto'
 import { nativeImage } from 'electron'
 import { toLink } from './paths'
+import { mapImageLinks } from './organize'
 import type { AssetRef, InsertedAsset } from '@shared/types'
 import type { WorkspaceService } from './workspace'
 import type { DocumentService } from './documents'
@@ -168,12 +169,8 @@ export class AssetService {
   async refs(docAbsPath: string, text: string): Promise<AssetRef[]> {
     const meta = this.documents.metaFor(docAbsPath)
     const out: AssetRef[] = []
-    const linkRe = /!\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g
-    const htmlRe = /<img[^>]+src=["']([^"']+)["']/gi
-
     const targets = new Set<string>()
-    for (const m of text.matchAll(linkRe)) targets.add(m[1])
-    for (const m of text.matchAll(htmlRe)) targets.add(m[1])
+    mapImageLinks(text, target => { targets.add(target); return null })
 
     for (const raw of targets) {
       if (/^(https?:)?\/\//.test(raw) || raw.startsWith('data:')) continue
@@ -213,9 +210,10 @@ export class AssetService {
         } else if (/\.(md|markdown)$/i.test(e.name)) {
           const text = await fs.readFile(abs, 'utf8')
           const meta = this.documents.metaFor(abs)
-          for (const m of text.matchAll(/!\[[^\]]*\]\(([^)\s]+)/g)) {
-            referenced.add(join(meta.parentDir, decodeURIComponent(m[1])))
-          }
+          mapImageLinks(text, target => {
+            if (!/^(https?:)?\/\//i.test(target)) referenced.add(join(meta.parentDir, decodeURIComponent(target)))
+            return null
+          })
         }
       }
     }
