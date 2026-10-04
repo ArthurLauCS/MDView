@@ -1,3 +1,4 @@
+import { currentLanguage, t } from '../i18n'
 /**
  * Build one self-contained HTML file from a document.
  *
@@ -60,11 +61,11 @@ export interface HtmlBuild {
  * carries the app's own `is-missing` class so the two renderings agree.
  */
 function placeholder(alt: string, src: string): string {
-  const label = alt || basename(safeDecode(src).split('\\').join('/')) || '图片'
+  const label = alt || basename(safeDecode(src).split('\\').join('/')) || t('图片')
   return (
     `<figure class="img-missing">` +
     `<div class="img-missing__frame is-missing" role="img" aria-label="${escapeAttr(label)}"></div>` +
-    `<figcaption>缺失：${escapeHtml(label)}</figcaption>` +
+    t('<figcaption>缺失：{0}</figcaption>', escapeHtml(label)) +
     `</figure>`
   )
 }
@@ -144,7 +145,7 @@ async function embedImages(
     if (item.verdict === 'remote') continue
 
     if (item.verdict === 'missing') {
-      missing.push({ path: item.abs, reason: '本地图片读不到，已用占位符代替' })
+      missing.push({ path: item.abs, reason: t('本地图片读不到，已用占位符代替') })
       replacements.set(whole, placeholder(alt, item.src))
       continue
     }
@@ -169,17 +170,18 @@ export async function buildHtml(
   theme: 'dark' | 'light' = 'dark'
 ): Promise<HtmlBuild> {
   const docDir = join(docPath, '..')
-  const { html: body, build } = await embedImages(renderMarkdown(source), docDir)
+  const language = currentLanguage()
+  const { html: body, build } = await embedImages(renderMarkdown(source, language), docDir)
 
   const title = basename(docPath).replace(/\.(md|markdown|mdx)$/i, '')
   const themeAttr = theme === 'light' ? ` data-theme="light"` : ''
 
   const html = `<!doctype html>
-<html lang="zh-CN"${themeAttr}>
+<html lang="${language}"${themeAttr}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="MDView">
+<meta name="generator" content="MDWisp">
 <title>${escapeHtml(title)}</title>
 <style>
 ${documentStyles()}

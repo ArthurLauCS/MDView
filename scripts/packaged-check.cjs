@@ -18,7 +18,7 @@ async function main() {
   await fs.writeFile(manifestPath, JSON.stringify(manifest))
   await fs.copyFile(path.join(ROOT, 'scripts/export-check.cjs'), path.join(source, 'verification.cjs'))
   await asar.createPackage(source, archive)
-  const child = spawn(path.join(appDir, 'MDView.exe'), [], {
+  const child = spawn(path.join(appDir, 'MDWisp.exe'), [], {
     windowsHide: true,
     stdio: 'inherit',
     env: { ...process.env, MDVIEW_CHECK_ROOT: ROOT, MDVIEW_CHECK_OUT: OUT,

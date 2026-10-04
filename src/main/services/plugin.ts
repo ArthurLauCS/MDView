@@ -1,3 +1,4 @@
+import { currentLanguage, t } from '../i18n'
 import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
 
@@ -8,7 +9,7 @@ export async function installSkills(pluginRoot: string, project: string): Promis
   for (const skill of ['doc', 'share']) {
     const source = join(pluginRoot, 'mdview', 'skills', skill)
     const target = join(targetRoot, `mdview-${skill}`)
-    const body = (await fs.readFile(join(source, 'SKILL.md'), 'utf8')).replace(/^name: (doc|share)$/m, `name: mdview-${skill}`)
+    const body = (await fs.readFile(join(source, currentLanguage() === 'en' ? 'SKILL.en.md' : 'SKILL.md'), 'utf8')).replace(/^name: (doc|share)$/m, `name: mdview-${skill}`)
     files.push({ path: join(target, 'SKILL.md'), content: Buffer.from(body) })
     if (skill === 'doc') files.push({ path: join(target, 'scripts', 'check.mjs'), content: await fs.readFile(join(source, 'scripts', 'check.mjs')) })
   }
@@ -18,7 +19,7 @@ export async function installSkills(pluginRoot: string, project: string): Promis
       if (error.code !== 'ENOENT') throw error
       return null
     })
-    if (existing && !existing.equals(file.content)) throw new Error(`已有不同内容，请先备份并移走后重试：${file.path}`)
+    if (existing && !existing.equals(file.content)) throw new Error(t('已有不同内容，请先备份并移走后重试：{0}', file.path))
   }
   for (const file of files) {
     await fs.mkdir(join(file.path, '..'), { recursive: true })

@@ -7,6 +7,8 @@
  */
 
 import { serializeTable, type Align, type CellPos } from './model'
+import type { Locale } from '@shared/types'
+import { STAT_LABELS } from '@shared/locales/table'
 
 type Cells = string[][]
 
@@ -660,13 +662,7 @@ export function fromList(lines: string, headers?: string[]): Cells {
 
 /* ---- formatting --------------------------------------------------------- */
 
-const STAT_LABEL: Record<StatsKind, string> = {
-  sum: '合计',
-  avg: '平均',
-  count: '计数',
-  min: '最小',
-  max: '最大'
-}
+const STAT_NAMES: readonly string[] = Object.values(STAT_LABELS).flatMap(labels => Object.values(labels))
 
 /**
  * True for a row this function previously appended. `appendStatsRow` only
@@ -678,7 +674,7 @@ const STAT_LABEL: Record<StatsKind, string> = {
  */
 function isStatsRow(row: string[], cols: number): boolean {
   if (cols < 2) return false
-  return Object.values(STAT_LABEL).includes((row[0] ?? '').trim())
+  return STAT_NAMES.includes((row[0] ?? '').trim())
 }
 
 /**
@@ -693,7 +689,7 @@ function isStatsRow(row: string[], cols: number): boolean {
  * same statistic twice reports the data rather than its own previous answer.
  * The rows below it stay: statistics are appended, never reordered to the end.
  */
-export function appendStatsRow(cells: Cells, col: number, kind: StatsKind): Cells {
+export function appendStatsRow(cells: Cells, col: number, kind: StatsKind, language: Locale = 'zh-CN'): Cells {
   const cols = colCount(cells)
   if (cols === 0) return cells.slice()
   const values: number[] = []
@@ -718,7 +714,7 @@ export function appendStatsRow(cells: Cells, col: number, kind: StatsKind): Cell
 
   const row = EMPTY_ROW(cols)
   if (cols > 1) {
-    row[0] = STAT_LABEL[kind]
+    row[0] = STAT_LABELS[language][kind]
     row[1] = result
   } else {
     row[0] = result

@@ -1,9 +1,11 @@
+import { t } from '../i18n'
 import { useEffect, useLayoutEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react'
 import { Compartment, EditorState, Transaction } from '@codemirror/state'
 import { EditorView, keymap, highlightActiveLine, placeholder, scrollPastEnd } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap, indentWithTab, isolateHistory, undo, redo } from '@codemirror/commands'
 import { markdownKeymap } from '@codemirror/lang-markdown'
 import { indentUnit, syntaxTree } from '@codemirror/language'
+import type { Locale } from '@shared/types'
 import { autoPair } from '../actions/markdown-ops'
 import { focusTableCell, livePreview, liveMarkdown, startCodeBlock, leaveCodeBlock } from './live-preview'
 import { PageMargins } from './PageMargins'
@@ -25,10 +27,12 @@ export interface EditorHandle {
 }
 
 interface Props {
+  language: Locale
   source: string
   docPath: string
   onChange: (next: string) => void
   onContextMenu: (x: number, y: number) => void
+  onOpenLink: (href: string) => void
   onCursorChange?: (cursor: number) => void
   onPaste?: (e: ClipboardEvent) => void
   readOnly?: boolean
@@ -50,13 +54,14 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(props, ref
   const [cursor, setCursor] = useState(0)
 
   const configure = () => [
+    placeholder(t('从这里开始写作…')),
     EditorState.tabSize.of(current.current.tabSize ?? 2),
     indentUnit.of(' '.repeat(current.current.tabSize ?? 2)),
     EditorState.readOnly.of(!!current.current.readOnly),
     EditorView.editable.of(!current.current.readOnly),
     EditorView.contentAttributes.of({
       class: 'md',
-      'aria-label': 'Markdown 文档',
+      'aria-label': t('Markdown 文档'),
       spellcheck: String(!!current.current.spellCheck)
     }),
     current.current.highlightLine ? highlightActiveLine() : [],
@@ -127,7 +132,6 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(props, ref
           EditorView.lineWrapping,
           scrollPastEnd(),
           documentConfig.current.of(livePreview(current.current.docPath ? current.current.docPath.replace(/[\\/][^\\/]+$/, '') : null)),
-          placeholder('从这里开始写作…'),
           EditorView.domEventHandlers({
             mousedown(event, view) {
               if (event.button !== 0 || view.state.readOnly) return false
@@ -191,20 +195,34 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(props, ref
       })
     })
     viewRef.current = view
+    // Capture before widgets turn a table cell into an input or focus an image.
+    const followLink = (event: MouseEvent): void => {
+      const link = (event.target as HTMLElement).closest<HTMLElement>('[data-md-href], a[href]')
+      if (!link || event.button !== 0) return
+      if (event.type === 'click') event.preventDefault()
+      if (!event.ctrlKey && !event.metaKey) return
+      event.preventDefault()
+      event.stopPropagation()
+      if (event.type === 'click') current.current.onOpenLink(link.dataset.mdHref ?? link.getAttribute('href')!)
+    }
+    view.dom.addEventListener('mousedown', followLink, true)
+    view.dom.addEventListener('click', followLink, true)
     view.focus()
     return () => {
       viewRef.current = null
+      view.dom.removeEventListener('mousedown', followLink, true)
+      view.dom.removeEventListener('click', followLink, true)
       view.destroy()
     }
   }, [])
 
   useEffect(() => {
     viewRef.current?.dispatch({ effects: documentConfig.current.reconfigure(livePreview(props.docPath ? props.docPath.replace(/[\\/][^\\/]+$/, '') : null)) })
-  }, [props.docPath])
+  }, [props.docPath, props.language])
 
   useEffect(() => {
     viewRef.current?.dispatch({ effects: config.current.reconfigure(configure()) })
-  }, [props.readOnly, props.highlightLine, props.spellCheck, props.smartLists, props.tabSize])
+  }, [props.readOnly, props.highlightLine, props.spellCheck, props.smartLists, props.tabSize, props.language])
 
   useEffect(() => {
     const view = viewRef.current
@@ -223,9 +241,9 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(props, ref
         <PageMargins />
       </div>
       <div className="editor__status">
-        <span>第 {before.split('\n').length} 行</span>
-        <span>{props.source.length} 字符</span>
-        <span>{props.readOnly ? '只读' : '直接编辑'}</span>
+        <span>{t('第 {0} 行', before.split('\n').length)}</span>
+        <span>{t('{0} 字符', props.source.length)}</span>
+        <span>{props.readOnly ? t('只读') : t('直接编辑')}</span>
       </div>
     </div>
   )

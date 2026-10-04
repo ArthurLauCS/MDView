@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 /**
  * Source-level markdown transforms. Every function is pure: it takes the
  * whole document and a selection, and returns the new document plus where
@@ -124,10 +125,10 @@ export interface PrefixToggle {
 }
 
 export const LINE_PREFIXES: PrefixToggle[] = [
-  { id: 'quote', prefix: '> ', title: '引用块' },
-  { id: 'ul', prefix: '- ', title: '无序列表' },
-  { id: 'ol', prefix: (i) => `${i + 1}. `, title: '有序列表' },
-  { id: 'task', prefix: '- [ ] ', title: '任务列表' }
+  { id: 'quote', prefix: '> ', get title() { return t('引用块') } },
+  { id: 'ul', prefix: '- ', get title() { return t('无序列表') } },
+  { id: 'ol', prefix: (i) => `${i + 1}. `, get title() { return t('有序列表') } },
+  { id: 'task', prefix: '- [ ] ', get title() { return t('任务列表') } }
 ]
 
 /** Smart continuation: what the next line should start with after Enter. */
@@ -207,7 +208,7 @@ export function insertCodeBlock(src: string, at: number, lang = ''): EditResult 
 }
 
 export function insertTable(src: string, at: number, rows: number, cols: number): EditResult {
-  const head = `| ${Array.from({ length: cols }, (_, i) => `列${i + 1}`).join(' | ')} |`
+  const head = `| ${Array.from({ length: cols }, (_, i) => t('列{0}', i + 1)).join(' | ')} |`
   const sep = `| ${Array.from({ length: cols }, () => '---').join(' | ')} |`
   const body = Array.from(
     { length: Math.max(rows - 1, 0) },

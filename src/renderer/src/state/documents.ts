@@ -1,10 +1,11 @@
+import { t } from '../i18n'
 import { useEffect, useState } from 'react'
 import type { DocumentContent } from '@shared/types'
 import { settingsSnapshot } from './settings'
 import { recordRevision } from '../history/revisions'
 
-let state: { active: DocumentContent | null; dirty: boolean; confirming: boolean; transitioning: boolean; key: number; error: string | null } = {
-  active: null, dirty: false, confirming: false, transitioning: false, key: 0, error: null
+let state: { active: DocumentContent | null; dirty: boolean; confirming: boolean; transitioning: boolean; key: number; error: string | null; fragment: string } = {
+  active: null, dirty: false, confirming: false, transitioning: false, key: 0, error: null, fragment: ''
 }
 let buffer = ''
 let saved = ''
@@ -30,9 +31,9 @@ export function documentBuffer(): string { return buffer }
 export function currentDocument(): DocumentContent | null { return state.active }
 export function hasUnsavedChanges(): boolean { return state.dirty || saving !== null }
 
-function activate(document: DocumentContent): void {
+function activate(document: DocumentContent, fragment = ''): void {
   buffer = saved = document.text
-  publish({ active: document, dirty: false, key: state.key + 1, error: null })
+  publish({ active: document, dirty: false, key: state.key + 1, error: null, fragment })
 }
 
 export function saveDocument(manual = true): Promise<boolean> {
@@ -41,8 +42,8 @@ export function saveDocument(manual = true): Promise<boolean> {
   if (!document) return Promise.resolve(false)
   saving = (async () => {
     try {
-      const path = document.meta.path || await window.mdview.dialog.saveFile('未命名.md', [
-        { name: 'Markdown 文档', extensions: ['md', 'markdown'] }
+      const path = document.meta.path || await window.mdview.dialog.saveFile(t('未命名.md'), [
+        { name: t('Markdown 文档'), extensions: ['md', 'markdown'] }
       ])
       if (!path) return false
       const text = buffer
@@ -51,11 +52,11 @@ export function saveDocument(manual = true): Promise<boolean> {
       // Keep the editor instance and newer keystrokes when a draft gains a path.
       publish({ active: { ...document, meta, text: buffer, body: buffer }, dirty: buffer !== saved, error: null })
       if (manual && settingsSnapshot().historyEnabled) {
-        await recordRevision(meta.id, text, 'manual').catch((error) => documentError(`文件已保存，历史记录失败：${error}`))
+        await recordRevision(meta.id, text, 'manual').catch((error) => documentError(t('文件已保存，历史记录失败：{0}', error)))
       }
       return true
     } catch (error) {
-      documentError(`保存失败：${error instanceof Error ? error.message : error}`)
+      documentError(t('保存失败：{0}', error instanceof Error ? error.message : error))
       return false
     }
   })().finally(() => { saving = null })
@@ -67,7 +68,7 @@ export async function confirmDocumentChange(): Promise<boolean> {
   if (!state.dirty) return true
   publish({ confirming: true })
   try {
-    const choice = await window.mdview.dialog.confirmSave(state.active!.meta.stem)
+    const choice = await window.mdview.dialog.confirmSave(state.active!.meta.path ? state.active!.meta.stem : t('未命名'))
     if (choice === 'cancel') return false
     if (choice === 'discard') return true
     return await saveDocument() && !state.dirty
@@ -85,17 +86,17 @@ export function newDocument(): Promise<void> {
   return change(async () => {
     if (!await confirmDocumentChange()) return
     activate({
-      meta: { id: crypto.randomUUID(), path: '', parentDir: '', stem: '未命名', assetDir: '', inFolder: false },
+      meta: { id: crypto.randomUUID(), path: '', parentDir: '', stem: t('未命名'), assetDir: '', inFolder: false },
       text: '', body: '', frontmatter: null, conflictWithDisk: false
     })
   })
 }
 
-export function openDocument(path: string): Promise<void> {
+export function openDocument(path: string, fragment = ''): Promise<void> {
   return change(async () => {
     if (state.active?.meta.path === path) return
     if (!await confirmDocumentChange()) return
-    activate(await window.mdview.doc.read(path))
+    activate(await window.mdview.doc.read(path), fragment)
   })
 }
 

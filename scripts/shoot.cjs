@@ -63,7 +63,7 @@ async function main() {
   }
   await wait(1200)
   await run('document.fonts.ready.then(() => true)')
-  await run(`window.__mdview.setSettings({ theme: 'dark', sidebarVisible: true, autoPair: false, autoSave: false })`)
+  await run(`window.__mdview.setSettings({ language: 'zh-CN', theme: 'dark', sidebarVisible: true, autoPair: false, autoSave: false })`)
   await run(`window.__mdview.openWorkspace(${JSON.stringify(WORKSPACE)})`)
   const docPath = path.join(WORKSPACE, '欢迎使用', '欢迎使用.md')
   await run(`window.__mdview.openDocument(${JSON.stringify(docPath)})`)

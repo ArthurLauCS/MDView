@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useState, type CSSProperties } from 'react'
 import { useWorkspace } from '../state/workspace'
 import { usePatchSettings, useSettings } from '../state/settings'
@@ -63,30 +64,28 @@ export function Sidebar(): JSX.Element {
     <>
       {/* Only reachable under the narrow breakpoint; a click anywhere off the
           panel dismisses it, which is what an overlay implies. */}
-      <button className="sidebar__scrim" onClick={close} aria-label="关闭侧栏" />
-      <aside className="sidebar" aria-label="导航侧栏">
+      <button className="sidebar__scrim" onClick={close} aria-label={t('关闭侧栏')} />
+      <aside className="sidebar" aria-label={t('导航侧栏')}>
       <ResizeHandle side="left" />
       <div className="side-panel__head sidebar__head">
-        <div className="sidebar__tabs" aria-label="导航视图">
+        <div className="sidebar__tabs" aria-label={t('导航视图')}>
           <button className={`sidebar__tab ${!settings.outlineVisible ? 'is-active' : ''}`} aria-pressed={!settings.outlineVisible}
             onClick={() => void filesAction.run(ctx)}>{filesAction.title}</button>
           <button className={`sidebar__tab ${settings.outlineVisible ? 'is-active' : ''}`} aria-pressed={settings.outlineVisible}
             onClick={() => void outlineAction.run(ctx)}>{outlineAction.title}</button>
         </div>
         <div className="side-panel__subtitle" title={settings.outlineVisible ? active?.meta.path : info?.rootPath}>
-          {settings.outlineVisible ? active?.meta.stem ?? '未打开文档' : info?.name ?? '未打开目录'}
+          {settings.outlineVisible ? (active ? active.meta.path ? active.meta.stem : t('未命名') : t('未打开文档')) : info?.name ?? t('未打开目录')}
         </div>
       </div>
       {settings.outlineVisible ? <Outline key={active?.meta.id ?? 'empty'} source={source}
-        cursor={isCurrent ? ctx.cursor : 0} onJump={(offset) => ctx.jump?.(offset)} /> : <nav className="sidebar__tree" aria-label="文件导航">
+        cursor={isCurrent ? ctx.cursor : 0} onJump={(offset) => ctx.jump?.(offset)} /> : <nav className="sidebar__tree" aria-label={t('文件导航')}>
         {info ? (
           info.tree.children?.map((c) => <TreeRow key={c.path} node={c} depth={0} />)
         ) : (
           <p className="sidebar__empty">
-            还没有打开目录。
-            <br />
-            用上方「打开目录」选一个装满 markdown 的文件夹。
-          </p>
+            {t('还没有打开目录。')}<br />
+            {t('用上方「打开目录」选一个装满 markdown 的文件夹。')}</p>
         )}
       </nav>}
       {active?.meta.path ? (
@@ -95,7 +94,7 @@ export function Sidebar(): JSX.Element {
           docPath={active.meta.path}
           source={source}
         />
-      ) : <div className="sidebar__draft-note">文字可直接输入。保存文档后即可插入本地图片，并启用自动保存与历史记录。</div>}
+      ) : <div className="sidebar__draft-note">{t('文字可直接输入。保存文档后即可插入本地图片，并启用自动保存与历史记录。')}</div>}
       </aside>
     </>
   )

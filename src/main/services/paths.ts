@@ -1,4 +1,19 @@
-import { isAbsolute, relative, resolve, sep, posix } from 'node:path'
+import { t } from '../i18n'
+import { dirname, extname, isAbsolute, relative, resolve, sep, posix } from 'node:path'
+import type { LinkTarget } from '@shared/types'
+
+export function resolveDocumentLink(docPath: string, href: string): LinkTarget {
+  if (/^(https?:|mailto:)/i.test(href)) return { kind: 'external', url: href }
+  if (href.startsWith('//')) return { kind: 'external', url: `https:${href}` }
+  if (/^[a-z][a-z\d+.-]*:/i.test(href) || href.startsWith('\\\\')) throw new Error(t('不支持的链接类型'))
+  const hash = href.indexOf('#')
+  const fragment = hash < 0 ? '' : decodeURIComponent(href.slice(hash + 1))
+  const path = decodeURIComponent((hash < 0 ? href : href.slice(0, hash)).split('?')[0])
+  if (!path) return { kind: 'document', path: docPath, fragment }
+  if (!docPath) throw new Error(t('请先保存文档，再打开相对链接'))
+  if (!/\.(md|markdown|mdx)$/i.test(extname(path)) || path.includes('\0')) throw new Error(t('只能在应用内打开 Markdown 文档'))
+  return { kind: 'document', path: resolve(dirname(docPath), path), fragment }
+}
 
 /**
  * The one and only place a markdown image path is produced.

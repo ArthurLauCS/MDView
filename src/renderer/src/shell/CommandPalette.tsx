@@ -1,7 +1,9 @@
+import { t } from '../i18n'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ACTIONS } from '../actions/registry'
 import { prettyKey } from '../actions/keymap'
 import type { ActionContext, ActionDef } from '../actions/types'
+import { useSettings } from '../state/settings'
 import './palette.css'
 
 interface Props {
@@ -50,6 +52,7 @@ function fuzzy(query: string, text: string): { score: number; hits: number[] } |
 }
 
 export function CommandPalette({ open, onClose, ctx, availableScopes }: Props): JSX.Element | null {
+  const { language } = useSettings()
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -74,7 +77,7 @@ export function CommandPalette({ open, onClose, ctx, availableScopes }: Props): 
     // A bound action is more likely to be what you meant than an unbound one.
     scored.sort((a, b) => b.score - a.score || (b.action.key ? 1 : 0) - (a.action.key ? 1 : 0))
     return scored.slice(0, 40)
-  }, [query, ctx, availableScopes])
+  }, [query, ctx, availableScopes, language])
 
   useEffect(() => {
     if (open) {
@@ -144,14 +147,14 @@ export function CommandPalette({ open, onClose, ctx, availableScopes }: Props): 
         className="palette"
         onMouseDown={(e) => e.stopPropagation()}
         role="dialog"
-        aria-label="命令面板"
+        aria-label={t('命令面板')}
       >
         <div className="palette__field">
           <input
             ref={inputRef}
             className="palette__input"
             value={query}
-            placeholder="输入命令，或搜索功能…"
+            placeholder={t('输入命令，或搜索功能…')}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
             spellCheck={false}
@@ -161,7 +164,7 @@ export function CommandPalette({ open, onClose, ctx, availableScopes }: Props): 
         </div>
 
         <div className="palette__list" ref={listRef}>
-          {results.length === 0 && <p className="palette__none">没有匹配的命令</p>}
+          {results.length === 0 && <p className="palette__none">{t('没有匹配的命令')}</p>}
           {results.map((r, i) => (
             <button
               key={r.action.id}

@@ -27,7 +27,7 @@ async function main() {
     await fs.writeFile(path.join(OUT, `${name}.png`), (await win.webContents.capturePage()).toPNG())
   }
   await wait(1200)
-  await run(`window.__mdview.setSettings({ theme: 'dark', sidebarVisible: true, autoSave: false, motion: 'off' })`)
+  await run(`window.__mdview.setSettings({ language: 'zh-CN', theme: 'dark', sidebarVisible: true, autoSave: false, motion: 'off' })`)
   await run(`window.__mdview.openDocument(${JSON.stringify(path.join(docDir, '欢迎使用.md'))})`)
   await wait(800)
 

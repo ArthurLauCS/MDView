@@ -23,7 +23,7 @@ const canonical = binding => binding.replace(/Digit/g, '').replace(/ArrowUp/g, '
 async function main() {
   for (let i = 0; i < 80 && !BrowserWindow.getAllWindows().length; i++) await wait(100)
   const win = BrowserWindow.getAllWindows()[0]
-  win.setTitle('MDView — Shortcut verification')
+  win.setTitle('MDWisp — Shortcut verification')
   win.setSize(1440, 900)
   const run = code => win.webContents.executeJavaScript(code, true)
   const ctx = 'window.__mdview.editorContext()'
@@ -68,7 +68,7 @@ async function main() {
   await until(`!!document.querySelector('.cm-content')`)
   await run('document.fonts.ready.then(() => true)')
   await run(`window.addEventListener('keydown', e => { window.__lastKey = {key:e.key,code:e.code,ctrl:e.ctrlKey,alt:e.altKey,shift:e.shiftKey} }, true)`)
-  await run(`window.__mdview.setSettings({autoSave:false,historyEnabled:false,autoPair:false,motion:'off'})`)
+  await run(`window.__mdview.setSettings({language:'zh-CN',autoSave:false,historyEnabled:false,autoPair:false,motion:'off'})`)
   assert.equal(win.isMenuBarVisible(), false, 'native menu must not steal editor shortcuts')
 
   await press('F1')

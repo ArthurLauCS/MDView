@@ -1,4 +1,5 @@
-import { WELCOME_DOC_REL } from '@shared/skills'
+import { WELCOME_DOC_REL, WELCOME_DOC_EN_REL } from '@shared/skills'
+import { settingsSnapshot } from './settings'
 import { currentDocument, openDocument } from './documents'
 import { openWorkspacePath } from './workspace'
 
@@ -13,7 +14,7 @@ import { openWorkspacePath } from './workspace'
  * development checkout rather than an error worth surfacing.
  */
 export async function resolveWelcome(): Promise<boolean> {
-  const docPath = await window.mdview.app.resolveStock(WELCOME_DOC_REL)
+  const docPath = await window.mdview.app.resolveStock(settingsSnapshot().language === 'en' ? WELCOME_DOC_EN_REL : WELCOME_DOC_REL)
   if (!docPath) return false
   await openDocument(docPath)
   if (currentDocument()?.meta.path !== docPath) return false

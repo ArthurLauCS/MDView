@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { installSkills } from './plugin'
+import { setLanguage } from '../i18n'
 
 let root: string
 beforeEach(async () => { root = await fs.mkdtemp(join(tmpdir(), 'mdview-skills-')) })
@@ -31,4 +32,14 @@ it('refuses custom content before installing any other skill', async () => {
   await expect(installSkills(plugin, root)).rejects.toThrow('已有不同内容')
   expect(await fs.readFile(join(dest, 'SKILL.md'), 'utf8')).toBe('custom')
   await expect(fs.stat(join(root, '.agents/skills/mdview-doc'))).rejects.toMatchObject({ code: 'ENOENT' })
+})
+
+it('installs English rules from the plugin source when English is selected', async () => {
+  setLanguage('en')
+  try {
+    const target = await installSkills(plugin, root)
+    const body = await fs.readFile(join(target, 'mdview-doc/SKILL.md'), 'utf8')
+    expect(body).toContain('# Write a portable document folder')
+    expect(body).toContain('name: mdview-doc')
+  } finally { setLanguage('zh-CN') }
 })

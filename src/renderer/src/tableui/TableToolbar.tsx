@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useCallback, useMemo } from 'react'
 import { GROUPS, type Spec, type SpecInput } from './specs'
 import type { TableEdit } from './useTableEdit'
@@ -60,9 +61,9 @@ export function TableToolbar({ edit, onApply }: TableToolbarProps): JSX.Element 
   if (!context || !input) return null
 
   return (
-    <div className="ttable" role="toolbar" aria-label="表格工具">
+    <div className="ttable" role="toolbar" aria-label={t('表格工具')}>
       <span className="ttable__pos">
-        {cell ? `${cell.row + 1}·${cell.col + 1}` : '表格'}
+        {cell ? `${cell.row + 1}·${cell.col + 1}` : t('表格')}
       </span>
       {GROUPS.map((group) => (
         <div className="ttable__group" key={group.id} role="group" aria-label={group.label}>
@@ -86,7 +87,7 @@ export function TableToolbar({ edit, onApply }: TableToolbarProps): JSX.Element 
         </div>
       ))}
       <span className="ttable__flash" aria-live="polite">
-        {flash ? (flash.kind === 'row' ? `第 ${flash.index + 1} 行` : `第 ${flash.index + 1} 列`) : ''}
+        {flash ? (flash.kind === 'row' ? t('第 {0} 行', flash.index + 1) : t('第 {0} 列', flash.index + 1)) : ''}
       </span>
     </div>
   )

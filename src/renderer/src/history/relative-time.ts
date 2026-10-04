@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 /** Short weekdays, indexed by `Date.getDay()`. */
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
@@ -22,19 +23,19 @@ function dayStart(ms: number): number {
  */
 export function relativeTime(at: number, now = Date.now()): string {
   const diff = now - at
-  if (diff < 60_000) return '刚刚'
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`
+  if (diff < 60_000) return t('刚刚')
+  if (diff < 3_600_000) return t('{0} 分钟前', Math.floor(diff / 60_000))
+  if (diff < 86_400_000) return t('{0} 小时前', Math.floor(diff / 3_600_000))
 
   const d = new Date(at)
   const days = Math.round((dayStart(now) - dayStart(at)) / 86_400_000)
-  if (days === 1) return `昨天 ${clock(d)}`
-  if (days === 2) return `前天 ${clock(d)}`
-  if (days < 7) return `${WEEKDAYS[d.getDay()]} ${clock(d)}`
+  if (days === 1) return t('昨天 {0}', clock(d))
+  if (days === 2) return t('前天 {0}', clock(d))
+  if (days < 7) return `${t(WEEKDAYS[d.getDay()])} ${clock(d)}`
   if (d.getFullYear() === new Date(now).getFullYear()) {
-    return `${d.getMonth() + 1} 月 ${d.getDate()} 日 ${clock(d)}`
+    return t('{0} 月 {1} 日 {2}', d.getMonth() + 1, d.getDate(), clock(d))
   }
-  return `${d.getFullYear()} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日`
+  return t('{0} 年 {1} 月 {2} 日', d.getFullYear(), d.getMonth() + 1, d.getDate())
 }
 
 /** Full timestamp for the `title` attribute — the relative form is lossy. */

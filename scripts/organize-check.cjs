@@ -49,7 +49,7 @@ async function main() {
     assert.ok(await run(code), what)
   }
   await until(`!!document.querySelector('.ep__loose')`, 'loose file is flagged')
-  await run(`window.__mdview.setSettings({ theme: 'dark', motion: 'off', sidebarVisible: true })`)
+  await run(`window.__mdview.setSettings({ language: 'zh-CN', theme: 'dark', motion: 'off', sidebarVisible: true })`)
   await wait(400)
   await shot('01-loose-hint')
 

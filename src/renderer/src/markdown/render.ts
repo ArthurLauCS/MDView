@@ -5,4 +5,9 @@
  * use it too; this stays as the renderer's entry point so call sites and the
  * `@/markdown/render` alias keep working.
  */
-export { renderMarkdown } from '@shared/markdown/pipeline'
+import { renderMarkdown as render, type MarkdownReferences } from '@shared/markdown/pipeline'
+import { settingsSnapshot } from '../state/settings'
+
+export function renderMarkdown(source: string, references?: MarkdownReferences): string {
+  return render(source, settingsSnapshot().language, references)
+}

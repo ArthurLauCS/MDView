@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useEffect, useRef, type PointerEvent } from 'react'
 import { DEFAULT_SETTINGS } from '@shared/types'
 import { usePatchSettings, useSettings } from '../state/settings'
@@ -34,10 +35,10 @@ export function PageMargins(): JSX.Element {
 
   return <>{(['left', 'right'] as const).map(side => <div key={side}
     className={`page-margin page-margin--${side}`} role="separator" tabIndex={0}
-    aria-label={`调整正文${side === 'left' ? '左' : '右'}边距`} aria-orientation="vertical"
+    aria-label={t('调整正文{0}边距', side === 'left' ? t('左') : t('右'))} aria-orientation="vertical"
     aria-valuemin={0} aria-valuemax={35} aria-valuenow={settings[settingFor(side)]}
     aria-valuetext={`${settings[settingFor(side)]}%`}
-    title="拖动调整正文边距，双击恢复默认"
+    title={t('拖动调整正文边距，双击恢复默认')}
     onPointerDown={event => start(event, side)}
     onPointerMove={event => {
       if (!drag.current) return

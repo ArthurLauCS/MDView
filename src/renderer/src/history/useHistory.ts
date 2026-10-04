@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DiffSummary, Revision } from '@shared/types'
 import { liveText } from './live-text'
@@ -95,7 +96,7 @@ export function useHistory(docId: string | null): HistoryState {
     async (revId: string): Promise<string | null> => {
       if (!docId) return null
       const text = await window.mdview.history.read(docId, revId)
-      if (text === null) throw new Error('这个还原点的内容已不存在')
+      if (text === null) throw new Error(t('这个还原点的内容已不存在'))
       if (currentDocument()?.meta.id !== docId) return null
       // Restoring is a change like any other, so the text being replaced is
       // snapshotted first — otherwise one mis-click on an old version would be
@@ -105,7 +106,7 @@ export function useHistory(docId: string | null): HistoryState {
       if (current === null) return null
       await snapshot(current, 'restore')
       if (currentDocument()?.meta.id !== docId) return null
-      if (liveText() !== current) throw new Error('恢复期间文档又有修改，请重新选择恢复；当前内容已保留')
+      if (liveText() !== current) throw new Error(t('恢复期间文档又有修改，请重新选择恢复；当前内容已保留'))
       return text
     },
     [docId, snapshot]

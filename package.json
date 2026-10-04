@@ -1,6 +1,6 @@
 {
-  "name": "mdview",
-  "version": "0.1.2",
+  "name": "mdwisp",
+  "version": "0.2.0",
   "private": true,
   "description": "Markdown reader + editor with folder-based documents, local code language detection and a Claude-inspired dark-first UI.",
   "main": "./out/main/index.js",
@@ -16,7 +16,7 @@
   },
   "build": {
     "appId": "dev.mdview.app",
-    "productName": "MDView",
+    "productName": "MDWisp",
     "directories": { "output": "release" },
     "files": ["out/**/*", "package.json", "LICENSE"],
     "extraResources": [
@@ -25,18 +25,20 @@
       { "from": "src/renderer/src/styles", "to": "styles", "filter": ["tokens.css", "fonts.css", "base.css", "markdown.css", "fonts/**/*"] }
     ],
     "fileAssociations": [
-      { "ext": ["md", "markdown"], "name": "Markdown", "description": "Markdown 文档", "role": "Editor" }
+      { "ext": ["md", "markdown"], "name": "Markdown", "description": "Markdown document", "role": "Editor" }
     ],
     "win": {
       "target": ["nsis"],
-      "artifactName": "MDView-${version}-setup.${ext}"
+      "artifactName": "MDWisp-${version}-setup.${ext}"
     },
     "nsis": {
+      "installerLanguages": ["en_US", "zh_CN"],
+      "displayLanguageSelector": true,
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "runAfterFinish": true,
       "createDesktopShortcut": true,
-      "shortcutName": "MDView"
+      "shortcutName": "MDWisp"
     }
   },
   "dependencies": {

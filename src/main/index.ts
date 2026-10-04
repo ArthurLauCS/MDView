@@ -13,6 +13,11 @@ import { SessionService } from './services/session'
 
 const isDev = !app.isPackaged
 
+// Preserve existing settings, sessions and history after the product rename.
+if (app.getPath('userData') === join(app.getPath('appData'), app.getName())) {
+  app.setPath('userData', join(app.getPath('appData'), 'mdview'))
+}
+
 let mainWindow: BrowserWindow | null = null
 
 // A second double-clicked file must open in the window that may be holding
@@ -93,7 +98,7 @@ function createWindow(): BrowserWindow {
 
   // Never let a document navigate the shell away from the app.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url)
+    if (/^(https?:|mailto:)/i.test(url)) void shell.openExternal(url)
     return { action: 'deny' }
   })
   win.webContents.on('will-navigate', (event) => event.preventDefault())
@@ -112,7 +117,7 @@ app.whenReady().then(() => {
   registerAssetProtocol()
 
   const userData = app.getPath('userData')
-  const settings = new SettingsService(userData)
+  const settings = new SettingsService(userData, app.getLocale().startsWith('zh') ? 'zh-CN' : 'en')
   const workspace = new WorkspaceService()
   const documents = new DocumentService()
   const assets = new AssetService(workspace, documents, settings)

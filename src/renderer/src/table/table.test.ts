@@ -916,6 +916,10 @@ describe('formatting', () => {
       ['b', '3']
     ]
     expect(appendStatsRow(cells, 1, 'sum').at(-1)).toEqual(['合计', '5'])
+    const english = appendStatsRow(cells, 1, 'sum', 'en')
+    expect(english.at(-1)).toEqual(['Sum', '5'])
+    expect(appendStatsRow(english, 1, 'sum').at(-1)).toEqual(['合计', '5'])
+    expect(appendStatsRow(appendStatsRow(cells, 1, 'sum'), 1, 'sum', 'en').at(-1)).toEqual(['Sum', '5'])
   })
 
   it('appendStatsRow averages, counts, mins and maxes', () => {

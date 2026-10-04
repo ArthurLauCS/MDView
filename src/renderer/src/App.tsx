@@ -118,6 +118,7 @@ export function App(): JSX.Element {
 
   useEffect(() => {
     const root = document.documentElement
+    root.lang = settings.language
     root.dataset.theme = settings.theme === 'light' ? 'light' : 'dark'
     root.dataset.motion = settings.motion
     root.style.setProperty('--reading-size', `${settings.fontSize}px`)
@@ -150,6 +151,7 @@ export function App(): JSX.Element {
       }
     }
   }, [
+    settings.language,
     settings.theme,
     settings.motion,
     settings.fontSize,

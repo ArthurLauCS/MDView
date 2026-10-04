@@ -8,6 +8,7 @@ import type {
   ExportMode,
   ExportPreview,
   InsertedAsset,
+  LinkTarget,
   OrganizeOptions,
   OrganizePlan,
   DiffSummary,
@@ -35,6 +36,7 @@ const api = {
     tree: (): Promise<WorkspaceInfo | null> => ipcRenderer.invoke(IPC.WORKSPACE_TREE)
   },
   doc: {
+    resolveLink: (docPath: string, href: string): Promise<LinkTarget> => ipcRenderer.invoke(IPC.DOC_RESOLVE_LINK, docPath, href),
     read: (path: string): Promise<DocumentContent> => ipcRenderer.invoke(IPC.DOC_READ, path),
     write: (path: string, text: string): Promise<DocumentMeta> =>
       ipcRenderer.invoke(IPC.DOC_WRITE, path, text),

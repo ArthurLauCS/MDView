@@ -21,6 +21,7 @@ export const IPC = {
 
   // ---- documents ----------------------------------------------------------
   DOC_READ: 'doc:read',
+  DOC_RESOLVE_LINK: 'doc:resolve-link',
   DOC_WRITE: 'doc:write',
   DOC_CREATE: 'doc:create',
   DOC_RENAME: 'doc:rename',

@@ -55,7 +55,7 @@ async function main() {
   assert.equal(await run(`${ctx}.docPath`), null)
   assert.equal(await run(`${ctx}.source`), '')
   assert.equal(await run(`document.activeElement.classList.contains('cm-content')`), true)
-  await settings({ autoSave: true, autoSaveDelayMs: 200, historyEnabled: true, historyIntervalMs: 200, autoPair: false })
+  await settings({ language: 'zh-CN', autoSave: true, autoSaveDelayMs: 200, historyEnabled: true, historyIntervalMs: 200, autoPair: false })
   await shot('01-blank-ready')
   win.webContents.insertText('# 自由写作\n\n圆体正文，English code 123。')
   await wait(700)

@@ -6,6 +6,7 @@
  * write an absolute one into a document.
  */
 
+import { t } from '../i18n'
 import { splice } from './splice'
 import type { InsertedAsset } from '@shared/types'
 
@@ -15,12 +16,12 @@ export interface InsertResult {
   assets: InsertedAsset[]
 }
 
-const FALLBACK_ALT = '图片'
+
 
 /** Alt text from a source filename — never from the hashed name on disk. */
 function altFromPath(path: string): string {
   const base = path.split(/[\\/]/).pop() ?? ''
-  return base.replace(/\.[^.]*$/, '') || FALLBACK_ALT
+  return base.replace(/\.[^.]*$/, '') || t('图片')
 }
 
 /**
@@ -31,7 +32,7 @@ function altFromPath(path: string): string {
  */
 export function altFor(source: string, selection: string | null): string {
   if (selection) return selection
-  return source ? altFromPath(source) : FALLBACK_ALT
+  return source ? altFromPath(source) : t('图片')
 }
 
 interface Inserted {
