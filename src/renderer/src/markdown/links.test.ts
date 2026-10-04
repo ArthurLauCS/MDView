@@ -51,8 +51,9 @@ describe('Markdown links', () => {
 
   it('decorates links without changing source or discarding formatting inside labels', () => {
     const source = '[**English**](README.md) · [中文][zh]\n\n[zh]: README.zh-CN.md\n\nhttps://example.com'
-    const state = EditorState.create({ doc: source, extensions: [liveMarkdown()] })
-    ensureSyntaxTree(state, state.doc.length, 1000)
+    let state = EditorState.create({ doc: source, extensions: [liveMarkdown()] })
+    expect(ensureSyntaxTree(state, state.doc.length, 1000)).not.toBeNull()
+    state = state.update({}).state
     const hrefs: string[] = []
     let bold = false
     previewDecorations(state, null).between(0, source.length, (_from, _to, value) => {

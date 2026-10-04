@@ -3,6 +3,11 @@
  * Renderer, preload and main all speak these types — keep them dependency free.
  */
 
+export interface WindowLaunch {
+  path: string | null
+  fragment: string
+}
+
 export type ExportMode =
   /** Portable plain markdown: images and local paths stripped. */
   | 'plain-md'

@@ -37,18 +37,18 @@ Download `MDWisp-0.2.0-setup.exe` from [Releases](https://github.com/ArthurLauCS
 
 ## Getting started
 
-1. Start typing immediately. **Ctrl+N** creates a document; **Ctrl+O** opens one.
+1. Start typing immediately. **Ctrl+N** creates a document in a new window; **Ctrl+O** opens one in a new window.
 2. **Ctrl+S** chooses a name and location on first save. Canceling keeps the draft. Untitled drafts have no autosave or snapshots and must be saved before quitting.
 3. Save before pasting, dropping or inserting images. Images are copied beside the document with relative links and listed in the sidebar.
 4. Organize a loose file into a document folder, then use **Ctrl+Shift+E** to export.
 
-After the first save, autosave and history follow **Settings → Documents & saving**. Switching documents or quitting offers Save, Don't save and Cancel for unsaved edits. A failed save keeps the current document.
+New documents, opened files and repeated shortcut launches use independent windows, preserving the current document and its unsaved edits. After the first save, autosave and history follow **Settings → Documents & saving**. Closing a window offers Save, Don't save and Cancel for unsaved edits. A failed save keeps that window open. A stale save cannot overwrite changes made by another window.
 
 ## Language and links
 
 Choose **Settings → Appearance & fonts → Interface language** for **English** or **简体中文**. The choice applies immediately and persists across restarts without translating document content or resetting the editor.
 
-Use **Ctrl+click** to follow links; use Cmd on macOS. Relative Markdown files open inside the app, heading anchors navigate within a document, websites open in the default browser and email links use the mail handler. Reference links, table links and linked images are supported. Ordinary clicks remain editing actions.
+Use **Ctrl+click** to follow links; use Cmd on macOS. Holding the modifier displays a hand cursor over links. Relative Markdown files open in a new app window, heading anchors navigate within the current document, websites open in the default browser and email links use the mail handler. Reference links, table links and linked images are supported. Ordinary clicks remain editing actions.
 
 ```markdown
 [English](README.md) · [简体中文](README.zh-CN.md)

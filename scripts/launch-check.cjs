@@ -1,6 +1,6 @@
 /**
  * Real Electron check: a document passed on the command line opens at launch,
- * and a second launch hands its document to the running window.
+ * and subsequent file/shortcut launches create independent windows.
  *
  *   npx electron scripts/launch-check.cjs design-review/launch-check-N
  *
@@ -15,14 +15,14 @@ const OUT = path.resolve(process.argv[2] || 'design-review/launch-check')
 const ROOT = path.resolve(__dirname, '..')
 const first = path.join(OUT, 'documents', '第一篇.md')
 const second = path.join(OUT, 'documents', '第二篇.md')
-const isSecondLaunch = process.argv.includes(second)
+const isSecondLaunch = process.argv.includes('--secondary')
 
 fs.mkdirSync(path.join(OUT, 'documents'), { recursive: true })
 app.setPath('userData', path.join(OUT, 'profile'))
 app.setPath('documents', path.join(OUT, 'documents'))
 if (!isSecondLaunch) {
   fs.writeFileSync(first, '# 启动时打开\n')
-  fs.writeFileSync(second, '# 第二次启动交给已有窗口\n')
+  fs.writeFileSync(second, '# 第二次启动打开新窗口\n')
   process.argv.push(first)
 }
 require(path.join(ROOT, 'out/main/index.js'))
@@ -40,12 +40,21 @@ async function main() {
   await until('启动时打开')
   console.log('PASS launch argument opens the document')
 
-  const child = spawn(process.execPath, [__filename, OUT, second], { stdio: 'inherit' })
-  const exited = new Promise((resolve) => child.on('exit', resolve))
-  await until('第二次启动交给已有窗口')
-  await exited
-  assert.equal(BrowserWindow.getAllWindows().length, 1)
-  console.log('PASS second launch reuses the window and exits')
+  await win.webContents.executeJavaScript(`window.__mdview.setSettings({autoSave:false}); window.__mdview.editorContext().replace(0,0,'unsaved ');`)
+  for (const [index, args] of [[1, [second]], [2, []]]) {
+    const previous = new Set(BrowserWindow.getAllWindows())
+    const child = spawn(process.execPath, [__filename, OUT, '--secondary', ...args], { stdio: 'inherit' })
+    const exited = new Promise((resolve) => child.on('exit', resolve))
+    for (let i = 0; i < 80 && BrowserWindow.getAllWindows().length !== index + 1; i++) await wait(100)
+    assert.equal(BrowserWindow.getAllWindows().length, index + 1)
+    const opened = BrowserWindow.getAllWindows().find(window => !previous.has(window))
+    for (let i = 0; i < 80 && !await opened.webContents.executeJavaScript(`!!document.querySelector('.cm-content')`); i++) await wait(100)
+    assert.equal(await opened.webContents.executeJavaScript(`window.__mdview.editorContext().docPath`), index === 1 ? second : null)
+    assert.equal(await win.webContents.executeJavaScript(`window.__mdview.editorContext().docPath`), first)
+    assert.match(await win.webContents.executeJavaScript(`window.__mdview.editorContext().source`), /^unsaved /)
+    await exited
+  }
+  console.log('PASS repeated file and shortcut launches open independent windows and preserve the original draft')
 }
 
 if (!isSecondLaunch) app.whenReady().then(main).then(() => app.exit(0), (error) => { console.error(error); app.exit(1) })

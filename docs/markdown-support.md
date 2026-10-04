@@ -28,7 +28,8 @@ MDWisp uses CodeMirror decorations for live editing and markdown-it for HTML/PDF
 ## Links / 链接
 
 - Ctrl+click follows links on Windows/Linux; Cmd+click is also accepted. Ordinary clicks edit text.
-- Relative paths support spaces, Unicode, percent encoding, `..`, queries and heading fragments. Unsaved edits use the save/discard/cancel flow before another document opens.
+- Holding Ctrl/Cmd shows a hand cursor over links; releasing it or leaving the window restores the text cursor. 按住 Ctrl/Cmd 时链接显示手形指针，松开或窗口失焦后恢复文本光标。
+- Relative paths support spaces, Unicode, percent encoding, `..`, queries and heading fragments. Other documents open in new windows and preserve the current draft. Same-document anchors stay in the current window. 跨文档链接新开窗口，保留当前草稿；同文档锚点在原窗口定位。
 - HTTP, HTTPS and mailto use the system handler. Other external protocols and non-Markdown local files are rejected in the main process.
 - `[English]\(README.md)`, unresolved reference labels and links inside code are literal text, not navigable links.
 - 标题跳转复用大纲标识；重复标题使用 `-1`、`-2` 后缀。找不到标题时显示提示。
@@ -40,7 +41,8 @@ MDWisp uses CodeMirror decorations for live editing and markdown-it for HTML/PDF
 - `src/main/services/paths.test.ts`: file resolution and protocol restrictions.
 - `src/shared/markdown/pipeline.test.ts`: standard syntax, installed extensions and references in separately rendered fragments.
 - `src/main/services/assets.test.ts`: fenced and inline image examples are excluded from the sidebar.
-- `scripts/links-i18n-check.cjs`: native Ctrl+click, cancellation, read-only navigation, language switching, editor identity, undo and persistence.
+- `scripts/links-i18n-check.cjs`: native Ctrl cursor, new-window links, read-only navigation, language switching, editor identity, undo and persistence.
+- `scripts/windows-check.cjs` and `scripts/launch-check.cjs`: independent windows, repeated launches, preserved drafts, close decisions and concurrent saves.
 - `scripts/shoot.cjs`: editing, IME, tables, images, history, outline and layout regression.
 
 图片整理和资源扫描仍使用项目现有的行内图片扫描规则；复杂参考式图片的整理能力需单独扩展。Image organization and asset scanning still use the existing inline-image rules; complex reference-image organization needs separate work.

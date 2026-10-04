@@ -1,7 +1,6 @@
-import { app, BrowserWindow, ipcMain, net, protocol, shell } from 'electron'
+import { app, BrowserWindow, net, protocol, shell } from 'electron'
 import { join, normalize, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { IPC } from '@shared/ipc'
 import { registerAllHandlers } from './ipc/registry'
 import { documentArg } from './services/launch'
 import { WorkspaceService } from './services/workspace'
@@ -18,21 +17,15 @@ if (app.getPath('userData') === join(app.getPath('appData'), app.getName())) {
   app.setPath('userData', join(app.getPath('appData'), 'mdview'))
 }
 
-let mainWindow: BrowserWindow | null = null
+let openWindow: (path: string | null, fragment?: string, restore?: boolean) => void
 
-// A second double-clicked file must open in the window that may be holding
-// unsaved work, not in a rival process writing the same session and history.
+// Windows share the history writer while keeping their own document state.
 const primary = app.requestSingleInstanceLock()
 if (!primary) app.quit()
 
 app.on('second-instance', (_event, argv, cwd) => {
-  if (!mainWindow) return
-  if (mainWindow.isMinimized()) mainWindow.restore()
-  mainWindow.focus()
-  const path = documentArg(argv, cwd)
-  if (path) mainWindow.webContents.send(IPC.APP_OPEN_DOCUMENT, path)
+  void app.whenReady().then(() => openWindow(documentArg(argv, cwd)))
 })
-ipcMain.handle(IPC.APP_LAUNCH_DOCUMENT, () => documentArg(process.argv, process.cwd()))
 
 /**
  * A scheme for serving documents' own images.
@@ -118,25 +111,27 @@ app.whenReady().then(() => {
 
   const userData = app.getPath('userData')
   const settings = new SettingsService(userData, app.getLocale().startsWith('zh') ? 'zh-CN' : 'en')
-  const workspace = new WorkspaceService()
   const documents = new DocumentService()
-  const assets = new AssetService(workspace, documents, settings)
   const history = new HistoryService(userData)
-  const session = new SessionService(userData)
-
-  mainWindow = createWindow()
-  registerAllHandlers({
-    getWindow: () => mainWindow,
-    settings,
-    workspace,
-    documents,
-    assets,
-    history,
-    session
-  })
+  openWindow = (path, fragment = '', restore = false) => {
+    const win = createWindow()
+    const workspace = new WorkspaceService()
+    registerAllHandlers({
+      getWindow: () => win,
+      openWindow,
+      launch: { path, fragment },
+      settings,
+      workspace,
+      documents,
+      assets: new AssetService(workspace, documents, settings),
+      history,
+      session: new SessionService(userData, restore)
+    })
+  }
+  openWindow(documentArg(process.argv, process.cwd()), '', true)
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) openWindow(null)
   })
 })
 

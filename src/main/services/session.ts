@@ -1,6 +1,6 @@
 import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import type { SessionState } from '@shared/types'
 
 const EMPTY: SessionState = {
@@ -22,10 +22,12 @@ const EMPTY: SessionState = {
 export class SessionService {
   private readonly file: string
   private readonly marker: string
+  private current: SessionState | null
 
-  constructor(userDataDir: string) {
+  constructor(userDataDir: string, restore = true) {
     this.file = join(userDataDir, 'session.json')
     this.marker = join(userDataDir, '.first-run-done')
+    this.current = restore ? null : { ...EMPTY }
   }
 
   /**
@@ -44,11 +46,12 @@ export class SessionService {
   }
 
   async load(): Promise<SessionState> {
+    if (this.current) return this.current
     let state: SessionState
     try {
       state = { ...EMPTY, ...(JSON.parse(await fs.readFile(this.file, 'utf8')) as SessionState) }
     } catch {
-      return { ...EMPTY }
+      return this.current = { ...EMPTY }
     }
 
     // Prune anything that no longer exists before the renderer ever sees it.
@@ -68,18 +71,19 @@ export class SessionService {
         delete state.scrolls[key]
       }
     }
-    return state
+    return this.current = state
   }
 
   async save(state: Partial<SessionState>): Promise<void> {
     const next: SessionState = { ...EMPTY, ...state, updatedAt: Date.now() }
-    await fs.writeFile(this.file, JSON.stringify(next), 'utf8')
+    this.current = next
+    writeFileSync(this.file, JSON.stringify(next), 'utf8')
   }
 
   /** Recently opened workspaces, newest first, existing ones only. */
-  async recentRoots(limit = 8): Promise<string[]> {
+  recentRoots(limit = 8): string[] {
     try {
-      const raw = JSON.parse(await fs.readFile(join(this.file, '..', 'recent.json'), 'utf8')) as {
+      const raw = JSON.parse(readFileSync(join(this.file, '..', 'recent.json'), 'utf8')) as {
         roots: string[]
       }
       return (raw.roots ?? []).filter(existsSync).slice(0, limit)
@@ -90,8 +94,9 @@ export class SessionService {
 
   async rememberRoot(root: string): Promise<void> {
     const file = join(this.file, '..', 'recent.json')
-    const existing = await this.recentRoots(50)
+    // Keep this small read/modify/write atomic across windows in this process.
+    const existing = this.recentRoots(50)
     const next = [root, ...existing.filter((r) => r !== root)].slice(0, 12)
-    await fs.writeFile(file, JSON.stringify({ roots: next }), 'utf8')
+    writeFileSync(file, JSON.stringify({ roots: next }), 'utf8')
   }
 }

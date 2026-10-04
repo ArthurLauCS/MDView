@@ -1,5 +1,5 @@
 import { t } from '../i18n'
-import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, shell } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, nativeImage, shell } from 'electron'
 import { promises as fs } from 'node:fs'
 import { existsSync } from 'node:fs'
 import { dirname, extname, join, relative } from 'node:path'
@@ -19,10 +19,12 @@ import type { DocumentService } from '../services/documents'
 import type { AssetService } from '../services/assets'
 import type { HistoryService } from '../services/history'
 import type { SessionService } from '../services/session'
-import type { AppSettings, ExportMode, OrganizeOptions } from '@shared/types'
+import type { AppSettings, ExportMode, OrganizeOptions, WindowLaunch } from '@shared/types'
 
 export interface HandlerContext {
   getWindow: () => BrowserWindow | null
+  openWindow: (path: string | null, fragment: string) => void
+  launch: WindowLaunch
   settings: SettingsService
   workspace: WorkspaceService
   documents: DocumentService
@@ -37,8 +39,18 @@ const IMAGE_FILTER: Electron.FileFilter[] = [
 
 export function registerAllHandlers(ctx: HandlerContext): void {
   const { getWindow, settings, workspace, documents, assets, history, session } = ctx
+  const ipcMain = getWindow()!.webContents.ipc
 
   // ---- window chrome ------------------------------------------------------
+  ipcMain.handle(IPC.APP_LAUNCH_DOCUMENT, () => {
+    const launch = ctx.launch
+    ctx.launch = { path: null, fragment: '' }
+    return launch
+  })
+  ipcMain.handle(IPC.WINDOW_OPEN, async (_e, path: string | null, fragment: string) => {
+    if (path) await documents.read(path)
+    ctx.openWindow(path, fragment)
+  })
   ipcMain.on(IPC.WINDOW_MINIMIZE, () => getWindow()?.minimize())
   ipcMain.on(IPC.WINDOW_CLOSE, () => getWindow()?.close())
   let closeApproved = false
@@ -77,8 +89,8 @@ export function registerAllHandlers(ctx: HandlerContext): void {
   // ---- documents ----------------------------------------------------------
   ipcMain.handle(IPC.DOC_READ, (_e, path: string) => documents.read(path))
   ipcMain.handle(IPC.DOC_RESOLVE_LINK, (_e, path: string, href: string) => resolveDocumentLink(path, href))
-  ipcMain.handle(IPC.DOC_WRITE, async (_e, path: string, text: string) => {
-    await documents.write(path, text)
+  ipcMain.handle(IPC.DOC_WRITE, async (_e, path: string, text: string, expected?: string) => {
+    await documents.write(path, text, expected)
     return documents.metaFor(path)
   })
   ipcMain.handle(IPC.DIALOG_OPEN_DOCUMENT, async () => {
@@ -367,5 +379,9 @@ export function registerAllHandlers(ctx: HandlerContext): void {
 
   // ---- settings -----------------------------------------------------------
   ipcMain.handle('settings:get', () => settings.get())
-  ipcMain.handle('settings:patch', (_e, patch: Partial<AppSettings>) => settings.patch(patch))
+  ipcMain.handle('settings:patch', (_e, patch: Partial<AppSettings>) => {
+    const next = settings.patch(patch)
+    for (const win of BrowserWindow.getAllWindows()) win.webContents.send(IPC.SETTINGS_CHANGED, next)
+    return next
+  })
 }

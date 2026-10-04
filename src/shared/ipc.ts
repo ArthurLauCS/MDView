@@ -5,6 +5,7 @@
 export const IPC = {
   // ---- window / app shell -------------------------------------------------
   WINDOW_MINIMIZE: 'window:minimize',
+  WINDOW_OPEN: 'window:open',
   WINDOW_TOGGLE_MAXIMIZE: 'window:toggle-maximize',
   WINDOW_CLOSE: 'window:close',
   WINDOW_REQUEST_CLOSE: 'window:request-close',
@@ -79,8 +80,7 @@ export const IPC = {
   APP_INSTALL_SKILLS: 'app:install-skills',
   /** The document this launch was started with, e.g. by a double click. */
   APP_LAUNCH_DOCUMENT: 'app:launch-document',
-  /** A later launch handed its document to the running window. */
-  APP_OPEN_DOCUMENT: 'app:open-document'
+  SETTINGS_CHANGED: 'settings:changed'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

@@ -2,7 +2,7 @@ import { t } from '../i18n'
 import { useEffect, useState } from 'react'
 import type { OrganizePlan } from '@shared/types'
 import { useSettings } from '../state/settings'
-import { documentBuffer, documentError, hasUnsavedChanges, openDocument, saveDocument, useDocuments } from '../state/documents'
+import { documentBuffer, documentError, hasUnsavedChanges, loadDocument, saveDocument, useDocuments } from '../state/documents'
 
 interface Props {
   onClose: () => void
@@ -35,7 +35,7 @@ export function OrganizePanel({ onClose }: Props): JSX.Element {
       // original identical to it and stops the switch below from asking.
       if (hasUnsavedChanges() && !await saveDocument(false)) return
       const result = await window.mdview.doc.organize(docPath, documentBuffer(), { move, download })
-      await openDocument(result.docPath)
+      await loadDocument(result.docPath)
       onClose()
       if (result.failed.length) documentError(t('{0} 张网络图片下载失败，链接保持原样', result.failed.length))
     } catch (e) {

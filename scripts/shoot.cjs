@@ -66,7 +66,7 @@ async function main() {
   await run(`window.__mdview.setSettings({ language: 'zh-CN', theme: 'dark', sidebarVisible: true, autoPair: false, autoSave: false })`)
   await run(`window.__mdview.openWorkspace(${JSON.stringify(WORKSPACE)})`)
   const docPath = path.join(WORKSPACE, '欢迎使用', '欢迎使用.md')
-  await run(`window.__mdview.openDocument(${JSON.stringify(docPath)})`)
+  await run(`window.__mdview.loadDocument(${JSON.stringify(docPath)})`)
   await wait(800)
   assert.equal(await run(`document.querySelectorAll('.ep__mode').length`), 0)
   assert.equal(await run(`!!document.querySelector('.sidebar .assets') && !document.querySelector('.ep .assets')`), true)
@@ -97,7 +97,7 @@ async function main() {
   const fixturePath = path.join(WORKSPACE, '编辑检查.md')
   const fixture = '# 编辑检查\n\n普通正文和 **加粗**。\n\n| 名称 | 数量 |\n| --- | --- |\n| 苹果 | 2 |\n| 梨 | 3 |\n\n结束\n'
   await fs.writeFile(fixturePath, fixture)
-  await run(`window.__mdview.openDocument(${JSON.stringify(fixturePath)})`)
+  await run(`window.__mdview.loadDocument(${JSON.stringify(fixturePath)})`)
   await wait(350)
   await run(`window.__mdview.editorContext().select(2, 2)`)
   await win.webContents.insertText('新增')
@@ -178,7 +178,7 @@ async function main() {
   const imageMarkdown = saved.match(/!\[图片检查\]\([^\n]+\)/)[0]
   const mouseSource = '# 标题点击定位检查\n\n正文零一二三四五六七八九。\n\n## 二级标题定位检查\n\n第二段普通正文定位。\n\n```js\nconst value = 123\nconsole.log(value)\n```\n\n代码之后普通正文定位。\n\n| 名称 | 数量 |\n| --- | --- |\n| 苹果测试单元格 | 2 |\n\n表格之后普通正文定位。\n\n' + imageMarkdown + '\n\n图片之后普通正文定位。\n\n' + '折行正文测试'.repeat(24) + '落点检查结束。\n'
   await fs.writeFile(mousePath, mouseSource)
-  await run(`window.__mdview.openDocument(${JSON.stringify(mousePath)})`)
+  await run(`window.__mdview.loadDocument(${JSON.stringify(mousePath)})`)
   await wait(400)
   assert.ok(await run(`document.querySelectorAll('.live-code-line .hljs-keyword').length`) > 0)
   for (const width of [1440, 900]) {
@@ -276,7 +276,7 @@ async function main() {
   assert.equal(await run(`document.querySelectorAll('.hist__row').length`), 0)
   const emptyPath = path.join(WORKSPACE, '另一篇文档.md')
   await fs.writeFile(emptyPath, '# 空历史文档\n')
-  await run(`window.__mdview.openDocument(${JSON.stringify(emptyPath)})`)
+  await run(`window.__mdview.loadDocument(${JSON.stringify(emptyPath)})`)
   await wait(250)
   assert.equal(await run(`document.querySelector('.history-panel .side-panel__subtitle').textContent`), '另一篇文档')
   assert.equal(await run(`document.querySelectorAll('.hist__row').length`), 0)
@@ -285,7 +285,7 @@ async function main() {
   const outlinePath = path.join(WORKSPACE, '标题层级检查.md')
   const outlineSource = '# 项目手册\n\n说明正文。\n\n## 安装\n\n安装步骤。\n\n### Windows\n\n平台说明。\n\n#### 下载\n\n下载文件。\n\n##### 校验\n\n检查文件。\n\n###### 完成\n\n完成安装。\n\n## 使用\n\n日常编辑。\n\n#### 快速开始\n\n跳级标题。\n\n## 重复\n\n第一处。\n\n## 重复\n\n第二处。\n\n```md\n# 代码里的标题\n```\n'
   await fs.writeFile(outlinePath, outlineSource)
-  await run(`window.__mdview.openDocument(${JSON.stringify(outlinePath)})`)
+  await run(`window.__mdview.loadDocument(${JSON.stringify(outlinePath)})`)
   await wait(350)
   assert.equal(await run(`document.querySelectorAll('.outline__jump').length`), 10)
   assert.equal(await run(`document.querySelector('.outline__level:last-child').textContent`), 'H1')

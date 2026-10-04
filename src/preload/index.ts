@@ -14,11 +14,13 @@ import type {
   DiffSummary,
   Revision,
   SessionState,
+  WindowLaunch,
   WorkspaceInfo
 } from '@shared/types'
 
 const api = {
   window: {
+    open: (path: string | null, fragment = ''): Promise<void> => ipcRenderer.invoke(IPC.WINDOW_OPEN, path, fragment),
     minimize: () => ipcRenderer.send(IPC.WINDOW_MINIMIZE),
     toggleMaximize: () => ipcRenderer.send(IPC.WINDOW_TOGGLE_MAXIMIZE),
     close: () => ipcRenderer.send(IPC.WINDOW_CLOSE),
@@ -38,8 +40,8 @@ const api = {
   doc: {
     resolveLink: (docPath: string, href: string): Promise<LinkTarget> => ipcRenderer.invoke(IPC.DOC_RESOLVE_LINK, docPath, href),
     read: (path: string): Promise<DocumentContent> => ipcRenderer.invoke(IPC.DOC_READ, path),
-    write: (path: string, text: string): Promise<DocumentMeta> =>
-      ipcRenderer.invoke(IPC.DOC_WRITE, path, text),
+    write: (path: string, text: string, expected?: string): Promise<DocumentMeta> =>
+      ipcRenderer.invoke(IPC.DOC_WRITE, path, text, expected),
     create: (dir: string, stem: string, withAssetFolder: boolean): Promise<DocumentMeta> =>
       ipcRenderer.invoke(IPC.DOC_CREATE, dir, stem, withAssetFolder),
     rename: (path: string, nextStem: string): Promise<DocumentMeta> =>
@@ -111,12 +113,7 @@ const api = {
       ipcRenderer.invoke(IPC.APP_RESOLVE_STOCK, name),
     pluginPath: (): Promise<string> => ipcRenderer.invoke(IPC.APP_PLUGIN_PATH),
     installSkills: (): Promise<string | null> => ipcRenderer.invoke(IPC.APP_INSTALL_SKILLS),
-    launchDocument: (): Promise<string | null> => ipcRenderer.invoke(IPC.APP_LAUNCH_DOCUMENT),
-    onOpenDocument: (callback: (path: string) => void): (() => void) => {
-      const listener = (_event: unknown, path: string): void => callback(path)
-      ipcRenderer.on(IPC.APP_OPEN_DOCUMENT, listener)
-      return () => { ipcRenderer.removeListener(IPC.APP_OPEN_DOCUMENT, listener) }
-    }
+    launchDocument: (): Promise<WindowLaunch> => ipcRenderer.invoke(IPC.APP_LAUNCH_DOCUMENT)
   },
   export: {
     preview: (mode: ExportMode, docPath: string, text: string): Promise<ExportPreview> =>
@@ -125,6 +122,11 @@ const api = {
       ipcRenderer.invoke(IPC.EXPORT_RUN, mode, docPath, text)
   },
   settings: {
+    onChanged: (callback: (settings: AppSettings) => void): (() => void) => {
+      const listener = (_event: unknown, settings: AppSettings): void => callback(settings)
+      ipcRenderer.on(IPC.SETTINGS_CHANGED, listener)
+      return () => { ipcRenderer.removeListener(IPC.SETTINGS_CHANGED, listener) }
+    },
     get: (): Promise<AppSettings> => ipcRenderer.invoke('settings:get'),
     patch: (patch: Partial<AppSettings>): Promise<AppSettings> =>
       ipcRenderer.invoke('settings:patch', patch)

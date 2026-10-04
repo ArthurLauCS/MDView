@@ -11,13 +11,13 @@ MDWisp is a local Markdown reader and editor. Your documents stay as ordinary fi
 
 Start typing in a blank document. Press **Ctrl+N** for a new document and **Ctrl+S** to choose its name and location. Canceling the save dialog keeps the draft in memory.
 
-Autosave and version history begin after the first save, according to Settings. Untitled drafts have neither. Before opening another document or quitting, choose Save, Don't save or Cancel for unsaved changes.
+Autosave and version history begin after the first save, according to Settings. Untitled drafts have neither. New/open commands and repeated app launches use new windows and preserve your current work. When closing a window, choose Save, Don't save or Cancel for unsaved changes.
 
 ## Follow links
 
-Hold **Ctrl** while clicking a link. On macOS, use **Cmd**.
+Hold **Ctrl** while clicking a link; the cursor becomes a hand. On macOS, use **Cmd**.
 
-- Relative Markdown links open inside MDWisp, including links between language versions of a README.
+- Relative Markdown links open in a new MDWisp window, including links between language versions of a README.
 - Web links open in the default browser; email links open the mail handler.
 - [Heading links](#write-and-save) jump within the document.
 - Links in tables and reference-style links work the same way.

@@ -30,7 +30,7 @@ const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
 async function main() {
   for (let i = 0; i < 80 && !BrowserWindow.getAllWindows().length; i++) await wait(100)
-  const win = BrowserWindow.getAllWindows()[0]
+  let win = BrowserWindow.getAllWindows()[0]
   win.setSize(1440, 900)
   const run = code => win.webContents.executeJavaScript(code, true)
   const ctx = 'window.__mdview.editorContext()'
@@ -92,11 +92,20 @@ async function main() {
   await edit(draft + '\n手动保存的修改')
   await wait(400)
   assert.doesNotMatch(await fs.readFile(first, 'utf8'), /手动保存/)
-  choices.push(2)
+  const original = win
   await button('新建文档')
   assert.match(await run(`${ctx}.source`), /手动保存/)
+  choices.push(2)
+  original.close()
+  await wait(250)
+  assert.equal(original.isDestroyed(), false)
   choices.push(0)
-  await button('新建文档')
+  original.close()
+  await wait(350)
+  assert.equal(original.isDestroyed(), true)
+  win = BrowserWindow.getAllWindows()[0]
+  win.setSize(1440, 900)
+  await until(`!!document.querySelector('.cm-content')`)
   await until(`${ctx}.docPath === null && ${ctx}.source === ''`)
   assert.match(await fs.readFile(first, 'utf8'), /手动保存/)
 
@@ -106,15 +115,29 @@ async function main() {
   assert.equal(await run(`${ctx}.docPath`), null)
   assert.match(await run(`document.querySelector('[role="alert"]').textContent`), /保存失败/)
   assert.match(await run(`${ctx}.source`), /必须保留/)
-  choices.push(1)
+  const failedDraft = win
   await button('新建文档')
+  win = BrowserWindow.getAllWindows().find(window => window !== failedDraft)
+  assert.ok(win)
+  win.setSize(1440, 900)
+  choices.push(1)
+  failedDraft.close()
+  await wait(250)
+  assert.equal(failedDraft.isDestroyed(), true)
+  await until(`!!document.querySelector('.cm-content')`)
   await until(`${ctx}.source === ''`)
 
   const document = '---\ntitle: 保留元信息\n---\n# 开始\n\n' + Array.from({length: 30}, (_, i) => `## 第 ${i + 1} 节\n\n圆体正文 English 0123\n\n`).join('') + '## 最后一节'
   const existing = path.join(OUT, 'documents/独立文件.md')
   await fs.writeFile(existing, document)
   opens.push(existing)
+  const blank = win
   await button('打开文档')
+  win = BrowserWindow.getAllWindows().find(window => window !== blank)
+  assert.ok(win)
+  win.setSize(1440, 900)
+  await until(`!!document.querySelector('.cm-content')`)
+  blank.close()
   await until(`${ctx}.docPath === ${JSON.stringify(existing)}`)
   assert.equal(await run(`${ctx}.source`), document)
   await run(`${ctx}.save()`)

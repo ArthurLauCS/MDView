@@ -6,8 +6,9 @@ import { renderMarkdown } from '../markdown/render'
 import { autoPair } from '../actions/markdown-ops'
 
 function decorations(source: string) {
-  const state = EditorState.create({ doc: source, extensions: [liveMarkdown()] })
-  ensureSyntaxTree(state, state.doc.length, 1000)
+  let state = EditorState.create({ doc: source, extensions: [liveMarkdown()] })
+  expect(ensureSyntaxTree(state, state.doc.length, 1000)).not.toBeNull()
+  state = state.update({}).state
   const result: { from: number; to: number; spec: Record<string, unknown> }[] = []
   previewDecorations(state, null).between(0, state.doc.length, (from, to, value) => {
     result.push({ from, to, spec: value.spec })

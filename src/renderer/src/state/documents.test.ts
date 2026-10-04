@@ -12,6 +12,7 @@ beforeEach(async () => {
       write: vi.fn(async (path: string) => meta(path))
     },
     dialog: { saveFile: vi.fn(async () => '/notes/draft.md'), confirmSave: vi.fn(async () => 'cancel'), openDocument: vi.fn(async () => null) },
+    window: { open: vi.fn(async () => undefined), close: vi.fn() },
     history: { record: vi.fn(async () => null) }
   }
   vi.stubGlobal('window', { mdview: bridge })
@@ -19,14 +20,27 @@ beforeEach(async () => {
 })
 
 describe('document lifecycle', () => {
-  it('keeps a new draft in memory until the first explicit save', async () => {
+  it('opens new windows without replacing or prompting for the current draft', async () => {
+    await documents.initializeDocument()
+    documents.updateDocumentBuffer('unsaved work')
     await documents.newDocument()
+    await documents.openDocument('/notes/other.md', 'heading')
+    expect(bridge.window.open.mock.calls).toEqual([[null], ['/notes/other.md', 'heading']])
+    expect(documents.documentBuffer()).toBe('unsaved work')
+    expect(documents.hasUnsavedChanges()).toBe(true)
+    expect(bridge.dialog.confirmSave).not.toHaveBeenCalled()
+    documents.closeDocument()
+    expect(bridge.window.close).toHaveBeenCalledOnce()
+  })
+
+  it('keeps a new draft in memory until the first explicit save', async () => {
+    await documents.initializeDocument()
     documents.updateDocumentBuffer('草稿 English\n第二行')
     expect(documents.currentDocument()?.meta.path).toBe('')
     expect(bridge.doc.write).not.toHaveBeenCalled()
     expect(bridge.history.record).not.toHaveBeenCalled()
     expect(await documents.saveDocument()).toBe(true)
-    expect(bridge.doc.write).toHaveBeenCalledWith('/notes/draft.md', '草稿 English\n第二行')
+    expect(bridge.doc.write).toHaveBeenCalledWith('/notes/draft.md', '草稿 English\n第二行', undefined)
     expect(documents.currentDocument()?.meta.path).toBe('/notes/draft.md')
     expect(documents.hasUnsavedChanges()).toBe(false)
     documents.updateDocumentBuffer('changed')
@@ -35,7 +49,7 @@ describe('document lifecycle', () => {
   })
 
   it('preserves a draft when save is cancelled or disk writing fails', async () => {
-    await documents.newDocument()
+    await documents.initializeDocument()
     documents.updateDocumentBuffer('keep me')
     bridge.dialog.saveFile.mockResolvedValueOnce(null)
     expect(await documents.saveDocument()).toBe(false)
@@ -48,27 +62,27 @@ describe('document lifecycle', () => {
   })
 
   it('honors cancel, save and discard on document switches', async () => {
-    await documents.newDocument()
+    await documents.initializeDocument()
     documents.updateDocumentBuffer('keep')
-    await documents.openDocument('/notes/other.md')
+    await documents.loadDocument('/notes/other.md')
     expect(documents.documentBuffer()).toBe('keep')
     bridge.dialog.confirmSave.mockResolvedValueOnce('save')
     bridge.dialog.saveFile.mockResolvedValueOnce(null)
-    await documents.newDocument()
+    await documents.initializeDocument()
     expect(documents.documentBuffer()).toBe('keep')
     bridge.dialog.confirmSave.mockResolvedValueOnce('save')
-    await documents.openDocument('/notes/other.md')
-    expect(bridge.doc.write).toHaveBeenCalledWith('/notes/draft.md', 'keep')
+    await documents.loadDocument('/notes/other.md')
+    expect(bridge.doc.write).toHaveBeenCalledWith('/notes/draft.md', 'keep', undefined)
     expect(documents.documentBuffer()).toBe('# Saved')
     documents.updateDocumentBuffer('discard')
     bridge.dialog.confirmSave.mockResolvedValueOnce('discard')
-    await documents.newDocument()
+    await documents.initializeDocument()
     expect(documents.documentBuffer()).toBe('')
     expect(bridge.doc.write).toHaveBeenCalledTimes(1)
   })
 
   it('does not clear newer input or open a second save dialog during a write', async () => {
-    await documents.newDocument()
+    await documents.initializeDocument()
     documents.updateDocumentBuffer('first')
     let finish!: (value: ReturnType<typeof meta>) => void
     bridge.doc.write.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
@@ -86,11 +100,11 @@ describe('document lifecycle', () => {
   it('retains the current file when opening fails and saves its complete frontmatter', async () => {
     const text = '---\ntitle: metadata\n---\n# Body'
     bridge.doc.read.mockResolvedValueOnce({ meta: meta('/notes/a.md'), text, body: '# Body', frontmatter: { title: 'metadata' }, conflictWithDisk: false })
-    await documents.openDocument('/notes/a.md')
+    await documents.loadDocument('/notes/a.md')
     await documents.saveDocument()
-    expect(bridge.doc.write).toHaveBeenCalledWith('/notes/a.md', text)
+    expect(bridge.doc.write).toHaveBeenCalledWith('/notes/a.md', text, text)
     bridge.doc.read.mockRejectedValueOnce(new Error('file missing'))
-    await documents.openDocument('/notes/missing.md')
+    await documents.loadDocument('/notes/missing.md')
     expect(documents.currentDocument()?.meta.path).toBe('/notes/a.md')
   })
 })

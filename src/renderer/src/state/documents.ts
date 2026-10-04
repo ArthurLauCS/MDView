@@ -47,7 +47,7 @@ export function saveDocument(manual = true): Promise<boolean> {
       ])
       if (!path) return false
       const text = buffer
-      const meta = await window.mdview.doc.write(path, text)
+      const meta = await window.mdview.doc.write(path, text, document.meta.path ? saved : undefined)
       saved = text
       // Keep the editor instance and newer keystrokes when a draft gains a path.
       publish({ active: { ...document, meta, text: buffer, body: buffer }, dirty: buffer !== saved, error: null })
@@ -82,7 +82,7 @@ function change(action: () => Promise<void>): Promise<void> {
   return changing
 }
 
-export function newDocument(): Promise<void> {
+export function initializeDocument(): Promise<void> {
   return change(async () => {
     if (!await confirmDocumentChange()) return
     activate({
@@ -92,7 +92,7 @@ export function newDocument(): Promise<void> {
   })
 }
 
-export function openDocument(path: string, fragment = ''): Promise<void> {
+export function loadDocument(path: string, fragment = ''): Promise<void> {
   return change(async () => {
     if (state.active?.meta.path === path) return
     if (!await confirmDocumentChange()) return
@@ -100,12 +100,20 @@ export function openDocument(path: string, fragment = ''): Promise<void> {
   })
 }
 
+export function newDocument(): Promise<void> {
+  return window.mdview.window.open(null).catch(documentError)
+}
+
+export function openDocument(path: string, fragment = ''): Promise<void> {
+  return window.mdview.window.open(path, fragment).catch(documentError)
+}
+
 export async function openDocumentDialog(): Promise<void> {
   const path = await window.mdview.dialog.openDocument()
   if (path) await openDocument(path)
 }
 
-export function closeDocument(): Promise<void> { return newDocument() }
+export function closeDocument(): void { window.mdview.window.close() }
 
 export function useDocuments() {
   const [value, setValue] = useState(state)

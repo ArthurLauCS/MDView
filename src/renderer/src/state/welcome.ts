@@ -1,7 +1,6 @@
 import { WELCOME_DOC_REL, WELCOME_DOC_EN_REL } from '@shared/skills'
 import { settingsSnapshot } from './settings'
-import { currentDocument, openDocument } from './documents'
-import { openWorkspacePath } from './workspace'
+import { openDocument } from './documents'
 
 /**
  * Unpack and open the bundled welcome document.
@@ -17,7 +16,5 @@ export async function resolveWelcome(): Promise<boolean> {
   const docPath = await window.mdview.app.resolveStock(settingsSnapshot().language === 'en' ? WELCOME_DOC_EN_REL : WELCOME_DOC_REL)
   if (!docPath) return false
   await openDocument(docPath)
-  if (currentDocument()?.meta.path !== docPath) return false
-  await openWorkspacePath(docPath.replace(/[\\/][^\\/]+$/, ''))
   return true
 }
