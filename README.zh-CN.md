@@ -9,13 +9,13 @@
 
 一款支持简体中文和 English 的 Markdown 桌面编辑器，面向写作、代码笔记与表格。
 
-原名 MDView，图标保持不变。旧设置与历史记录继续使用，仓库地址及 AI 命令标识暂时保留兼容。
+原名 MDView，图标保持不变。旧设置与历史记录继续使用，仓库名称与新安装的 AI 技能统一使用 MDWisp。
 
-[![Release](https://img.shields.io/github/v/release/ArthurLauCS/MDView?color=d97757&label=release)](https://github.com/ArthurLauCS/MDView/releases/latest)
+[![Release](https://img.shields.io/github/v/release/ArthurLauCS/MDWisp?color=d97757&label=release)](https://github.com/ArthurLauCS/MDWisp/releases/latest)
 ![Windows x64](https://img.shields.io/badge/Windows-x64-30302e)
 [![License: MIT](https://img.shields.io/badge/license-MIT-30302e)](LICENSE)
 
-[下载应用](https://github.com/ArthurLauCS/MDView/releases/latest) · [安装 AI 插件](#安装-ai-插件) · [开始写作](#开始写作) · [更新记录](CHANGELOG.md)
+[下载应用](https://github.com/ArthurLauCS/MDWisp/releases/latest) · [安装 AI 插件](#安装-ai-插件) · [开始写作](#开始写作) · [更新记录](CHANGELOG.md)
 
 </div>
 
@@ -35,11 +35,11 @@
 
 ## 下载与安装
 
-前往 **[Releases](https://github.com/ArthurLauCS/MDView/releases/latest)**，下载 `MDWisp-0.3.0-setup.exe`，也可通过 `npm run dist` 自行构建。安装时可以选择中英文、安装目录，并创建桌面快捷方式。
+前往 **[Releases](https://github.com/ArthurLauCS/MDWisp/releases/latest)**，下载 `MDWisp-0.3.1-setup.exe`，也可通过 `npm run dist` 自行构建。安装时可以选择中英文、安装目录，并创建桌面快捷方式。
 
 当前提供 **Windows x64** 安装包；macOS 和 Linux 尚未验证。安装包暂未进行代码签名。
 
-只需要 AI 协作规则，可以下载同一发行版中的 `MDWisp-AI-skills-0.3.0.zip`，无需安装桌面应用。中文规则位于 `.agents`，英文规则位于 `en/.agents`；选择一份复制到项目根目录。`SHA256SUMS.txt` 提供下载文件的校验值。
+只需要 AI 协作规则，可以下载同一发行版中的 `MDWisp-AI-skills-0.3.1.zip`，无需安装桌面应用。中文规则位于 `.agents`，英文规则位于 `en/.agents`；选择一份复制到项目根目录。`SHA256SUMS.txt` 提供下载文件的校验值。
 
 ## 语言与链接
 
@@ -97,7 +97,7 @@ MDWisp 使用普通文件，推荐每篇文档独占一个文件夹：
 
 ## 安装 AI 插件
 
-提供两项能力：**doc** 生成符合文档文件夹格式的文档，**share** 预览并移除本地图片与链接，整理可单独分享的 Markdown。三种客户端使用[同一份规则](plugin/mdview/skills)，无需分别维护提示词。
+提供两项能力：**doc** 生成符合文档文件夹格式的文档，**share** 预览并移除本地图片与链接，整理可单独分享的 Markdown。三种客户端使用[同一份规则](plugin/mdwisp/skills)，无需分别维护提示词。
 
 可要求「不生成图片」或「尽量生成图片」；实际图片生成能力取决于所用客户端已连接的工具。
 
@@ -114,19 +114,19 @@ MDWisp 使用普通文件，推荐每篇文档独占一个文件夹：
 你的项目/
 └── .agents/
     └── skills/
-        ├── mdview-doc/
+        ├── mdwisp-doc/
         │   ├── SKILL.md
         │   └── scripts/check.mjs
-        └── mdview-share/
+        └── mdwisp-share/
             └── SKILL.md
 ```
 
 | 客户端 | 创建文档 | 整理交付 |
 | :--- | :--- | :--- |
-| Codex | `$mdview-doc 为这个项目写一份使用手册` | `$mdview-share 整理可分享的单文件 Markdown` |
-| Cursor | `/mdview-doc 为这个项目写一份使用手册` | `/mdview-share 整理可分享的单文件 Markdown` |
+| Codex | `$mdwisp-doc 为这个项目写一份使用手册` | `$mdwisp-share 整理可分享的单文件 Markdown` |
+| Cursor | `/mdwisp-doc 为这个项目写一份使用手册` | `/mdwisp-share 整理可分享的单文件 Markdown` |
 
-**不使用桌面应用：** 解压发行版中的 AI 技能包，将 `.agents` 文件夹复制到项目根目录。如果目标已有同名技能，先比较内容，保留自己的修改。希望所有项目可用，可将两个 `mdview-*` 文件夹放入用户目录 `~/.agents/skills/`。
+**不使用桌面应用：** 解压发行版中的 AI 技能包，将 `.agents` 文件夹复制到项目根目录。如果目标已有同名技能，先比较内容，保留自己的修改。希望所有项目可用，可将两个 `mdwisp-*` 文件夹放入用户目录 `~/.agents/skills/`。
 
 这里使用客户端的本地 Agent Skills 支持；它不依赖应用商店上架。路径与加载方式见 [Codex Skills 文档](https://learn.chatgpt.com/docs/build-skills)和 [Cursor Skills 文档](https://cursor.com/docs/skills)。
 
@@ -135,15 +135,15 @@ MDWisp 使用普通文件，推荐每篇文档独占一个文件夹：
 在终端执行：
 
 ```bash
-claude plugin marketplace add ArthurLauCS/MDView
-claude plugin install mdview@mdview
+claude plugin marketplace add ArthurLauCS/MDWisp
+claude plugin install mdwisp@mdwisp
 ```
 
 在新的 Claude Code 会话中使用：
 
 ```text
-/mdview:doc 为这个项目写一份使用手册
-/mdview:share 整理可分享的单文件 Markdown
+/mdwisp:doc 为这个项目写一份使用手册
+/mdwisp:share 整理可分享的单文件 Markdown
 ```
 
 也可以在 MDWisp 的「给 AI 的协作规则」中，点击 Claude Code 的 **复制安装命令**，把命令粘贴到 Claude Code 会话中，使用随应用分发的本地插件。
@@ -152,20 +152,20 @@ claude plugin install mdview@mdview
 
 ```bash
 claude plugin marketplace add ./plugin
-claude plugin install mdview@mdview
+claude plugin install mdwisp@mdwisp
 ```
 
-用 `claude plugin list` 检查安装结果。若之前已添加名为 `mdview` 的本地市场，可继续使用它，无需重复添加。此处指 **Claude Code** 的插件系统；安装机制见 [Claude Code 插件市场文档](https://code.claude.com/docs/en/plugin-marketplaces)。
+用 `claude plugin list` 检查安装结果。旧版 `mdview` 技能不会被自动删除；请按上面的命令安装新版 `mdwisp` 插件。此处指 **Claude Code** 的插件系统；安装机制见 [Claude Code 插件市场文档](https://code.claude.com/docs/en/plugin-marketplaces)。
 
 ### 检查 AI 生成的文档
 
 校验脚本需要 Node.js，无需安装依赖。在安装技能的项目根目录运行：
 
 ```bash
-node .agents/skills/mdview-doc/scripts/check.mjs "./我的笔记"
+node .agents/skills/mdwisp-doc/scripts/check.mjs "./我的笔记"
 ```
 
-从源码或 AI 技能包运行时，也可使用 `plugin/mdview/skills/doc/scripts/check.mjs`。它会检查文件夹命名、Markdown 主文件及图片引用等约定。
+从源码或 AI 技能包运行时，也可使用 `plugin/mdwisp/skills/doc/scripts/check.mjs`。它会检查文件夹命名、Markdown 主文件及图片引用等约定。
 
 ## 常用快捷键
 
@@ -205,7 +205,7 @@ claude plugin validate .
 claude plugin validate plugin
 ```
 
-0.2.0 已通过 420 个单元测试、类型检查、71 个快捷键、多窗口与编辑交互回归，并验证打包应用的四种导出和技能安装。剩余的 14 个无快捷键表格动作及其他限制记录在[项目状态](docs/STATUS.md)。问题反馈请使用 [Issues](https://github.com/ArthurLauCS/MDView/issues)。
+0.2.0 已通过 420 个单元测试、类型检查、71 个快捷键、多窗口与编辑交互回归，并验证打包应用的四种导出和技能安装。剩余的 14 个无快捷键表格动作及其他限制记录在[项目状态](docs/STATUS.md)。问题反馈请使用 [Issues](https://github.com/ArthurLauCS/MDWisp/issues)。
 
 开发约定见 [AGENTS.md](AGENTS.md)：系统能力通过 preload 暴露；资源路径集中处理；快捷键、右键菜单与命令面板共享动作注册表。
 

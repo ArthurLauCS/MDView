@@ -9,7 +9,7 @@
 
 A local Markdown desktop editor for writing, code notes and tables, with English and Simplified Chinese interfaces.
 
-[Download](https://github.com/ArthurLauCS/MDView/releases/latest) · [AI skills](#ai-skills) · [Getting started](#getting-started) · [Changelog](CHANGELOG.md)
+[Download](https://github.com/ArthurLauCS/MDWisp/releases/latest) · [AI skills](#ai-skills) · [Getting started](#getting-started) · [Changelog](CHANGELOG.md)
 
 </div>
 
@@ -18,7 +18,7 @@ A local Markdown desktop editor for writing, code notes and tables, with English
   <img src="docs/images/editor-dark.png" alt="Editor with outline, live Markdown, code highlighting and tables" width="100%" />
 </picture>
 
-Formerly **MDView**. The icon is unchanged. Existing settings, history, repository URLs and AI command identifiers remain compatible. The screenshots show the earlier Chinese interface.
+Formerly **MDView**. The icon is unchanged. Existing settings and history remain compatible. The repository and new AI skill installations use MDWisp. The screenshots show the earlier Chinese interface.
 
 ## Features
 
@@ -31,9 +31,9 @@ Formerly **MDView**. The icon is unchanged. Existing settings, history, reposito
 
 ## Download and installation
 
-Download `MDWisp-0.3.0-setup.exe` from [Releases](https://github.com/ArthurLauCS/MDView/releases/latest), or build it with `npm run dist`. Installation offers English and Simplified Chinese, a directory choice and a desktop shortcut. Installers are currently unsigned; macOS and Linux have not been verified.
+Download `MDWisp-0.3.1-setup.exe` from [Releases](https://github.com/ArthurLauCS/MDWisp/releases/latest), or build it with `npm run dist`. Installation offers English and Simplified Chinese, a directory choice and a desktop shortcut. Installers are currently unsigned; macOS and Linux have not been verified.
 
-`MDWisp-AI-skills-0.3.0.zip` provides AI rules without installing the app. Copy `en/.agents` into a project for English rules, or `.agents` for Simplified Chinese. Check downloaded files against `SHA256SUMS.txt` from the release.
+`MDWisp-AI-skills-0.3.1.zip` provides AI rules without installing the app. Copy `en/.agents` into a project for English rules, or `.agents` for Simplified Chinese. Check downloaded files against `SHA256SUMS.txt` from the release.
 
 ## Getting started
 
@@ -96,28 +96,28 @@ History opens beside the editor. Inspect snapshots, compare changes, record a sn
 
 ## AI skills
 
-The `doc` skill creates portable document folders; `share` previews and removes local images and paths for a standalone file. All clients use the [plugin rule sources](plugin/mdview/skills), with English companion rules included.
+The `doc` skill creates portable document folders; `share` previews and removes local images and paths for a standalone file. All clients use the [plugin rule sources](plugin/mdwisp/skills), with English companion rules included.
 
 In **Help → Rules for AI assistants**, choose a project to install skills for Codex and Cursor. Existing project instructions are preserved. Conflicting skill files must be backed up before replacing them. The selected interface language determines the installed rules' language.
 
 | Client | Write | Share |
 | --- | --- | --- |
-| Codex | `$mdview-doc Write a user guide` | `$mdview-share Export standalone Markdown` |
-| Cursor | `/mdview-doc Write a user guide` | `/mdview-share Export standalone Markdown` |
+| Codex | `$mdwisp-doc Write a user guide` | `$mdwisp-share Export standalone Markdown` |
+| Cursor | `/mdwisp-doc Write a user guide` | `/mdwisp-share Export standalone Markdown` |
 
-Skills install in `.agents/skills/mdview-doc/` and `.agents/skills/mdview-share/`. These identifiers remain compatible with the former MDView name. Alternatively copy `en/.agents` from the AI skills archive into your project as `.agents`; for all projects, use `~/.agents/skills/` and preserve custom modifications.
+Skills install in `.agents/skills/mdwisp-doc/` and `.agents/skills/mdwisp-share/`. Previously installed `mdview-*` skills are left untouched; new installations use `mdwisp-*`. Alternatively copy `en/.agents` from the AI skills archive into your project as `.agents`; for all projects, use `~/.agents/skills/` and preserve custom modifications.
 
 For Claude Code, use the app's **Copy install command**, or run from a checkout:
 
 ```bash
 claude plugin marketplace add ./plugin
-claude plugin install mdview@mdview
+claude plugin install mdwisp@mdwisp
 ```
 
-Use `/mdview:doc` or `/mdview:share` in a new session. Validate generated folders with Node.js:
+Use `/mdwisp:doc` or `/mdwisp:share` in a new session. Validate generated folders with Node.js:
 
 ```bash
-node .agents/skills/mdview-doc/scripts/check.mjs "./Notes"
+node .agents/skills/mdwisp-doc/scripts/check.mjs "./Notes"
 ```
 
 ## Shortcuts
@@ -157,7 +157,7 @@ node scripts/packaged-check.cjs design-review/packaged-N
 claude plugin validate plugin
 ```
 
-See [AGENTS.md](AGENTS.md) for development rules. Report issues in the existing [GitHub repository](https://github.com/ArthurLauCS/MDView/issues).
+See [AGENTS.md](AGENTS.md) for development rules. Report issues in the existing [GitHub repository](https://github.com/ArthurLauCS/MDWisp/issues).
 
 ## License and fonts
 

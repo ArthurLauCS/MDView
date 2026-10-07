@@ -360,7 +360,7 @@ export function registerAllHandlers(ctx: HandlerContext): void {
     const source = join(stockRoot(), name)
     if (!existsSync(source)) return null
 
-    const destRoot = join(app.getPath('documents'), 'MDView')
+    const destRoot = join(app.getPath('documents'), 'MDWisp')
     const target = join(destRoot, name)
     if (existsSync(target)) return target
 

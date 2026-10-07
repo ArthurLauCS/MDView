@@ -7,9 +7,9 @@ export async function installSkills(pluginRoot: string, project: string): Promis
   const targetRoot = join(project, '.agents', 'skills')
   const files: { path: string; content: Buffer }[] = []
   for (const skill of ['doc', 'share']) {
-    const source = join(pluginRoot, 'mdview', 'skills', skill)
-    const target = join(targetRoot, `mdview-${skill}`)
-    const body = (await fs.readFile(join(source, currentLanguage() === 'en' ? 'SKILL.en.md' : 'SKILL.md'), 'utf8')).replace(/^name: (doc|share)$/m, `name: mdview-${skill}`)
+    const source = join(pluginRoot, 'mdwisp', 'skills', skill)
+    const target = join(targetRoot, `mdwisp-${skill}`)
+    const body = (await fs.readFile(join(source, currentLanguage() === 'en' ? 'SKILL.en.md' : 'SKILL.md'), 'utf8')).replace(/^name: (doc|share)$/m, `name: mdwisp-${skill}`)
     files.push({ path: join(target, 'SKILL.md'), content: Buffer.from(body) })
     if (skill === 'doc') files.push({ path: join(target, 'scripts', 'check.mjs'), content: await fs.readFile(join(source, 'scripts', 'check.mjs')) })
   }
