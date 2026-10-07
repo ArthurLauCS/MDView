@@ -1,6 +1,11 @@
 import type { MessageKey } from './zh-CN'
 
 export const en = {
+  '文件内查找': 'Find in document',
+  '文件内替换': 'Replace in document',
+  '下一个匹配': 'Next match',
+  '上一个匹配': 'Previous match',
+  '关闭查找': 'Close search',
   '隐藏或工具目录，不属于文档': 'Hidden or tool directory, outside the document',
   '不是普通文件': 'Not a regular file',
   '找不到应用的样式表目录': 'Application stylesheet directory not found',

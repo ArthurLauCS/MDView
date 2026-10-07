@@ -6,6 +6,8 @@
  * directly — that is how the three surfaces stay in sync for free.
  */
 
+import type { SearchCommand } from '../editor/search'
+
 export type ActionScope =
   /** Works anywhere, even with nothing open. */
   | 'global'
@@ -101,6 +103,8 @@ export interface ActionContext {
   save?: () => void | Promise<void>
   undo?: () => void
   redo?: () => void
+  search?: (command: SearchCommand) => void
+  searchOpen?: () => boolean
   pickCodeLanguage?: () => void
   /** Push a transient message. */
   toast: (message: string, tone?: 'info' | 'success' | 'error') => void

@@ -35,13 +35,15 @@
 
 ## 下载与安装
 
-前往 **[Releases](https://github.com/ArthurLauCS/MDView/releases/latest)**，下载 `MDWisp-0.2.0-setup.exe`，也可通过 `npm run dist` 自行构建。安装时可以选择中英文、安装目录，并创建桌面快捷方式。
+前往 **[Releases](https://github.com/ArthurLauCS/MDView/releases/latest)**，下载 `MDWisp-0.3.0-setup.exe`，也可通过 `npm run dist` 自行构建。安装时可以选择中英文、安装目录，并创建桌面快捷方式。
 
 当前提供 **Windows x64** 安装包；macOS 和 Linux 尚未验证。安装包暂未进行代码签名。
 
-只需要 AI 协作规则，可以下载同一发行版中的 `MDWisp-AI-skills-0.2.0.zip`，无需安装桌面应用。中文规则位于 `.agents`，英文规则位于 `en/.agents`；选择一份复制到项目根目录。`SHA256SUMS.txt` 提供下载文件的校验值。
+只需要 AI 协作规则，可以下载同一发行版中的 `MDWisp-AI-skills-0.3.0.zip`，无需安装桌面应用。中文规则位于 `.agents`，英文规则位于 `en/.agents`；选择一份复制到项目根目录。`SHA256SUMS.txt` 提供下载文件的校验值。
 
 ## 语言与链接
+
+按 **Ctrl+F** 查找当前文档，**Ctrl+H** 打开替换。支持逐个替换、全部替换、区分大小写、全字和正则匹配；**F3 / Shift+F3** 切换匹配，**Esc** 关闭。搜索时临时显示 Markdown 源码，让表格和链接路径里的匹配也可见，关闭后恢复预览。替换可以撤销，只读文档只能查找。历史版本快捷键为 **Ctrl+Alt+Y**。
 
 在「设置 → 外观与字体 → 界面语言」中切换简体中文和 English，即时生效并在重启后保留，不会翻译文档内容。
 

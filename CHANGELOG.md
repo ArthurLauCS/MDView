@@ -1,5 +1,23 @@
 # 更新记录
 
+## 0.3.0 · 2026-10-07
+
+### 简体中文
+
+- 新增文件内查找与替换：`Ctrl+F` 查找，`Ctrl+H` 替换，支持逐个替换、全部替换、大小写、全字和正则匹配。
+- `F3` / `Shift+F3` 循环切换匹配，`Esc` 关闭搜索；搜索时临时显示 Markdown 源码，确保表格、代码和链接路径中的匹配可见，关闭后恢复实时预览。
+- 查找操作同步接入右键菜单和命令面板；历史版本快捷键调整为 `Ctrl+Alt+Y`。
+- 替换支持撤销与只读保护，搜索输入框中的编辑快捷键不会误改文档；搜索面板支持中英文及深浅主题。
+- 420 项单元测试、类型检查、真实 Electron 搜索与编辑回归通过。
+
+### English
+
+- Added in-document find and replace: `Ctrl+F` to find and `Ctrl+H` to replace, with replace-next, replace-all, case-sensitive, whole-word and regular expression matching.
+- `F3` / `Shift+F3` cycle through matches; `Esc` closes search. Search temporarily reveals Markdown source so matches in tables, code and link paths remain visible, then restores live preview when closed.
+- Search actions also appear in the context menu and command palette. Version history now uses `Ctrl+Alt+Y`.
+- Replacement supports undo and read-only protection. Editing shortcuts in search fields do not change the document. The panel supports both interface languages and themes.
+- Verified 420 unit tests, both TypeScript projects and real Electron search/editing regressions.
+
 ## 0.2.0 · 2026-10-04
 
 ### 简体中文

@@ -1,6 +1,6 @@
 {
   "name": "mdwisp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Markdown reader + editor with folder-based documents, local code language detection and a Claude-inspired dark-first UI.",
   "main": "./out/main/index.js",
@@ -45,6 +45,7 @@
     "@codemirror/commands": "^6.11.1",
     "@codemirror/lang-markdown": "^6.5.2",
     "@codemirror/language": "^6.12.4",
+    "@codemirror/search": "^6.7.2",
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.13",
     "chokidar": "^3.6.0",

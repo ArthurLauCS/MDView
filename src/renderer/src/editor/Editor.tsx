@@ -4,11 +4,13 @@ import { Compartment, EditorState, Transaction } from '@codemirror/state'
 import { EditorView, keymap, highlightActiveLine, placeholder, scrollPastEnd } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap, indentWithTab, isolateHistory, undo, redo } from '@codemirror/commands'
 import { markdownKeymap } from '@codemirror/lang-markdown'
+import { closeSearchPanel, getSearchQuery, openSearchPanel, search, searchPanelOpen, setSearchQuery } from '@codemirror/search'
 import { indentUnit, syntaxTree } from '@codemirror/language'
 import type { Locale } from '@shared/types'
 import { autoPair } from '../actions/markdown-ops'
 import { focusTableCell, livePreview, liveMarkdown, startCodeBlock, leaveCodeBlock } from './live-preview'
 import { PageMargins } from './PageMargins'
+import { searchChinese, searchCommands, type SearchCommand } from './search'
 import './editor.css'
 
 export interface EditorHandle {
@@ -22,6 +24,8 @@ export interface EditorHandle {
   focus: () => void
   undo: () => void
   redo: () => void
+  search: (command: SearchCommand) => void
+  searchOpen: () => boolean
   pickCodeLanguage: () => void
   element: () => HTMLElement | null
 }
@@ -54,6 +58,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(props, ref
   const [cursor, setCursor] = useState(0)
 
   const configure = () => [
+    current.current.language === 'zh-CN' ? searchChinese : [],
     placeholder(t('从这里开始写作…')),
     EditorState.tabSize.of(current.current.tabSize ?? 2),
     indentUnit.of(' '.repeat(current.current.tabSize ?? 2)),
@@ -106,6 +111,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(props, ref
     focus: () => viewRef.current?.focus(),
     undo: () => { if (viewRef.current && !viewRef.current.state.readOnly) undo(viewRef.current) },
     redo: () => { if (viewRef.current && !viewRef.current.state.readOnly) redo(viewRef.current) },
+    search: (command) => { if (viewRef.current) searchCommands[command](viewRef.current) },
+    searchOpen: () => !!viewRef.current && searchPanelOpen(viewRef.current.state),
     pickCodeLanguage: () => {
       const view = viewRef.current
       if (!view || view.state.readOnly) return
@@ -127,6 +134,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(props, ref
         extensions: [
           liveMarkdown(),
           history(),
+          search({ top: true }),
           config.current.of(configure()),
           keymap.of([{ key: 'Enter', run: startCodeBlock }, ...historyKeymap, indentWithTab, ...defaultKeymap]),
           EditorView.lineWrapping,
@@ -223,6 +231,16 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(props, ref
   useEffect(() => {
     viewRef.current?.dispatch({ effects: config.current.reconfigure(configure()) })
   }, [props.readOnly, props.highlightLine, props.spellCheck, props.smartLists, props.tabSize, props.language])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (view && searchPanelOpen(view.state)) {
+      const query = getSearchQuery(view.state)
+      closeSearchPanel(view)
+      openSearchPanel(view)
+      view.dispatch({ effects: setSearchQuery.of(query) })
+    }
+  }, [props.readOnly, props.language])
 
   useEffect(() => {
     const view = viewRef.current

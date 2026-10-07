@@ -77,6 +77,7 @@ export function App(): JSX.Element {
         : action.scope === 'image' ? !!image : scopes.has(action.scope)
       if (!inScope || action.enabled?.(ctx) === false) return
       const appAction = ['app', 'global'].includes(action.scope)
+      if (!appAction && action.group !== 'find' && target.closest('.cm-search')) return
       if (!appAction && panel) {
         if (target.closest('.editor')) { e.preventDefault(); e.stopPropagation() }
         return
@@ -85,9 +86,7 @@ export function App(): JSX.Element {
       e.preventDefault()
       e.stopPropagation()
       void action.run(image ? { ...ctx, fullscreenImage: () => { void image.requestFullscreen() } } : ctx)
-      // Escape is deliberately not handled here — PanelHost owns dismissal
-      // for the panels, and the palette owns its own. Handling it in both
-      // places meant two handlers racing on the same keystroke.
+      // Modal panels own Escape; document actions above are blocked while one is open.
     }
     // App shortcuts must win over the focused editor or settings input.
     window.addEventListener('keydown', onKey, true)
