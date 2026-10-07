@@ -81,7 +81,7 @@ async function main() {
     for (let i = 0; i < 50 && !(await run(`document.querySelector('[role="status"]')?.textContent.includes('已安装到')`)); i++) await wait(100)
     assert.match(await run(`document.querySelector('[role="status"]').textContent`), /已安装到/)
     for (const name of ['doc', 'share']) {
-      assert.match(await fs.readFile(path.join(project, '.agents/skills', `mdview-${name}/SKILL.md`), 'utf8'), new RegExp(`name: mdview-${name}`))
+      assert.match(await fs.readFile(path.join(project, '.agents/skills', `mdwisp-${name}/SKILL.md`), 'utf8'), new RegExp(`name: mdwisp-${name}`))
     }
     await run(`document.querySelector('[role="status"]').scrollIntoView({block:'center'})`)
     await shot('03-portable-skills-installed')

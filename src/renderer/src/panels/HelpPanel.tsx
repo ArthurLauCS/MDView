@@ -128,14 +128,14 @@ export function HelpPanel({ onClose }: Props): JSX.Element {
               <span className="row__label">
                 <span className="row__name">{t('Claude Code 插件')}</span>
                 <span className="row__hint">
-                  {t('复制后粘进 Claude Code 执行，之后用')}<code>/mdview:doc</code> {t('写文档，或直接让它写一份文档')}</span>
+                  {t('复制后粘进 Claude Code 执行，之后用')}<code>/mdwisp:doc</code> {t('写文档，或直接让它写一份文档')}</span>
               </span>
               <span className="row__control">
                 <button
                   className="btn"
                   onClick={() =>
                     void window.mdview.app.pluginPath().then((path) =>
-                      window.mdview.clipboard.writeText(`/plugin marketplace add "${path}"\n/plugin install mdview@mdview`)
+                      window.mdview.clipboard.writeText(`/plugin marketplace add "${path}"\n/plugin install mdwisp@mdwisp`)
                     )
                   }
                 >
@@ -146,7 +146,7 @@ export function HelpPanel({ onClose }: Props): JSX.Element {
               <span className="row__label">
                 <span className="row__name">Codex / Cursor</span>
                 <span className="row__hint">
-                  {t('选择项目文件夹，安装共用技能与校验脚本。Codex 使用')}<code>$mdview-doc</code>{t('，Cursor 使用')}<code>/mdview-doc</code>。
+                  {t('选择项目文件夹，安装共用技能与校验脚本。Codex 使用')}<code>$mdwisp-doc</code>{t('，Cursor 使用')}<code>/mdwisp-doc</code>。
                 </span>
               </span>
               <span className="row__control">

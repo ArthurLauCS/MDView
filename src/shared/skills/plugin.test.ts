@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { BUNDLED_SKILLS } from './index'
 
-const CHECK = resolve(__dirname, '../../../plugin/mdview/skills/doc/scripts/check.mjs')
+const CHECK = resolve(__dirname, '../../../plugin/mdwisp/skills/doc/scripts/check.mjs')
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>'
 
 let root: string

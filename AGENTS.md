@@ -34,7 +34,7 @@ renderer  →  preload  →  main
 
 `plugin/` 是 Claude Code 插件，也是格式规范的**唯一文本来源**：`src/shared/skills/index.ts` 用 `?raw` 读 `SKILL.md`，帮助面板展示的就是插件里的内容。
 
-- 改规则只改 `plugin/mdview/skills/*/SKILL.md`，不要在应用里另存一份。
+- 改规则只改 `plugin/mdwisp/skills/*/SKILL.md`，不要在应用里另存一份。
 - `skills/doc/scripts/check.mjs` 必须零依赖、可独立运行，不能 import 应用代码。它与 `mapImageLinks` 的扫描规则是有意重复的，改一处时两处一起改，`plugin.test.ts` 覆盖脚本行为。
 - 规则与应用行为必须一致：应用写出的链接要能通过 `check.mjs`（欢迎文档在测试里被它校验）。
 

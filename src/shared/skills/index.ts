@@ -1,7 +1,7 @@
-import doc from '../../../plugin/mdview/skills/doc/SKILL.md?raw'
-import share from '../../../plugin/mdview/skills/share/SKILL.md?raw'
-import docEn from '../../../plugin/mdview/skills/doc/SKILL.en.md?raw'
-import shareEn from '../../../plugin/mdview/skills/share/SKILL.en.md?raw'
+import doc from '../../../plugin/mdwisp/skills/doc/SKILL.md?raw'
+import share from '../../../plugin/mdwisp/skills/share/SKILL.md?raw'
+import docEn from '../../../plugin/mdwisp/skills/doc/SKILL.en.md?raw'
+import shareEn from '../../../plugin/mdwisp/skills/share/SKILL.en.md?raw'
 import { frontmatterEnd } from '../markdown/frontmatter'
 
 export interface BundledSkill {

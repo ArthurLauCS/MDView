@@ -99,4 +99,4 @@ Press **Ctrl+Shift+E** to export plain Markdown, a ZIP document folder, a self-c
 
 Press **F1** for searchable shortcuts, or **Ctrl+P** for commands. Help contains the portable-document rules and installation commands for Claude Code, Codex and Cursor.
 
-MDWisp was formerly named MDView. The existing `mdview` data directory and AI command identifiers remain compatible so settings, history and installed workflows continue to work.
+MDWisp was formerly named MDView. The existing `mdview` data directory is preserved for settings and history. New AI skill installations use `mdwisp` commands; previously installed skills are left untouched.

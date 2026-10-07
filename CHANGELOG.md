@@ -1,5 +1,10 @@
 # 更新记录
 
+## 0.3.1 · 2026-10-07
+
+- GitHub 仓库、AI 插件与新安装的技能统一使用 MDWisp / `mdwisp`；保留已有数据目录、文档内部标记和旧版技能。
+- Unified the GitHub repository, AI plugin and newly installed skills under MDWisp / `mdwisp`, preserving existing data, document markers and previously installed skills.
+
 ## 0.3.0 · 2026-10-07
 
 ### 简体中文
