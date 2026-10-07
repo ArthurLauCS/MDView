@@ -104,7 +104,7 @@ async function main() {
       assert.equal(await text(), before, 'panel shortcuts must not edit the document underneath')
     } else if (context === 'shortcuts') await press('F1')
     else if (context === 'history') {
-      await press('Ctrl+H')
+      await press('Ctrl+Alt+Y')
       await run(`document.querySelector('.history-panel button')?.focus()`)
     } else if (context === 'palette') await press('Ctrl+P')
     else if (context === 'context-menu') await run(`document.querySelector('.cm-content').dispatchEvent(new MouseEvent('contextmenu', {bubbles:true,clientX:500,clientY:180}))`)
@@ -245,7 +245,7 @@ async function main() {
   await press('Ctrl+Backslash')
   await run(`window.__mdview.setSettings({theme:'dark',sidebarVisible:true})`)
   // Close history dock, which remains independent of modal panels.
-  if (await run(`!!document.querySelector('.history-panel')`)) await press('Ctrl+H')
+  if (await run(`!!document.querySelector('.history-panel')`)) await press('Ctrl+Alt+Y')
 
   // Large image: proportional shrinking/growing with viewport and dragged margins.
   const imageFile = path.join(OUT, 'documents/wide.svg')

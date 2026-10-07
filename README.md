@@ -31,9 +31,9 @@ Formerly **MDView**. The icon is unchanged. Existing settings, history, reposito
 
 ## Download and installation
 
-Download `MDWisp-0.2.0-setup.exe` from [Releases](https://github.com/ArthurLauCS/MDView/releases/latest), or build it with `npm run dist`. Installation offers English and Simplified Chinese, a directory choice and a desktop shortcut. Installers are currently unsigned; macOS and Linux have not been verified.
+Download `MDWisp-0.3.0-setup.exe` from [Releases](https://github.com/ArthurLauCS/MDView/releases/latest), or build it with `npm run dist`. Installation offers English and Simplified Chinese, a directory choice and a desktop shortcut. Installers are currently unsigned; macOS and Linux have not been verified.
 
-`MDWisp-AI-skills-0.2.0.zip` provides AI rules without installing the app. Copy `en/.agents` into a project for English rules, or `.agents` for Simplified Chinese. Check downloaded files against `SHA256SUMS.txt` from the release.
+`MDWisp-AI-skills-0.3.0.zip` provides AI rules without installing the app. Copy `en/.agents` into a project for English rules, or `.agents` for Simplified Chinese. Check downloaded files against `SHA256SUMS.txt` from the release.
 
 ## Getting started
 
@@ -45,6 +45,8 @@ Download `MDWisp-0.2.0-setup.exe` from [Releases](https://github.com/ArthurLauCS
 New documents, opened files and repeated shortcut launches use independent windows, preserving the current document and its unsaved edits. After the first save, autosave and history follow **Settings → Documents & saving**. Closing a window offers Save, Don't save and Cancel for unsaved edits. A failed save keeps that window open. A stale save cannot overwrite changes made by another window.
 
 ## Language and links
+
+Use **Ctrl+F** to find text and **Ctrl+H** to replace it in the current document. The panel supports replace-next, replace-all, case sensitivity, whole words and regular expressions. **F3 / Shift+F3** cycle through matches; **Esc** closes search. Search temporarily shows Markdown source so matches inside tables and link paths remain visible. Replacements can be undone; read-only documents allow searching only. Version history uses **Ctrl+Alt+Y**.
 
 Choose **Settings → Appearance & fonts → Interface language** for **English** or **简体中文**. The choice applies immediately and persists across restarts without translating document content or resetting the editor.
 

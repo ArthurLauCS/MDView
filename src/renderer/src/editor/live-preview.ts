@@ -2,6 +2,7 @@ import { t } from '../i18n'
 import { StateField, type EditorState, type Range } from '@codemirror/state'
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
+import { searchPanelOpen } from '@codemirror/search'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import hljs from 'highlight.js/lib/common'
 import { detectLanguage } from '@shared/markdown/detect'
@@ -274,6 +275,8 @@ export function focusTableCell(view: EditorView, start: number, end: number): bo
 }
 
 export function previewDecorations(state: EditorState, docDir: string | null): DecorationSet {
+  // Search must expose matches in table cells, image paths and hidden Markdown markers.
+  if (searchPanelOpen(state)) return Decoration.none
   const ranges: Range<Decoration>[] = []
   const source = state.doc.toString()
   const references = markdownReferences(source)
@@ -442,7 +445,7 @@ export function livePreview(docDir: string | null) {
     }
   }), StateField.define<DecorationSet>({
     create: (state) => previewDecorations(state, docDir),
-    update: (value, tr) => tr.docChanged || tr.selection || tr.reconfigured || syntaxTree(tr.state) !== syntaxTree(tr.startState)
+    update: (value, tr) => tr.docChanged || tr.selection || tr.reconfigured || searchPanelOpen(tr.state) !== searchPanelOpen(tr.startState) || syntaxTree(tr.state) !== syntaxTree(tr.startState)
       ? previewDecorations(tr.state, docDir) : value,
     provide: (field) => EditorView.decorations.from(field)
   }), ViewPlugin.define((view) => ({

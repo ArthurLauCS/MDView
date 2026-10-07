@@ -187,7 +187,7 @@ export const ACTIONS: ActionDef[] = [
   { id: 'view.palette', get title() { return t('命令面板') }, key: 'Ctrl+P', scope: 'app', group: 'view', run: () => togglePanel('palette') },
   { id: 'document.export', get title() { return t('导出文档') }, key: 'Ctrl+Shift+E', scope: 'app', group: 'file', run: () => togglePanel('export') },
   {
-    id: 'view.history', get title() { return t('历史版本') }, key: 'Ctrl+H',
+    id: 'view.history', get title() { return t('历史版本') }, key: 'Ctrl+Alt+Y',
     scope: 'app', group: 'view', keywords: ['history', '快照', '还原'],
     run: () => togglePanel('history')
   },
@@ -368,6 +368,33 @@ export const ACTIONS: ActionDef[] = [
   },
 
   // ---- clipboard / find ---------------------------------------------------
+  {
+    id: 'find.open', get title() { return t('文件内查找') }, key: 'Ctrl+F',
+    scope: 'document', group: 'find', keywords: ['find', 'search'],
+    run: (ctx) => ctx.search?.('open')
+  },
+  {
+    id: 'find.replace', get title() { return t('文件内替换') }, key: 'Ctrl+H',
+    scope: 'document', group: 'find', keywords: ['replace'],
+    enabled: () => !settingsSnapshot().readOnly,
+    run: (ctx) => ctx.search?.('replace')
+  },
+  {
+    id: 'find.next', get title() { return t('下一个匹配') }, key: 'F3',
+    scope: 'document', group: 'find', keywords: ['find', 'next'],
+    run: (ctx) => ctx.search?.('next')
+  },
+  {
+    id: 'find.previous', get title() { return t('上一个匹配') }, key: 'Shift+F3',
+    scope: 'document', group: 'find', keywords: ['find', 'previous'],
+    run: (ctx) => ctx.search?.('previous')
+  },
+  {
+    id: 'find.close', get title() { return t('关闭查找') }, key: 'Escape',
+    scope: 'document', group: 'find',
+    enabled: (ctx) => ctx.searchOpen?.() ?? false,
+    run: (ctx) => ctx.search?.('close')
+  },
   {
     id: 'clipboard.copyPlain',
     get title() { return t('复制为纯文本') },
