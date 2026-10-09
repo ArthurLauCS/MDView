@@ -2,7 +2,7 @@ import { t } from '../i18n'
 import { StateField, type EditorState, type Range } from '@codemirror/state'
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
-import { searchPanelOpen } from '@codemirror/search'
+import { getSearchQuery, searchPanelOpen } from '@codemirror/search'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import hljs from 'highlight.js/lib/common'
 import { detectLanguage } from '@shared/markdown/detect'
@@ -15,6 +15,18 @@ import { settingsSnapshot } from '../state/settings'
 import { cellRange, escapePipes, findTableAt, parseTable, serializeTable, type TableContext } from '../table/model'
 
 const highlightDelimiter = { resolve: 'Highlight', mark: 'HighlightMark' }
+const documentCache = new WeakMap<EditorState['doc'], { source: string; references: MarkdownReferences; referenceKey: string }>()
+
+function documentData(state: EditorState) {
+  let data = documentCache.get(state.doc)
+  if (!data) {
+    const source = state.doc.toString()
+    const references = markdownReferences(source)
+    data = { source, references, referenceKey: JSON.stringify(references) }
+    documentCache.set(state.doc, data)
+  }
+  return data
+}
 
 export function startCodeBlock(view: EditorView): boolean {
   const { state } = view
@@ -100,11 +112,11 @@ class TaskCheckbox extends WidgetType {
 
 class Rendered extends WidgetType {
   readonly language = settingsSnapshot().language
-  constructor(readonly html: string) { super() }
-  eq(other: Rendered): boolean { return this.language === other.language && this.html === other.html }
+  constructor(readonly html: string, readonly className = '') { super() }
+  eq(other: Rendered): boolean { return this.language === other.language && this.html === other.html && this.className === other.className }
   toDOM(): HTMLElement {
     const dom = document.createElement('span')
-    dom.className = 'live-rendered'
+    dom.className = `live-rendered ${this.className}`
     dom.innerHTML = this.html
     for (const image of dom.querySelectorAll('img')) {
       image.tabIndex = 0
@@ -122,6 +134,23 @@ class Rendered extends WidgetType {
 
 const tables = new WeakMap<HTMLElement, LiveTable>()
 
+interface PreviewMatch { from: number; to: number; selected: boolean }
+
+function matchClass(matches: PreviewMatch[], from: number, to: number): string {
+  let lo = 0, hi = matches.length
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1
+    if (matches[mid].to <= from) lo = mid + 1
+    else hi = mid
+  }
+  let className = ''
+  for (let i = lo; i < matches.length && matches[i].from < to; i++) {
+    if (matches[i].selected) return 'cm-searchMatch cm-searchMatch-selected'
+    className = 'cm-searchMatch'
+  }
+  return className
+}
+
 function cellHtml(raw: string, docDir: string | null, references: MarkdownReferences): string {
   const dom = document.createElement('div')
   dom.innerHTML = resolveDocumentAssets(renderMarkdown(raw, references), docDir)
@@ -132,11 +161,11 @@ function cellHtml(raw: string, docDir: string | null, references: MarkdownRefere
 class LiveTable extends WidgetType {
   readonly language = settingsSnapshot().language
   constructor(readonly ctx: TableContext, readonly docDir: string | null, readonly readOnly: boolean,
-    readonly references: MarkdownReferences, readonly referenceKey: string) {
+    readonly references: MarkdownReferences, readonly referenceKey: string, readonly matches: PreviewMatch[]) {
     super()
   }
   eq(other: LiveTable): boolean {
-    return this.referenceKey === other.referenceKey && this.language === other.language && this.docDir === other.docDir && this.ctx.raw === other.ctx.raw && this.ctx.start === other.ctx.start && this.readOnly === other.readOnly
+    return this.referenceKey === other.referenceKey && this.language === other.language && this.docDir === other.docDir && this.ctx.raw === other.ctx.raw && this.ctx.start === other.ctx.start && this.readOnly === other.readOnly && JSON.stringify(this.matches) === JSON.stringify(other.matches)
   }
   toDOM(view: EditorView): HTMLElement {
     const dom = document.createElement('div')
@@ -202,6 +231,7 @@ class LiveTable extends WidgetType {
         cell.dataset.cellFrom = String(range.from)
         cell.dataset.cellTo = String(range.to)
         cell.dataset.raw = rows[row][col]
+        cell.className = matchClass(this.matches, range.from, range.to)
         cell.tabIndex = this.readOnly ? -1 : 0
         cell.setAttribute('aria-label', t('第 {0} 行，第 {1} 列', row + 1, col + 1))
         cell.onfocus = () => {
@@ -223,6 +253,7 @@ class LiveTable extends WidgetType {
         cell.dataset.cellFrom = String(range.from)
         cell.dataset.cellTo = String(range.to)
         cell.dataset.raw = raw
+        cell.className = matchClass(this.matches, range.from, range.to)
         cell.setAttribute('aria-label', t('第 {0} 行，第 {1} 列', Number(cell.dataset.row) + 1, Number(cell.dataset.col) + 1))
         if (cell.contains(input) && input.value !== cell.dataset.raw) input.value = cell.dataset.raw
       })
@@ -275,15 +306,27 @@ export function focusTableCell(view: EditorView, start: number, end: number): bo
 }
 
 export function previewDecorations(state: EditorState, docDir: string | null): DecorationSet {
-  // Search must expose matches in table cells, image paths and hidden Markdown markers.
-  if (searchPanelOpen(state)) return Decoration.none
+  const searching = searchPanelOpen(state)
+  const matches: PreviewMatch[] = []
+  const query = getSearchQuery(state)
+  if (searching && query.valid) {
+    const cursor = query.getCursor(state)
+    for (let next = cursor.next(); !next.done; next = cursor.next()) {
+      const { from, to } = next.value
+      matches.push({ from, to, selected: state.selection.ranges.some(range => range.from === from && range.to === to) })
+    }
+  }
   const ranges: Range<Decoration>[] = []
-  const source = state.doc.toString()
-  const references = markdownReferences(source)
-  const referenceKey = JSON.stringify(references)
+  const listLines = new Map<number, { depth: number; first: boolean }>()
+  const codeLines = new Set<number>()
+  const { source, references, referenceKey } = documentData(state)
   const resolveLink = linkResolver(source, references)
   const hide = (from: number, to: number): void => {
-    if (to > from) ranges.push(Decoration.replace({}).range(from, to))
+    if (to > from) {
+      ranges.push(Decoration.replace({}).range(from, to))
+      const match = matchClass(matches, from, to)
+      if (match) line(from, match)
+    }
   }
   const mark = (from: number, to: number, className: string): void => {
     ranges.push(Decoration.mark({ class: className }).range(from, to))
@@ -299,6 +342,17 @@ export function previewDecorations(state: EditorState, docDir: string | null): D
       if (from < body && name !== 'Document') return false
       const heading = /^(?:ATX|Setext)Heading(\d)$/.exec(name)
       if (heading) line(from, `live-heading live-h${heading[1]}`)
+      if (name === 'Paragraph') {
+        line(from, 'live-paragraph-start')
+        line(to, 'live-paragraph-end')
+      }
+      if (name === 'ListItem') {
+        let depth = 1
+        for (let parent = node.node.parent; parent; parent = parent.parent) if (parent.name === 'ListItem') depth++
+        for (let pos = state.doc.lineAt(from).from; pos < to; pos = state.doc.lineAt(pos).to + 1) {
+          listLines.set(pos, { depth, first: pos === state.doc.lineAt(from).from })
+        }
+      }
       if (name === 'HeaderMark') {
         const end = source[to] === ' ' ? to + 1 : to
         hide(from, end)
@@ -328,33 +382,37 @@ export function previewDecorations(state: EditorState, docDir: string | null): D
         hide(from, source[to] === ' ' ? to + 1 : to)
       }
       if (name === 'ListMark') {
-        line(from, 'live-list')
         if (/[-+*]/.test(source.slice(from, to))) {
-          ranges.push(Decoration.replace({ widget: new Rendered('<span class="live-bullet">•</span>') }).range(from, to))
-        }
+          ranges.push(Decoration.replace({ widget: new Rendered('<span class="live-bullet">•</span>', 'live-list-marker') }).range(from, to + (source[to] === ' ' ? 1 : 0)))
+        } else mark(from, to + (source[to] === ' ' ? 1 : 0), 'live-list-marker')
       }
       if (name === 'Link' || name === 'Autolink' || (name === 'URL' && !['Link', 'Autolink', 'Image', 'LinkReference'].includes(node.node.parent?.name ?? ''))) {
         const href = resolveLink(node.node)
         if (href === null) return false
-        ranges.push(Decoration.mark({ class: 'live-link', attributes: { 'data-md-href': href, title: t('Ctrl+点击打开链接') } }).range(from, to))
+        ranges.push(Decoration.mark({ class: `live-link ${matchClass(matches, from, to)}`, attributes: { 'data-md-href': href, title: t('Ctrl+点击打开链接') } }).range(from, to))
         // The label stays editable; reveal the destination only while editing it.
         const end = node.node.getChildren('LinkMark')[1]
         if (end) {
           hide(from, from + 1)
-          if (state.selection.main.head <= end.from || state.selection.main.head >= to) hide(end.from, to)
+          if (searching || state.selection.main.head <= end.from || state.selection.main.head >= to) hide(end.from, to)
         }
         if (name !== 'Link') return false
       }
       if (name === 'Image') {
+        const container = node.node.parent?.name === 'Link' ? node.node.parent : node.node
+        const row = state.doc.lineAt(from)
+        const standalone = !source.slice(row.from, container.from).trim() && !source.slice(container.to, row.to).trim()
+        if (standalone) line(from, 'live-image-line')
         const selected = state.selection.ranges.some((r) => r.from < to && r.to > from)
         const inside = state.selection.main.head > from && state.selection.main.head < to
-        if (!selected && !inside) {
+        if (searching || standalone || (!selected && !inside)) {
           const html = resolveDocumentAssets(renderMarkdown(source.slice(from, to), references), docDir)
-          ranges.push(Decoration.replace({ widget: new Rendered(html) }).range(from, to))
+          ranges.push(Decoration.replace({ widget: new Rendered(html, matchClass(matches, from, to)) }).range(from, to))
         }
         return false
       }
       if (name === 'HorizontalRule') {
+        line(from, `live-rule ${matchClass(matches, from, to)}`)
         ranges.push(Decoration.replace({ widget: new Rendered('<hr>') }).range(from, to))
         return false
       }
@@ -369,10 +427,11 @@ export function previewDecorations(state: EditorState, docDir: string | null): D
         const focused = state.selection.main.head >= from && state.selection.main.head <= to
         for (let pos = first.from; pos <= to;) {
           const row = state.doc.lineAt(pos)
+          codeLines.add(row.from)
           const header = pos === first.from
           const footer = !!closing && row.from === state.doc.lineAt(closing.from).from
           ranges.push(Decoration.line({
-            class: `live-code-line${header ? ' live-code-header' : ''}${footer ? ' live-code-end' : ''}${focused && header ? ' is-active' : ''}`,
+            class: `live-code-line${header ? ` live-code-header ${matchClass(matches, from, first.to)}` : ''}${footer ? ' live-code-end' : ''}${focused && header ? ' is-active' : ''}`,
             attributes: { 'data-code-from': String(from), ...(footer ? { 'data-code-end': String(to) } : {}) }
           }).range(row.from))
           pos = row.to + 1
@@ -386,25 +445,36 @@ export function previewDecorations(state: EditorState, docDir: string | null): D
       if (name === 'CodeBlock') {
         for (let pos = from; pos <= to;) {
           const row = state.doc.lineAt(pos)
+          codeLines.add(row.from)
           line(pos, 'live-code-line')
           pos = row.to + 1
         }
       }
       if (name === 'Table') {
         const ctx = findTableAt(source, from)
-        if (ctx) ranges.push(Decoration.replace({ widget: new LiveTable(ctx, docDir, state.readOnly, references, referenceKey), block: true }).range(ctx.start, ctx.end))
+        if (ctx) ranges.push(Decoration.replace({ widget: new LiveTable(ctx, docDir, state.readOnly, references, referenceKey, matches.filter(match => match.from < ctx.end && match.to > ctx.start)), block: true }).range(ctx.start, ctx.end))
         return false
       }
     }
   })
+  for (const [from, { depth, first }] of listLines) {
+    if (codeLines.has(from)) continue
+    ranges.push(Decoration.line({ class: `live-list${first ? ' live-list-start' : ''}`, attributes: { style: `--list-depth: ${depth}` } }).range(from))
+    hide(from, from + /^\s*/.exec(state.doc.lineAt(from).text)![0].length)
+  }
+  for (let number = 1; number <= state.doc.lines; number++) {
+    const row = state.doc.line(number)
+    if (row.from >= body && !row.text.trim() && !codeLines.has(row.from)) line(row.from, 'live-blank')
+  }
   return Decoration.set(ranges, true)
 }
 
 // Highlight the editable text with the existing renderer's tokens. These
 // marks never replace code, so clicking and dragging keep native coordinates.
-function codeHighlights(state: EditorState): DecorationSet {
+function codeHighlights(view: EditorView): DecorationSet {
+  const { state, viewport } = view
   const ranges: Range<Decoration>[] = []
-  syntaxTree(state).iterate({ enter(node) {
+  syntaxTree(state).iterate({ from: viewport.from, to: viewport.to, enter(node) {
     if (node.name !== 'FencedCode') return
     const code = node.node.getChild('CodeText')
     if (!code) return false
@@ -432,6 +502,16 @@ function codeHighlights(state: EditorState): DecorationSet {
   return Decoration.set(ranges, true)
 }
 
+function selectionAffectsPreview(state: EditorState): boolean {
+  if (searchPanelOpen(state) || state.selection.ranges.some(range => !range.empty)) return true
+  for (const range of state.selection.ranges) {
+    for (let node = syntaxTree(state).resolveInner(range.head, -1); node; node = node.parent!) {
+      if (['Link', 'Image', 'FencedCode'].includes(node.name)) return true
+    }
+  }
+  return false
+}
+
 export function livePreview(docDir: string | null) {
   return [EditorView.domEventHandlers({
     mouseover(event, view) {
@@ -445,13 +525,13 @@ export function livePreview(docDir: string | null) {
     }
   }), StateField.define<DecorationSet>({
     create: (state) => previewDecorations(state, docDir),
-    update: (value, tr) => tr.docChanged || tr.selection || tr.reconfigured || searchPanelOpen(tr.state) !== searchPanelOpen(tr.startState) || syntaxTree(tr.state) !== syntaxTree(tr.startState)
+    update: (value, tr) => tr.docChanged || (tr.selection && (selectionAffectsPreview(tr.startState) || selectionAffectsPreview(tr.state))) || tr.reconfigured || getSearchQuery(tr.state) !== getSearchQuery(tr.startState) || searchPanelOpen(tr.state) !== searchPanelOpen(tr.startState) || syntaxTree(tr.state) !== syntaxTree(tr.startState)
       ? previewDecorations(tr.state, docDir) : value,
     provide: (field) => EditorView.decorations.from(field)
   }), ViewPlugin.define((view) => ({
-    decorations: codeHighlights(view.state),
+    decorations: codeHighlights(view),
     update(update) {
-      if (update.docChanged || syntaxTree(update.state) !== syntaxTree(update.startState)) this.decorations = codeHighlights(update.state)
+      if (update.docChanged || update.viewportChanged || syntaxTree(update.state) !== syntaxTree(update.startState)) this.decorations = codeHighlights(update.view)
     }
   }), { decorations: (plugin) => plugin.decorations })]
 }

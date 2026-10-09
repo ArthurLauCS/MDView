@@ -1,5 +1,25 @@
 # 更新记录
 
+## 0.3.2 · 2026-10-08
+
+### 简体中文
+
+- 查找和替换保持实时预览；表格、链接目标、图片路径及隐藏标记的匹配仍有可见提示。
+- 增大默认正文行距，调整标题和段落留白；列表按层级缩进，换行与正文对齐。
+- 独立图片居中并增加上下间距；修复分隔符只有空白、没有横线的问题。
+- 历史列表只传输摘要，选中后按需读取全文；屏幕外内容延迟排版，侧栏拖动按帧更新。
+- 优化历史差异计算的内存占用，减少光标移动时的重复解析，避免 Windows 换行符导致打开文档时重复加载。
+- 427 项单元测试、双端类型检查、真实 Electron 编辑与搜索回归、76 个快捷键检查通过。
+
+### English
+
+- Find and replace preserve live preview, with visible matches in tables, link destinations, image paths and hidden Markdown markers.
+- Increased default prose line spacing, improved heading and paragraph spacing, and added nested list indentation with aligned wrapped lines.
+- Centered standalone images with more surrounding space and fixed invisible horizontal rules.
+- History lists transfer summaries and load full text on demand. Offscreen content defers layout, and sidebar resizing updates once per frame.
+- Reduced history diff memory usage and repeated parsing during caret movement; avoided reloading CRLF documents unnecessarily on open.
+- Verified 427 unit tests, both TypeScript projects, real Electron editing/search regressions and 76 keyboard shortcuts.
+
 ## 0.3.1 · 2026-10-07
 
 - GitHub 仓库、AI 插件与新安装的技能统一使用 MDWisp / `mdwisp`；保留已有数据目录、文档内部标记和旧版技能。

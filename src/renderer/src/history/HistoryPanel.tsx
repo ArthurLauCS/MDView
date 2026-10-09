@@ -9,7 +9,7 @@ import { editorContext } from '../state/editor-context'
 import { ResizeHandle } from '../shell/ResizeHandle'
 import { useHistory } from './useHistory'
 import { relativeTime, absoluteTime } from './relative-time'
-import { formatBytes, formatDelta, kindLabel, lineDelta } from './history-format'
+import { formatBytes, formatDelta, kindLabel } from './history-format'
 import { liveText, restoreText } from './live-text'
 import './history.css'
 
@@ -20,7 +20,6 @@ interface Props {
 /** A revision plus what it changed, so a row is never rendered half-known. */
 interface Row {
   rev: Revision
-  text: string
   /** The revision immediately before this one; null for the oldest. */
   prevId: string | null
   /** Line-count change against the predecessor; null when there is none. */
@@ -34,7 +33,11 @@ export function HistoryPanel({ onClose }: Props): JSX.Element {
   const history = useHistory(docId)
   const { revisions, contentsOf, diffAgainst, snapshot, forget, clear, jumpTo } = history
 
-  const [rows, setRows] = useState<Row[]>([])
+  const rows = useMemo<Row[]>(() => revisions.map((rev, i) => ({
+    rev, prevId: revisions[i + 1]?.id ?? null,
+    delta: revisions[i + 1] ? (rev.lines ?? 0) - (revisions[i + 1].lines ?? 0) : null
+  })), [revisions])
+  const [text, setText] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
   const [diff, setDiff] = useState<DiffSummary | null>(null)
   const [diffLoading, setDiffLoading] = useState(false)
@@ -52,39 +55,6 @@ export function HistoryPanel({ onClose }: Props): JSX.Element {
     finally { setBusy(false) }
   }
 
-  // Line deltas need the blob before each revision, which the index does not
-  // carry. One pass over the list, newest first, keeps this to a single read
-  // per revision instead of a diff per row.
-  useEffect(() => {
-    if (!docId || revisions.length === 0) {
-      setRows([])
-      return
-    }
-    let live = true
-    void (async () => {
-      const texts = await Promise.all(
-        revisions.map((r) => contentsOf(r.id).then((t) => t ?? ''))
-      )
-      if (!live) return
-      setRows(
-        revisions.map((rev, i) => {
-          const prev = revisions[i + 1] ?? null
-          return {
-            rev,
-            text: texts[i],
-            prevId: prev?.id ?? null,
-            // The oldest revision has nothing to be measured against, and a
-            // zero delta is not the same claim as "no change".
-            delta: prev ? lineDelta(texts[i + 1] ?? '', texts[i]).delta : null
-          }
-        })
-      )
-    })().catch((error) => { if (live) setError(String(error)) })
-    return () => {
-      live = false
-    }
-  }, [docId, revisions, contentsOf])
-
   // The newest revision is what the panel is opened for, and a forgotten
   // revision must not leave the selection pointing at nothing.
   useEffect(() => {
@@ -100,10 +70,20 @@ export function HistoryPanel({ onClose }: Props): JSX.Element {
     [rows, selected]
   )
 
+  useEffect(() => {
+    setText('')
+    if (!selected || view !== 'text') return
+    let live = true
+    void contentsOf(selected).then(text => { if (live) setText(text ?? '') })
+      .catch(error => { if (live) setError(String(error)) })
+    return () => { live = false }
+  }, [selected, view, contentsOf])
+  const textChunks = useMemo(() => text.match(/(?:[^\n]*\n){1,80}|[^\n]+$/g) ?? [], [text])
+
   // Diffed against the revision immediately before it, so the panel always
   // answers one question: what did this snapshot change?
   useEffect(() => {
-    if (!selectedRow || !docId) {
+    if (!selectedRow || !docId || view !== 'diff') {
       setDiff(null)
       return
     }
@@ -121,7 +101,7 @@ export function HistoryPanel({ onClose }: Props): JSX.Element {
     return () => {
       live = false
     }
-  }, [docId, selectedRow, diffAgainst])
+  }, [docId, selectedRow, diffAgainst, view])
 
   const restore = useCallback(async (): Promise<void> => {
     if (!selected) return
@@ -234,7 +214,7 @@ export function HistoryPanel({ onClose }: Props): JSX.Element {
                   <button className="btn" disabled={!selected || busy} onClick={() => selected && setForgetting(selected)}>{t('删除此版本')}</button>
                 </div>
                 <p className="hist__caption">{selectedRow && absoluteTime(selectedRow.rev.at)}</p>
-                {view === 'text' ? <pre className="hist__source">{selectedRow?.text}</pre> : <>
+                {view === 'text' ? <pre className="hist__source">{textChunks.map((chunk, i) => <span className="hist__source-chunk" key={i}>{chunk}</span>)}</pre> : <>
                 <p className="hist__caption">{selectedRow?.prevId ? t('与上一还原点比较') : t('起始版本')}</p>
                 <div className="summary">
                   <span className="summary__n">+{diff?.added ?? 0}</span>

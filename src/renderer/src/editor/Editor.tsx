@@ -55,6 +55,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(props, ref
   current.current = props
   const config = useRef(new Compartment())
   const documentConfig = useRef(new Compartment())
+  const configuredDocument = useRef({ path: props.docPath, language: props.language })
   const [cursor, setCursor] = useState(0)
 
   const configure = () => [
@@ -225,6 +226,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(props, ref
   }, [])
 
   useEffect(() => {
+    if (configuredDocument.current.path === props.docPath && configuredDocument.current.language === props.language) return
+    configuredDocument.current = { path: props.docPath, language: props.language }
     viewRef.current?.dispatch({ effects: documentConfig.current.reconfigure(livePreview(props.docPath ? props.docPath.replace(/[\\/][^\\/]+$/, '') : null)) })
   }, [props.docPath, props.language])
 
@@ -244,9 +247,11 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(props, ref
 
   useEffect(() => {
     const view = viewRef.current
-    if (!view || props.source === view.state.doc.toString()) return
+    if (!view) return
+    const text = view.state.toText(props.source)
+    if (text.eq(view.state.doc)) return
     view.dispatch({
-      changes: { from: 0, to: view.state.doc.length, insert: props.source },
+      changes: { from: 0, to: view.state.doc.length, insert: text },
       annotations: Transaction.addToHistory.of(false)
     })
   }, [props.source])

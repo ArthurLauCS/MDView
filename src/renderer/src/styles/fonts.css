@@ -19,7 +19,7 @@
 :root {
   --font-rounded: 'MDView Rounded', 'YouYuan', 'Microsoft YaHei', sans-serif;
   --font-ui-default: 'MDView Latin', var(--font-rounded);
-  --font-read-default: 'MDView Latin', var(--font-rounded);
+  --font-read-default: 'Segoe UI', 'Microsoft YaHei', var(--font-rounded);
   --font-display-default: 'MDView Latin', 'MDView Display', 'KaiTi', serif;
   --font-code-default: 'Consolas', 'Cascadia Code', 'Liberation Mono', 'Courier New', monospace;
   --font-ui: var(--font-ui-default);

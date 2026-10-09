@@ -127,6 +127,8 @@ export interface Revision {
   at: number
   bytes: number
   kind: 'auto' | 'manual' | 'restore'
+  /** Absent in legacy indexes; filled when listing those snapshots. */
+  lines?: number
 }
 
 export interface DiffLine {
@@ -231,7 +233,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   highlightCurrentLine: true,
   readOnly: false,
   codeFontSize: 13.5,
-  lineHeight: 1.75,
+  lineHeight: 1.9,
   cursorStyle: 'bar',
   accentOverride: null,
   autoSave: true,

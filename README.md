@@ -31,9 +31,9 @@ Formerly **MDView**. The icon is unchanged. Existing settings and history remain
 
 ## Download and installation
 
-Download `MDWisp-0.3.1-setup.exe` from [Releases](https://github.com/ArthurLauCS/MDWisp/releases/latest), or build it with `npm run dist`. Installation offers English and Simplified Chinese, a directory choice and a desktop shortcut. Installers are currently unsigned; macOS and Linux have not been verified.
+Download `MDWisp-0.3.2-setup.exe` from [Releases](https://github.com/ArthurLauCS/MDWisp/releases/latest), or build it with `npm run dist`. Installation offers English and Simplified Chinese, a directory choice and a desktop shortcut. Installers are currently unsigned; macOS and Linux have not been verified.
 
-`MDWisp-AI-skills-0.3.1.zip` provides AI rules without installing the app. Copy `en/.agents` into a project for English rules, or `.agents` for Simplified Chinese. Check downloaded files against `SHA256SUMS.txt` from the release.
+`MDWisp-AI-skills-0.3.2.zip` provides AI rules without installing the app. Copy `en/.agents` into a project for English rules, or `.agents` for Simplified Chinese. Check downloaded files against `SHA256SUMS.txt` from the release.
 
 ## Getting started
 
@@ -46,7 +46,7 @@ New documents, opened files and repeated shortcut launches use independent windo
 
 ## Language and links
 
-Use **Ctrl+F** to find text and **Ctrl+H** to replace it in the current document. The panel supports replace-next, replace-all, case sensitivity, whole words and regular expressions. **F3 / Shift+F3** cycle through matches; **Esc** closes search. Search temporarily shows Markdown source so matches inside tables and link paths remain visible. Replacements can be undone; read-only documents allow searching only. Version history uses **Ctrl+Alt+Y**.
+Use **Ctrl+F** to find text and **Ctrl+H** to replace it in the current document. The panel supports replace-next, replace-all, case sensitivity, whole words and regular expressions. **F3 / Shift+F3** cycle through matches; **Esc** closes search. Search keeps the formatted preview, with visible matches in tables, link destinations, image paths and hidden Markdown markers. Replacements can be undone; read-only documents allow searching only. Version history uses **Ctrl+Alt+Y**.
 
 Choose **Settings → Appearance & fonts → Interface language** for **English** or **简体中文**. The choice applies immediately and persists across restarts without translating document content or resetting the editor.
 
@@ -127,7 +127,7 @@ node .agents/skills/mdwisp-doc/scripts/check.mjs "./Notes"
 | New document | Ctrl+N | Open document | Ctrl+O |
 | Save | Ctrl+S | Export | Ctrl+Shift+E |
 | Command palette | Ctrl+P | Settings | Ctrl+, |
-| History | Ctrl+H | Code block | Ctrl+Shift+C |
+| History | Ctrl+Alt+Y | Code block | Ctrl+Shift+C |
 | Insert image | Ctrl+Shift+I | Toggle sidebar | Ctrl+\ |
 | Undo | Ctrl+Z | Redo | Ctrl+Shift+Z / Ctrl+Y |
 

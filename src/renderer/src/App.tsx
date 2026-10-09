@@ -147,7 +147,7 @@ export function App(): JSX.Element {
     root.style.setProperty('--sidebar-w', `${settings.sidebarWidth}px`)
     root.style.setProperty('--history-w', `${settings.historyWidth}px`)
     root.style.setProperty('--editor-font-size', `${settings.codeFontSize ?? 14}px`)
-    root.style.setProperty('--editor-line-height', String(settings.lineHeight ?? 1.7))
+    root.style.setProperty('--editor-line-height', String(settings.lineHeight))
     root.style.setProperty('--editor-caret-shape', settings.cursorStyle ?? 'bar')
     root.style.setProperty('--editor-tab-size', String(settings.tabSize ?? 2))
     for (const [name, font] of [['ui', settings.fontUi], ['read', settings.fontRead], ['code', settings.fontCode], ['display', settings.fontDisplay]]) {

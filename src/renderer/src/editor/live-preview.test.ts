@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { EditorState } from '@codemirror/state'
 import { ensureSyntaxTree } from '@codemirror/language'
-import { previewDecorations, liveMarkdown } from './live-preview'
+import { EditorView, type DecorationSet } from '@codemirror/view'
+import { search } from '@codemirror/search'
+import { previewDecorations, liveMarkdown, livePreview } from './live-preview'
 import { renderMarkdown } from '../markdown/render'
 import { autoPair } from '../actions/markdown-ops'
 
@@ -17,6 +19,45 @@ function decorations(source: string) {
 }
 
 describe('live Markdown editing', () => {
+  it('reuses preview decorations for ordinary caret motion but updates link editing', () => {
+    const source = '# Heading\n\nNormal prose and [link](./target.md)'
+    let state = EditorState.create({ doc: source, extensions: [liveMarkdown(), search(), livePreview(null)] })
+    expect(ensureSyntaxTree(state, source.length, 1000)).not.toBeNull()
+    state = state.update({}).state
+    const preview = (s: EditorState) => s.facet(EditorView.decorations).filter(value => typeof value !== 'function')[0] as DecorationSet
+    const normal = state.update({ selection: { anchor: source.indexOf('Normal') + 2 } }).state
+    expect(preview(normal)).toBe(preview(state))
+    const editing = normal.update({ selection: { anchor: source.indexOf('target') + 1 } }).state
+    expect(preview(editing)).not.toBe(preview(normal))
+    const hidden: string[] = []
+    preview(editing).between(0, source.length, (from, to, value) => { if (value.spec.widget === undefined && to > from && !value.spec.class) hidden.push(source.slice(from, to)) })
+    expect(hidden).not.toContain('](./target.md)')
+  })
+
+  it('decorates separators without treating fenced samples or setext headings as rules', () => {
+    const { result } = decorations('开头\n\n---\n\n正文\n\n***\n\n标题\n---\n\n```md\n---\n```')
+    expect(result.filter(r => String(r.spec.class).startsWith('live-rule'))).toHaveLength(2)
+  })
+  it('indents nested list items and continuation lines without changing code indentation', () => {
+    const source = '- parent\n  continued\n  - child\n    - grandchild\n\n  ```md\n  - literal\n  ```'
+    const { result } = decorations(source)
+    const lists = result.filter(r => String(r.spec.class).startsWith('live-list'))
+    expect(lists.map(r => r.spec.attributes)).toEqual([
+      { style: '--list-depth: 1' }, { style: '--list-depth: 1' },
+      { style: '--list-depth: 2' }, { style: '--list-depth: 3' }, { style: '--list-depth: 1' }
+    ])
+    expect(lists.some(r => r.from === source.indexOf('  - literal'))).toBe(false)
+  })
+
+  it('centers standalone and linked images, keeps them rendered under selection, and leaves inline images in prose', () => {
+    const source = '![alone](./a.png)\n\n[![linked](./b.png)](./doc.md)\n\ntext ![inline](./c.png) after'
+    const { state, result } = decorations(source)
+    expect(result.filter(r => r.spec.class === 'live-image-line').map(r => r.from)).toEqual([0, source.indexOf('[![linked]')])
+    const selected = state.update({ selection: { anchor: 2, head: 7 } }).state
+    const widgets: unknown[] = []
+    previewDecorations(selected, null).between(0, 18, (_from, _to, value) => { if (value.spec.widget) widgets.push(value.spec.widget) })
+    expect(widgets).toHaveLength(1)
+  })
   it('shows front matter as metadata, not as a rule and a heading', () => {
     const source = '---\ntitle: 欢迎\n---\n\n# 正文\n\n---\n'
     const { result } = decorations(source)
