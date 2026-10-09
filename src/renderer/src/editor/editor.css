@@ -66,10 +66,23 @@
   caret-shape: var(--editor-caret-shape, bar);
   outline: none;
   box-shadow: none;
+  line-height: var(--editor-line-height, var(--reading-line-height));
 }
 /* CodeMirror measures border boxes; vertical margins are outside its height map. */
 .editor__surface .cm-content .cm-line { padding-inline: 0; margin-block: 0; }
 .editor__surface .cm-line.live-h1 { padding: var(--space-6); }
+.editor__surface .cm-line.live-blank { line-height: var(--space-3); }
+.editor__surface .cm-line.live-h2 { padding-block: var(--space-6) var(--space-4); }
+.editor__surface .cm-line.live-h3 { padding-block: var(--space-5) var(--space-3); }
+.editor__surface .cm-line:is(.live-h4, .live-h5, .live-h6) { padding-block: var(--space-4) var(--space-2); }
+.editor__surface .cm-line.live-paragraph-start { padding-top: var(--reading-paragraph-gap); }
+.editor__surface .cm-line.live-paragraph-end { padding-bottom: var(--reading-paragraph-gap); }
+.editor__surface .cm-line.live-list {
+  padding-left: calc(var(--list-depth) * var(--reading-list-indent) + var(--reading-list-marker));
+  padding-block: var(--reading-paragraph-gap);
+}
+.editor__surface .cm-line.live-list-start { text-indent: calc(-1 * var(--reading-list-marker)); }
+.live-list-marker { display: inline-block; width: var(--reading-list-marker); text-indent: 0; color: var(--text-tertiary); }
 .editor__surface .cm-widgetBuffer {
   display: inline;
   width: 0;
@@ -134,7 +147,7 @@
   font-family: var(--font-code);
   font-size: 0.88em;
   background: var(--bg-inset);
-  color: var(--accent);
+  color: var(--text-secondary);
   border-radius: var(--radius-sm);
 }
 
@@ -144,6 +157,7 @@
   background: var(--bg-inset);
   padding-inline: var(--space-4);
   color: var(--text-secondary);
+  line-height: var(--editor-line-height, var(--reading-line-height));
 }
 .editor__surface .live-frontmatter {
   font-family: var(--font-code);
@@ -179,16 +193,26 @@
   padding-left: var(--space-4);
   color: var(--text-secondary);
 }
-.live-bullet { color: var(--accent); }
+.live-bullet { color: var(--text-tertiary); }
 .live-rendered { display: inline-block; max-width: 100%; white-space: normal; }
 .live-rendered p { display: inline; margin: 0; }
 .live-rendered img {
+  display: inline-block;
+  margin: 0;
   max-width: 100%;
   height: auto;
   object-fit: contain;
   vertical-align: middle;
   border-radius: var(--radius-md);
 }
+.editor__surface .cm-line.live-image-line {
+  text-align: center;
+  padding-block: var(--reading-image-gap);
+}
+.live-image-line .live-rendered { vertical-align: middle; }
+.editor__surface .cm-line.live-rule { padding-block: var(--space-6); }
+.live-rule .live-rendered { display: block; }
+.live-rule .live-rendered hr { margin-block: 0; }
 .live-rendered img:focus-visible { outline: 2px solid var(--accent-line); }
 .live-rendered img:fullscreen {
   width: 100%;

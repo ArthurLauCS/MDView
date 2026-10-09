@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -27,7 +27,7 @@ describe('HistoryService', () => {
     const revision = { id, at: 1, bytes: 6, kind: 'manual' }
     await fs.writeFile(join(dir, 'index.json'), JSON.stringify({ revs: [revision, revision] }))
     expect(await h.read('doc1', id)).toBe('legacy')
-    expect(await h.list('doc1')).toEqual([revision])
+    expect(await h.list('doc1')).toEqual([{ ...revision, lines: 1 }])
     expect(await h.record('doc1', 'legacy', 'manual')).toBeNull()
   })
   it('records a revision and reads it back', async () => {
@@ -36,6 +36,15 @@ describe('HistoryService', () => {
     expect(rev).not.toBeNull()
     expect(await h.read('doc1', rev!.id)).toBe('hello')
     expect((await h.list('doc1')).length).toBe(1)
+  })
+
+  it('lists line counts without rereading new snapshot blobs', async () => {
+    const h = svc()
+    await h.record('doc1', '', 'manual')
+    await h.record('doc1', 'one\ntwo\n', 'manual')
+    const read = vi.spyOn(h, 'read')
+    expect((await h.list('doc1')).map(rev => rev.lines)).toEqual([3, 0])
+    expect(read).not.toHaveBeenCalled()
   })
 
   it('keeps revisions newest first', async () => {
@@ -139,6 +148,35 @@ describe('HistoryService', () => {
 })
 
 describe('diffLines', () => {
+  it('handles a small edit in a very large document without a quadratic table', () => {
+    const lines = Array.from({ length: 20000 }, (_, i) => `line ${i}`)
+    const before = lines.join('\n')
+    lines[10000] = 'edited'
+    const result = diffLines(before, lines.join('\n'))
+    expect(result.filter(line => line.kind !== 'same')).toEqual([
+      { kind: 'del', text: 'line 10000', oldLine: 10001, newLine: null },
+      { kind: 'add', text: 'edited', oldLine: null, newLine: 10001 }
+    ])
+  })
+
+  it('keeps exact minimal differences and offsets with repeated and reordered lines', () => {
+    const samples = ['a', 'b', 'a\na', 'a\nb', 'b\na', 'a\nb\na', 'b\na\nb', '', '\na\n', 'c\nb\na\nc']
+    for (const before of samples) for (const after of samples) {
+      const a = before.split('\n'), b = after.split('\n')
+      const lcs = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0))
+      for (let i = a.length - 1; i >= 0; i--) for (let j = b.length - 1; j >= 0; j--) {
+        lcs[i][j] = a[i] === b[j] ? 1 + lcs[i + 1][j + 1] : Math.max(lcs[i + 1][j], lcs[i][j + 1])
+      }
+      const result = diffLines(before, after)
+      expect(result.filter(line => line.kind !== 'add').map(line => line.text).join('\n')).toBe(before)
+      expect(result.filter(line => line.kind !== 'del').map(line => line.text).join('\n')).toBe(after)
+      expect(result.filter(line => line.kind === 'same')).toHaveLength(lcs[0][0])
+      for (const line of result) {
+        if (line.oldLine !== null) expect(a[line.oldLine - 1]).toBe(line.text)
+        if (line.newLine !== null) expect(b[line.newLine - 1]).toBe(line.text)
+      }
+    }
+  })
   it('reports no changes for identical text', () => {
     const d = diffLines('a\nb', 'a\nb')
     expect(d.every((l) => l.kind === 'same')).toBe(true)

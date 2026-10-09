@@ -96,7 +96,7 @@ export class HistoryService {
     // its own identity; old hash-only revision files remain readable.
     const id = `${hash}-${randomUUID()}`
     await fs.writeFile(join(dir, `${id}.md`), text, 'utf8')
-    const rev: Revision = { id, at: Date.now(), bytes: Buffer.byteLength(text), kind }
+    const rev: Revision = { id, at: Date.now(), bytes: Buffer.byteLength(text), kind, lines: text === '' ? 0 : text.split('\n').length }
     index.revs.unshift(rev)
 
     // Keep the list bounded. Losing a very old revision beats an unbounded
@@ -116,7 +116,12 @@ export class HistoryService {
   }
 
   async list(docId: string): Promise<Revision[]> {
-    return (await this.readIndex(docId)).revs
+    const { revs } = await this.readIndex(docId)
+    return Promise.all(revs.map(async rev => {
+      if (rev.lines !== undefined) return rev
+      const text = await this.read(docId, rev.id)
+      return { ...rev, lines: text ? text.split('\n').length : 0 }
+    }))
   }
 
   /** Revision contents, or null when the blob is gone. */
@@ -151,42 +156,62 @@ export class HistoryService {
 /**
  * Line-level diff between two revisions, computed once per comparison.
  *
- * A plain longest-common-subsequence over lines. Histories here are a few
- * hundred lines, so the quadratic table is cheap and the output is exact —
- * a heuristic would be faster and wrong more often than it is worth.
+ * Hirschberg keeps exact LCS results with linear working memory. Trimming
+ * unchanged ends limits the expensive comparison to the edited span.
  */
 export function diffLines(before: string, after: string): DiffLine[] {
   const a = before.split('\n')
   const b = after.split('\n')
-  const n = a.length
-  const m = b.length
-
-  // lcs[i][j] = length of the common subsequence of a[i..] and b[j..]
-  const lcs: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0))
-  for (let i = n - 1; i >= 0; i--) {
-    for (let j = m - 1; j >= 0; j--) {
-      lcs[i][j] = a[i] === b[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1])
-    }
-  }
-
   const out: DiffLine[] = []
-  let i = 0
-  let j = 0
-  while (i < n && j < m) {
-    if (a[i] === b[j]) {
-      out.push({ kind: 'same', text: a[i], oldLine: i + 1, newLine: j + 1 })
-      i++
-      j++
-    } else if (lcs[i + 1][j] >= lcs[i][j + 1]) {
-      out.push({ kind: 'del', text: a[i], oldLine: i + 1, newLine: null })
-      i++
-    } else {
-      out.push({ kind: 'add', text: b[j], oldLine: null, newLine: j + 1 })
-      j++
+  const same = (i: number, j: number): void => { out.push({ kind: 'same', text: a[i], oldLine: i + 1, newLine: j + 1 }) }
+  const lengths = (lo: number, hi: number, start: number, end: number, reverse: boolean): Uint32Array => {
+    const row = new Uint32Array(end - start + 1)
+    for (let i = 0; i < hi - lo; i++) {
+      let diagonal = 0
+      for (let j = 1; j < row.length; j++) {
+        const above = row[j]
+        row[j] = a[reverse ? hi - 1 - i : lo + i] === b[reverse ? end - j : start + j - 1]
+          ? diagonal + 1 : Math.max(row[j], row[j - 1])
+        diagonal = above
+      }
     }
+    return row
   }
-  while (i < n) out.push({ kind: 'del', text: a[i], oldLine: ++i, newLine: null })
-  while (j < m) out.push({ kind: 'add', text: b[j], oldLine: null, newLine: ++j })
+  const hasCommonLine = (lo: number, hi: number, start: number, end: number): boolean => {
+    const candidates = new Set(b.slice(start, end))
+    return a.slice(lo, hi).some(line => candidates.has(line))
+  }
+  const splitAt = (lo: number, mid: number, hi: number, start: number, end: number): number => {
+    const left = lengths(lo, mid, start, end, false)
+    const right = lengths(mid, hi, start, end, true)
+    let split = 0
+    for (let j = 1; j <= end - start; j++) {
+      if (left[j] + right[end - start - j] > left[split] + right[end - start - split]) split = j
+    }
+    return start + split
+  }
+  const walk = (lo: number, hi: number, start: number, end: number): void => {
+    while (lo < hi && start < end && a[lo] === b[start]) same(lo++, start++)
+    let suffix = 0
+    while (lo < hi && start < end && a[hi - 1] === b[end - 1]) { hi--; end--; suffix++ }
+    if (lo === hi || start === end || !hasCommonLine(lo, hi, start, end)) {
+      for (let i = lo; i < hi; i++) out.push({ kind: 'del', text: a[i], oldLine: i + 1, newLine: null })
+      for (let j = start; j < end; j++) out.push({ kind: 'add', text: b[j], oldLine: null, newLine: j + 1 })
+    } else if (hi - lo === 1) {
+      const match = b.indexOf(a[lo], start)
+      for (let j = start; j < end; j++) {
+        if (j === match) same(lo, j)
+        else out.push({ kind: 'add', text: b[j], oldLine: null, newLine: j + 1 })
+      }
+    } else {
+      const mid = (lo + hi) >>> 1
+      const split = splitAt(lo, mid, hi, start, end)
+      walk(lo, mid, start, split)
+      walk(mid, hi, split, end)
+    }
+    for (let i = 0; i < suffix; i++) same(hi + i, end + i)
+  }
+  walk(0, a.length, 0, b.length)
   return out
 }
 

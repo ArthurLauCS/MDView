@@ -11,7 +11,8 @@ export function ResizeHandle({ side }: Props): JSX.Element {
   const setting = side === 'left' ? 'sidebarWidth' : 'historyWidth'
   const variable = side === 'left' ? '--sidebar-w' : '--history-w'
   const direction = side === 'left' ? 1 : -1
-  const drag = useRef<{ x: number; width: number; next: number } | null>(null)
+  const drag = useRef<{ x: number; width: number; next: number; min: number; max: number; element: HTMLElement } | null>(null)
+  const frame = useRef<number | null>(null)
   const limits = (): [number, number] => {
     const style = getComputedStyle(document.documentElement)
     return [parseFloat(style.getPropertyValue('--side-panel-min-w')),
@@ -25,11 +26,16 @@ export function ResizeHandle({ side }: Props): JSX.Element {
   const finish = (): void => {
     if (!drag.current) return
     const width = drag.current.next
+    if (frame.current !== null) cancelAnimationFrame(frame.current)
+    frame.current = null
+    document.documentElement.style.setProperty(variable, `${width}px`)
+    drag.current.element.style.removeProperty(variable)
     drag.current = null
     delete document.documentElement.dataset.resizing
     patch({ [setting]: width })
   }
   useEffect(() => () => {
+    if (frame.current !== null) cancelAnimationFrame(frame.current)
     if (drag.current) delete document.documentElement.dataset.resizing
   }, [])
 
@@ -38,8 +44,10 @@ export function ResizeHandle({ side }: Props): JSX.Element {
     event.preventDefault()
     event.currentTarget.focus()
     event.currentTarget.setPointerCapture(event.pointerId)
-    const width = event.currentTarget.parentElement!.getBoundingClientRect().width
-    drag.current = { x: event.clientX, width, next: width }
+    const element = event.currentTarget.parentElement!
+    const width = element.getBoundingClientRect().width
+    const [min, max] = limits()
+    drag.current = { x: event.clientX, width, next: width, min, max, element }
     document.documentElement.dataset.resizing = 'true'
   }
 
@@ -49,10 +57,13 @@ export function ResizeHandle({ side }: Props): JSX.Element {
     onPointerDown={start}
     onPointerMove={(event) => {
       if (!drag.current) return
-      const width = clamp(drag.current.width + direction * (event.clientX - drag.current.x))
+      const width = Math.round(Math.max(drag.current.min, Math.min(drag.current.max, drag.current.width + direction * (event.clientX - drag.current.x))))
       drag.current.next = width
-      document.documentElement.style.setProperty(variable, `${width}px`)
       event.currentTarget.setAttribute('aria-valuenow', String(width))
+      if (frame.current === null) frame.current = requestAnimationFrame(() => {
+        frame.current = null
+        if (drag.current) drag.current.element.style.setProperty(variable, `${drag.current.next}px`)
+      })
     }}
     onPointerUp={(event) => event.currentTarget.releasePointerCapture(event.pointerId)}
     onLostPointerCapture={finish}

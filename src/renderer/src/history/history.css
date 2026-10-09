@@ -13,6 +13,7 @@
 .hist__detail-head [aria-pressed='true'] { color: var(--accent); border-color: var(--accent-line); }
 .hist__caption { color: var(--text-tertiary); font-size: var(--text-xs); margin-block: var(--space-2); }
 .hist__source { white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; font: var(--text-sm)/1.6 var(--font-code); padding: var(--space-3); border-radius: var(--radius-sm); background: var(--bg-inset); }
+.hist__source-chunk { display: block; content-visibility: auto; contain-intrinsic-size: auto var(--history-chunk-height); }
 .history-panel .diff { overflow-x: auto; }
 .history-panel .diff__text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .history-panel .hist__actions { flex-wrap: wrap; border: 0; padding: 0; margin: 0; min-width: 0; }
@@ -197,6 +198,8 @@
    an added line can be located in either version. */
 .hist__detail .diff__row {
   grid-template-columns: 40px 40px 1fr;
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--history-row-height);
 }
 
 .diff__row--add .diff__text--add {
