@@ -3,7 +3,7 @@ import { EditorState } from '@codemirror/state'
 import { ensureSyntaxTree } from '@codemirror/language'
 import { EditorView, type DecorationSet } from '@codemirror/view'
 import { search } from '@codemirror/search'
-import { previewDecorations, liveMarkdown, livePreview } from './live-preview'
+import { previewDecorations, liveMarkdown, livePreview, deleteHorizontalRule } from './live-preview'
 import { renderMarkdown } from '../markdown/render'
 import { autoPair } from '../actions/markdown-ops'
 
@@ -19,6 +19,37 @@ function decorations(source: string) {
 }
 
 describe('live Markdown editing', () => {
+  for (const [tag, className] of [['strong', 'live-strong'], ['em', 'live-em'], ['del', 'live-strike'], ['mark', 'live-mark'], ['u', 'live-underline']]) {
+    it(`previews inline HTML ${tag} without exposing its markers`, () => {
+      const source = `<${tag}>复审：</${tag}>保留`
+      const { result } = decorations(source)
+      expect(result.some(r => r.spec.class === className && source.slice(r.from, r.to) === '复审：')).toBe(true)
+      expect(renderMarkdown(source)).toContain(`<${tag}>复审：</${tag}>保留`)
+      expect(result.filter(r => !r.spec.class).map(r => source.slice(r.from, r.to))).toContain(`</${tag}>`)
+    })
+  }
+  it('matches nested HTML tags and ignores tag-like code samples', () => {
+    const { result } = decorations('<strong>outer <strong>inner</strong> end</strong>')
+    expect(result.filter(r => r.spec.class === 'live-strong')).toHaveLength(2)
+    expect(decorations('`<strong>literal</strong>`').result.some(r => r.spec.class === 'live-strong')).toBe(false)
+  })
+  for (const marker of ['---', '-'.repeat(150), '***', '___', '* * *', '  - - -']) {
+    for (const location of ['end', 'inside', 'next-line', 'last-line']) {
+      it(`deletes ${marker.slice(0, 10)} as one rule from ${location}`, () => {
+        const source = 'before\n\n' + marker + (location === 'last-line' ? '' : '\n\nafter')
+        const at = location === 'next-line' ? 8 + marker.length + 1 : 8 + (location === 'inside' ? 2 : marker.length)
+        let state = EditorState.create({ doc: source, selection: { anchor: at }, extensions: [liveMarkdown()] })
+        const view = { get state() { return state }, dispatch(spec: Parameters<EditorState['update']>[0]) { state = state.update(spec).state } } as unknown as EditorView
+        expect(deleteHorizontalRule(view)).toBe(true)
+        expect(state.doc.toString()).toBe(location === 'last-line' ? 'before\n' : 'before\n\n\nafter')
+      })
+    }
+  }
+  it.each(['---\ntitle: sample\n---', 'heading\n---', '```md\n---\n```', '    ---', 'text---', '- item', '| A |\n| --- |'])('does not delete non-rule syntax: %j', source => {
+    const at = source.indexOf('---') + 3
+    const state = EditorState.create({ doc: source, selection: { anchor: at < 3 ? source.length : at }, extensions: [liveMarkdown()] })
+    expect(deleteHorizontalRule({ state, dispatch() { throw new Error('unexpected deletion') } } as unknown as EditorView)).toBe(false)
+  })
   it('reuses preview decorations for ordinary caret motion but updates link editing', () => {
     const source = '# Heading\n\nNormal prose and [link](./target.md)'
     let state = EditorState.create({ doc: source, extensions: [liveMarkdown(), search(), livePreview(null)] })

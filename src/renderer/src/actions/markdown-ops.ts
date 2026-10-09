@@ -1,4 +1,5 @@
 import { t } from '../i18n'
+import { markdownLanguage } from '@codemirror/lang-markdown'
 /**
  * Source-level markdown transforms. Every function is pure: it takes the
  * whole document and a selection, and returns the new document plus where
@@ -13,15 +14,47 @@ export interface EditResult {
   selection?: [number, number]
 }
 
+/** Preserve CodeMirror's unchanged ranges and scroll anchors. */
+export function minimalChange(source: string, text: string) {
+  let from = 0
+  while (from < source.length && from < text.length && source[from] === text[from]) from++
+  let to = source.length, end = text.length
+  while (to > from && end > from && source[to - 1] === text[end - 1]) {
+    to--
+    end--
+  }
+  return { from, to, insert: text.slice(from, end) }
+}
+
 /** Expand a range to whole lines, returning the line boundaries. */
 function lineBounds(src: string, start: number, end: number): [number, number] {
-  const from = src.lastIndexOf('\n', start - 1) + 1
-  let to = src.indexOf('\n', end)
+  const from = start === 0 ? 0 : src.lastIndexOf('\n', start - 1) + 1
+  let to = src.indexOf('\n', end > start && src[end - 1] === '\n' ? end - 1 : end)
   if (to === -1) to = src.length
   return [from, to]
 }
 
+function isWrapped(text: string, open: string, close: string): boolean {
+  if (open === '==') return !text.slice(open.length, -close.length).includes('==')
+  const tree = markdownLanguage.parser.parse(text)
+  const name = open.startsWith('`') ? 'InlineCode' : ({ '**': 'StrongEmphasis', '*': 'Emphasis', '~~': 'Strikethrough' } as Record<string, string>)[open]
+  if (name) {
+    let found = false
+    tree.iterate({ enter(node) { if (node.name === name && node.from === 0 && node.to === text.length) found = true } })
+    return found
+  }
+  let depth = 0, end = -1
+  tree.iterate({ enter(node) {
+    if (node.name !== 'HTMLTag') return
+    const raw = text.slice(node.from, node.to)
+    if (raw === open) depth++
+    if (raw === close && --depth === 0 && end < 0) end = node.to
+  } })
+  return end === text.length
+}
+
 export function toggleInline(src: string, start: number, end: number, wrap: string): EditResult {
+  const tag = ({ '**': 'strong', '*': 'em', '~~': 'del', '==': 'mark', '<u>': 'u' } as Record<string, string>)[wrap]
   const close = wrap === '<u>' ? '</u>' : wrap
   if (start === end) {
     // Nothing selected: insert the pair and put the cursor between them so
@@ -29,27 +62,75 @@ export function toggleInline(src: string, start: number, end: number, wrap: stri
     const text = src.slice(0, start) + wrap + close + src.slice(end)
     return { text, cursor: start + wrap.length }
   }
+  if (!src.slice(start, end).trim()) return { text: src, cursor: start, selection: [start, end] }
+  if (src.slice(start, end).includes('\n')) {
+    const selected = src.slice(start, end)
+    let offset = start
+    const text = selected.split('\n').map(row => {
+      const result = row.trim() ? toggleInline(src, offset, offset + row.length, wrap).text : src
+      const replacement = result.slice(offset, result.length - (src.length - offset - row.length))
+      offset += row.length + 1
+      return replacement
+    }).join('\n')
+    return { text: src.slice(0, start) + text + src.slice(end), cursor: start, selection: [start, start + text.length] }
+  }
+  // Spaces outside emphasis remain prose, rather than invalidating the delimiters.
+  if (wrap !== '`') {
+    const raw = src.slice(start, end)
+    start += raw.length - raw.trimStart().length
+    end -= raw.length - raw.trimEnd().length
+  }
   const selected = src.slice(start, end)
-  const before = src.slice(start - wrap.length, start)
-  const after = src.slice(end, end + close.length)
-
-  // Already wrapped — unwrap.
-  if (before === wrap && after === close) {
-    return {
-      text: src.slice(0, start - wrap.length) + selected + src.slice(end + close.length),
-      cursor: start - wrap.length,
-      selection: [start - wrap.length, end - wrap.length]
+  const pairs: [string, string][] = [[wrap, close]]
+  if (tag && wrap !== '<u>') pairs.unshift([`<${tag}>`, `</${tag}>`])
+  if (wrap === '`') {
+    const ticks = /(`+)( ?)$/.exec(src.slice(0, start))
+    if (ticks) pairs.unshift([ticks[1] + ticks[2], ticks[2] + ticks[1]])
+    const selectedTicks = /^`+/.exec(selected)?.[0]
+    if (selectedTicks) pairs.unshift([selectedTicks, selectedTicks])
+  }
+  for (const [open, shut] of pairs) {
+    const before = src.slice(Math.max(0, start - open.length), start)
+    const after = src.slice(end, end + shut.length)
+    // One star out of ** is not an italic wrapper; *** contains both formats.
+    const italicInBold = open === '*' && (src.slice(0, start).match(/\*+$/)?.[0].length ?? 0) % 2 === 0
+    if (before === open && after === shut && !italicInBold && isWrapped(before + selected + after, open, shut)) {
+      return { text: src.slice(0, start - open.length) + selected + src.slice(end + shut.length),
+        cursor: start - open.length, selection: [start - open.length, end - open.length] }
+    }
+    const leading = /^\*+/.exec(selected)?.[0].length ?? 0
+    if (selected.startsWith(open) && selected.endsWith(shut) && selected.length > open.length + shut.length &&
+      !(open === '*' && leading % 2 === 0) && isWrapped(selected, open, shut)) {
+      let inner = selected.slice(open.length, -shut.length)
+      if (wrap === '`' && /^ .* $/.test(inner) && inner.trim()) inner = inner.slice(1, -1)
+      return { text: src.slice(0, start) + inner + src.slice(end), cursor: start, selection: [start, start + inner.length] }
     }
   }
-  // Selection itself contains the markers.
-  if (selected.startsWith(wrap) && selected.endsWith(close) && selected.length > wrap.length + close.length) {
-    const inner = selected.slice(wrap.length, -close.length)
-    return { text: src.slice(0, start) + inner + src.slice(end), cursor: start, selection: [start, start + inner.length] }
+  let open = wrap, shut = close
+  if (wrap === '`') {
+    open = shut = '`'.repeat(Math.max(0, ...Array.from(selected.matchAll(/`+/g), match => match[0].length)) + 1)
+    if (/^`|`$/.test(selected) || (/^ .* $/.test(selected) && selected.trim())) {
+      open += ' '
+      shut = ' ' + shut
+    }
+  } else if (tag && wrap !== '<u>') {
+    const space = (ch: string) => !ch || /\s/u.test(ch)
+    const punct = (ch: string) => /[\p{P}\p{S}]/u.test(ch)
+    const before = Array.from(src.slice(0, start)).at(-1) ?? ''
+    const first = Array.from(selected)[0], last = Array.from(selected).at(-1)!
+    const after = Array.from(src.slice(end))[0] ?? ''
+    const opens = !space(first) && (!punct(first) || space(before) || punct(before))
+    const closes = !space(last) && (!punct(last) || space(after) || punct(after))
+    // Raw inline HTML preserves exact punctuation without inserting visible spaces.
+    if (!opens || !closes || selected.startsWith(wrap) || selected.endsWith(wrap) || (wrap.includes('*') && (before === '*' || after === '*'))) {
+      open = `<${tag}>`
+      shut = `</${tag}>`
+    }
   }
   return {
-    text: src.slice(0, start) + wrap + selected + close + src.slice(end),
-    cursor: start + wrap.length,
-    selection: [start + wrap.length, end + wrap.length]
+    text: src.slice(0, start) + open + selected + shut + src.slice(end),
+    cursor: start + open.length,
+    selection: [start + open.length, end + open.length]
   }
 }
 
@@ -172,6 +253,9 @@ export function autoPair(
   selection: { start: number; end: number } | null,
   ch: string
 ): EditResult | 'skip-close' | null {
+  // Literal Markdown delimiters must remain typeable, including ___ and *** rules.
+  if ((!selection || selection.start === selection.end) && '*_~'.includes(ch)) return null
+  if (!selection && /['"]/.test(ch) && /[\p{L}\p{N}]/u.test(src.slice(0, cursor).at(-1) ?? '')) return null
   // A fence is typed literally. Pairing its backticks leaves an extra closer
   // inside the new block and moves the caret onto a hidden delimiter.
   const lineStart = src.lastIndexOf('\n', cursor - 1) + 1
@@ -222,6 +306,7 @@ export function insertTable(src: string, at: number, rows: number, cols: number)
 /** Strip markdown syntax down to readable plain text — for "copy as text". */
 export function toPlainText(md: string): string {
   return md
+    .replace(/<\/?(?:strong|em|del|mark|u)>/g, '')
     .replace(/^---\n[\s\S]*?\n---\n/, '')
     .replace(/```[\s\S]*?```/g, (m) => m.replace(/```\w*\n?/g, ''))
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
