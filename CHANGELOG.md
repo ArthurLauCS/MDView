@@ -1,5 +1,16 @@
 # 更新记录
 
+## 0.3.5 · 2026-10-09
+
+- 修复长表格中的查找跳转：按匹配文字的实际显示坐标定位，不再按整个表格组件跳转。
+- 支持超高单元格中的重复匹配，以及链接路径、图片路径的可见目标；保持预览和查找框焦点。
+- 布局和字号变化后校正查找位置；主动滚动后停止校正，避免被拉回。
+- 新增 54 次实际位置检查，覆盖真实大文档、三种窗口/字号、双向循环查找、隐藏路径、横向溢出与只读状态。
+- Fix search navigation inside long preview tables by scrolling to the rendered match rather than the enclosing table widget.
+- Locate repeated matches in tall cells and visible targets for hidden link/image paths while retaining preview and search-field focus.
+- Keep matches visible after layout/font changes while respecting manual scrolling.
+- Add 54 actual-position checks across a real large document, three window/font layouts, bidirectional wraparound, hidden paths, horizontal overflow and read-only mode.
+
 ## 0.3.4 · 2026-10-09
 
 - 修复输入下划线等 Markdown 标记时自动重复的问题；自动配对和格式操作只更新改动范围，避免长文档滚动跳转。
