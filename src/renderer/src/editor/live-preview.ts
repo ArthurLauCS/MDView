@@ -1,7 +1,7 @@
 import { t } from '../i18n'
 import { StateField, type EditorState, type Range } from '@codemirror/state'
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet } from '@codemirror/view'
-import { syntaxTree } from '@codemirror/language'
+import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
 import { getSearchQuery, searchPanelOpen } from '@codemirror/search'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import hljs from 'highlight.js/lib/common'
@@ -40,6 +40,25 @@ export function startCodeBlock(view: EditorView): boolean {
   if (!fence || cursor.head !== row.to || block.name !== 'FencedCode' || block.from !== row.from + fence[1].length) return false
   if (block.getChildren('CodeMark').length > 1) return false
   view.dispatch({ changes: { from: row.to, insert: `\n${fence[1]}\n${fence[1]}${fence[2]}` }, selection: { anchor: row.to + 1 + fence[1].length }, userEvent: 'input.type' })
+  return true
+}
+
+export function deleteHorizontalRule(view: EditorView): boolean {
+  const { state } = view
+  const cursor = state.selection.main
+  if (state.readOnly || !cursor.empty || state.selection.ranges.length !== 1) return false
+  let row = state.doc.lineAt(cursor.head)
+  if (cursor.head === row.from && row.number > 1) row = state.doc.line(row.number - 1)
+  const tree = ensureSyntaxTree(state, row.to, 100)
+  if (!tree || row.from < frontmatterEnd(state.doc.toString())) return false
+  let rule = false
+  tree.iterate({ from: row.from, to: row.to, enter(node) {
+    if (node.name === 'HorizontalRule' && node.from >= row.from && node.to <= row.to) rule = true
+  } })
+  if (!rule) return false
+  const from = row.number === state.doc.lines && row.from > 0 ? row.from - 1 : row.from
+  const to = row.number < state.doc.lines ? row.to + 1 : row.to
+  view.dispatch({ changes: { from, to }, selection: { anchor: from }, scrollIntoView: true, userEvent: 'delete.backward' })
   return true
 }
 
@@ -360,7 +379,17 @@ export function previewDecorations(state: EditorState, docDir: string | null): D
       if (name === 'StrongEmphasis') mark(from, to, 'live-strong')
       if (name === 'Emphasis') mark(from, to, 'live-em')
       if (name === 'Strikethrough') mark(from, to, 'live-strike')
-      if (name === 'InlineCode') mark(from, to, 'live-code')
+      if (name === 'InlineCode') {
+        mark(from, to, 'live-code')
+        const delimiters = node.node.getChildren('CodeMark')
+        if (delimiters.length === 2) {
+          const inner = source.slice(delimiters[0].to, delimiters[1].from)
+          if (inner.startsWith(' ') && inner.endsWith(' ') && inner.trim()) {
+            hide(delimiters[0].to, delimiters[0].to + 1)
+            hide(delimiters[1].from - 1, delimiters[1].from)
+          }
+        }
+      }
       if (name === 'Highlight') mark(from, to, 'live-mark')
       if (name === 'Superscript') mark(from, to, 'live-sup')
       if (name === 'Subscript') mark(from, to, 'live-sub')
@@ -369,12 +398,20 @@ export function previewDecorations(state: EditorState, docDir: string | null): D
         ranges.push(Decoration.replace({ widget: new TaskCheckbox(from, /x/i.test(source.slice(from, to)), state.readOnly) }).range(from, to))
         return false
       }
-      if (name === 'HTMLTag' && source.slice(from, to) === '<u>') {
-        const end = source.indexOf('</u>', to)
-        if (end >= 0 && end < state.doc.lineAt(from).to) {
+      if (name === 'HTMLTag' && /^<(u|strong|em|del|mark)>$/.test(source.slice(from, to))) {
+        const tag = source.slice(from + 1, to - 1)
+        // Match parsed sibling tags so code samples and nested tags cannot close this span.
+        let depth = 1, closing = node.node.nextSibling
+        for (; closing; closing = closing.nextSibling) {
+          if (closing.name !== 'HTMLTag') continue
+          const raw = source.slice(closing.from, closing.to)
+          if (raw === `<${tag}>`) depth++
+          if (raw === `</${tag}>` && --depth === 0) break
+        }
+        if (closing && closing.from > to) {
           hide(from, to)
-          mark(to, end, 'live-underline')
-          hide(end, end + 4)
+          mark(to, closing.from, ({ u: 'live-underline', strong: 'live-strong', em: 'live-em', del: 'live-strike', mark: 'live-mark' } as Record<string, string>)[tag])
+          hide(closing.from, closing.to)
         }
       }
       if (name === 'QuoteMark') {

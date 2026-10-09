@@ -1,5 +1,16 @@
 # 更新记录
 
+## 0.3.4 · 2026-10-09
+
+- 修复输入下划线等 Markdown 标记时自动重复的问题；自动配对和格式操作只更新改动范围，避免长文档滚动跳转。
+- 预览中的分隔线可用一次 Backspace 整行删除，并可撤销；代码示例、YAML 和 Setext 标题不受影响。
+- 格式快捷键处理中文/英文标点边界、选区空白、嵌套格式、多段文本和含反引号的行内代码；必要时使用兼容的行内 HTML 保持文字不变。
+- 修复标题/列表选区误包含下一行的问题。增加多类文本单元测试和真实 Electron 快捷键回归脚本。
+- Fix duplicated Markdown delimiters and scroll jumps by typing delimiters literally and applying local edits for pairing and formatting.
+- Delete a previewed horizontal rule with one Backspace, with undo support, while preserving code samples, YAML and Setext headings.
+- Handle punctuation boundaries, whitespace, nested formatting, multiple paragraphs and backticks in formatting shortcuts; use inline HTML where needed to preserve exact text.
+- Keep line-format shortcuts from touching the next unselected line and add broad unit and Electron keyboard regression coverage.
+
 ## 0.3.3 · 2026-10-09
 
 - 恢复实时预览中行内代码和列表标记原有的陶土色强调；保留 0.3.2 的排版、搜索和性能优化。

@@ -7,8 +7,8 @@ import { markdownKeymap } from '@codemirror/lang-markdown'
 import { closeSearchPanel, getSearchQuery, openSearchPanel, search, searchPanelOpen, setSearchQuery } from '@codemirror/search'
 import { indentUnit, syntaxTree } from '@codemirror/language'
 import type { Locale } from '@shared/types'
-import { autoPair } from '../actions/markdown-ops'
-import { focusTableCell, livePreview, liveMarkdown, startCodeBlock, leaveCodeBlock } from './live-preview'
+import { autoPair, minimalChange } from '../actions/markdown-ops'
+import { focusTableCell, livePreview, liveMarkdown, startCodeBlock, leaveCodeBlock, deleteHorizontalRule } from './live-preview'
 import { PageMargins } from './PageMargins'
 import { searchChinese, searchCommands, type SearchCommand } from './search'
 import './editor.css'
@@ -99,7 +99,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(props, ref
       const view = viewRef.current
       if (!view || view.state.readOnly) return
       const cursor = at ?? start + text.length
-      view.dispatch({ changes: { from: start, to: end, insert: text }, selection: { anchor: cursor }, userEvent: 'input' })
+      const change = minimalChange(view.state.doc.sliceString(start, end), text)
+      view.dispatch({ changes: { ...change, from: start + change.from, to: start + change.to }, selection: { anchor: cursor }, userEvent: 'input' })
       select(cursor, cursor)
     },
     select,
@@ -137,7 +138,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(props, ref
           history(),
           search({ top: true }),
           config.current.of(configure()),
-          keymap.of([{ key: 'Enter', run: startCodeBlock }, ...historyKeymap, indentWithTab, ...defaultKeymap]),
+          keymap.of([{ key: 'Enter', run: startCodeBlock }, { key: 'Backspace', run: deleteHorizontalRule }, ...historyKeymap, indentWithTab, ...defaultKeymap]),
           EditorView.lineWrapping,
           scrollPastEnd(),
           documentConfig.current.of(livePreview(current.current.docPath ? current.current.docPath.replace(/[\\/][^\\/]+$/, '') : null)),
@@ -172,16 +173,16 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(props, ref
           EditorView.inputHandler.of((view, from, to, text) => {
             if (!current.current.autoPair || view.composing || text.length !== 1) return false
             for (let node = syntaxTree(view.state).resolveInner(from, -1); node; node = node.parent!) {
-              if (node.name === 'FencedCode' || node.name === 'CodeBlock') return false
+              if (node.name === 'FencedCode' || node.name === 'CodeBlock' || node.name === 'InlineCode') return false
             }
             const source = view.state.doc.toString()
             const result = autoPair(source, from, from === to ? null : { start: from, end: to }, text)
             if (!result) return false
             if (result === 'skip-close') view.dispatch({ selection: { anchor: from + 1 } })
             else view.dispatch({
-              changes: { from: 0, to: source.length, insert: result.text },
+              changes: minimalChange(source, result.text),
               selection: { anchor: result.selection?.[0] ?? result.cursor, head: result.selection?.[1] ?? result.cursor },
-              userEvent: 'input.type'
+              userEvent: 'input.type', scrollIntoView: true
             })
             return true
           }),
