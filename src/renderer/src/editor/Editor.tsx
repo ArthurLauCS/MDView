@@ -10,7 +10,7 @@ import type { Locale } from '@shared/types'
 import { autoPair, minimalChange } from '../actions/markdown-ops'
 import { focusTableCell, livePreview, liveMarkdown, startCodeBlock, leaveCodeBlock, deleteHorizontalRule } from './live-preview'
 import { PageMargins } from './PageMargins'
-import { searchChinese, searchCommands, type SearchCommand } from './search'
+import { searchChinese, searchCommands, previewSearchScroll, type SearchCommand } from './search'
 import './editor.css'
 
 export interface EditorHandle {
@@ -137,6 +137,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(props, ref
           liveMarkdown(),
           history(),
           search({ top: true }),
+          previewSearchScroll,
           config.current.of(configure()),
           keymap.of([{ key: 'Enter', run: startCodeBlock }, { key: 'Backspace', run: deleteHorizontalRule }, ...historyKeymap, indentWithTab, ...defaultKeymap]),
           EditorView.lineWrapping,
