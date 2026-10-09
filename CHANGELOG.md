@@ -1,5 +1,10 @@
 # 更新记录
 
+## 0.3.3 · 2026-10-09
+
+- 恢复实时预览中行内代码和列表标记原有的陶土色强调；保留 0.3.2 的排版、搜索和性能优化。
+- Restore the original terracotta accent for inline code and list markers in live preview, preserving the layout, search and performance improvements from 0.3.2.
+
 ## 0.3.2 · 2026-10-08
 
 ### 简体中文

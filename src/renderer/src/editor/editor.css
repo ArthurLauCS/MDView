@@ -82,7 +82,7 @@
   padding-block: var(--reading-paragraph-gap);
 }
 .editor__surface .cm-line.live-list-start { text-indent: calc(-1 * var(--reading-list-marker)); }
-.live-list-marker { display: inline-block; width: var(--reading-list-marker); text-indent: 0; color: var(--text-tertiary); }
+.live-list-marker { display: inline-block; width: var(--reading-list-marker); text-indent: 0; color: var(--accent); }
 .editor__surface .cm-widgetBuffer {
   display: inline;
   width: 0;
@@ -147,7 +147,7 @@
   font-family: var(--font-code);
   font-size: 0.88em;
   background: var(--bg-inset);
-  color: var(--text-secondary);
+  color: var(--accent);
   border-radius: var(--radius-sm);
 }
 
@@ -193,7 +193,7 @@
   padding-left: var(--space-4);
   color: var(--text-secondary);
 }
-.live-bullet { color: var(--text-tertiary); }
+.live-bullet { color: var(--accent); }
 .live-rendered { display: inline-block; max-width: 100%; white-space: normal; }
 .live-rendered p { display: inline; margin: 0; }
 .live-rendered img {
